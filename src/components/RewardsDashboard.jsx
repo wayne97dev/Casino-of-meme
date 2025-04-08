@@ -775,6 +775,7 @@ useEffect(() => {
     setWaitingPlayersList(data.players || []);
   });
   socket.on('gameState', (game) => {
+    console.log('Received game state:', game);
     setPokerPlayers(game.players || []);
     setPokerTableCards(game.tableCards || []);
     setPokerPlayerCards(game.playerCards || {});
