@@ -764,6 +764,11 @@ const [opponentCardsVisible, setOpponentCardsVisible] = useState(false);
 const [waitingPlayersList, setWaitingPlayersList] = useState([]); // Lista dei giocatori in attesa
 const [dealerMessage, setDealerMessage] = useState(''); // Messaggi del dealer
 const [raiseAmount, setRaiseAmount] = useState(0.01); // Stato per l'importo del raise
+const [timeLeft, setTimeLeft] = useState(30); // Stato per il tempo rimanente
+
+
+
+
 
 
 
@@ -792,6 +797,7 @@ useEffect(() => {
     setGamePhase(game.gamePhase || 'pre-flop');
     setOpponentCardsVisible(game.opponentCardsVisible || false);
     setDealerMessage(game.dealerMessage || '');
+    setTimeLeft(game.timeLeft || 30); // Aggiorna il tempo rimanente
     if (game.gameId) {
       localStorage.setItem('currentGameId', game.gameId);
     }
@@ -839,7 +845,6 @@ useEffect(() => {
     socket.off('distributeWinnings');
   };
 }, [publicKey]);
-
 
 
 
@@ -964,7 +969,6 @@ useEffect(() => {
   };
 
 
-
   const joinPokerGame = async () => {
     if (!connected || !publicKey) {
       setPokerMessage('Connect your wallet to play!');
@@ -1005,7 +1009,6 @@ useEffect(() => {
       setPokerMessage('Bet failed. Please try again.');
     }
   };
-  
 
 
   const makePokerMove = async (move, amount = 0) => {
@@ -1058,6 +1061,7 @@ useEffect(() => {
   
     socket.emit('makeMove', { gameId, move, amount });
   };
+  
 
    
   // Fetch dei dati di reward
@@ -2471,6 +2475,11 @@ useEffect(() => {
       {dealerMessage && (
         <p className="text-center text-orange-700 mb-4 text-lg font-bold">{dealerMessage}</p>
       )}
+      {pokerStatus === 'playing' && currentTurn === socket.id && (
+        <p className="text-center text-orange-700 mb-4 text-lg font-bold">
+          Time Left: {timeLeft} seconds
+        </p>
+      )}
       {pokerStatus === 'waiting' ? (
         <button onClick={joinPokerGame} className="w-full casino-button" disabled={!!betError}>
           Join Game (Bet {betAmount.toFixed(2)} SOL)
@@ -2521,6 +2530,7 @@ useEffect(() => {
             setGamePhase('pre-flop');
             setOpponentCardsVisible(false);
             setDealerMessage('');
+            setTimeLeft(30);
             localStorage.removeItem('currentGameId');
           }}
           className="w-full casino-button"
@@ -2529,7 +2539,7 @@ useEffect(() => {
           Play Again (Bet {betAmount.toFixed(2)} SOL)
         </button>
       ) : (
-        <p className="text-center text-orange-700">Opponent's turn...</p>
+        <p className="text-center text-orange-700">Opponent's turn... (Time Left: {timeLeft} seconds)</p>
       )}
       <button
         onClick={() => setSelectedGame(null)}
