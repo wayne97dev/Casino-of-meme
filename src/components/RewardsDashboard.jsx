@@ -746,87 +746,123 @@ const RewardsDashboard = () => {
   // Stato per gli effetti visivi
   const [triggerWinEffect, setTriggerWinEffect] = useState(false);
 
-  // Stato per Poker PvP (gestito dal backend)
-  const [pokerPlayers, setPokerPlayers] = useState([]);
-  const [pokerTableCards, setPokerTableCards] = useState([]);
-  const [pokerPlayerCards, setPokerPlayerCards] = useState({});
-  const [pokerStatus, setPokerStatus] = useState('waiting');
-  const [pokerMessage, setPokerMessage] = useState('Waiting for another player...');
-  const [currentTurn, setCurrentTurn] = useState(null);
-  const [pokerPot, setPokerPot] = useState(0);
-  const [currentBet, setCurrentBet] = useState(0);
-  const [playerBets, setPlayerBets] = useState({});
-  const [gamePhase, setGamePhase] = useState('pre-flop');
-  const [opponentCardsVisible, setOpponentCardsVisible] = useState(false);
+// Stato per Poker PvP (gestito dal backend)
+const [pokerPlayers, setPokerPlayers] = useState([]);
+const [pokerTableCards, setPokerTableCards] = useState([]);
+const [pokerPlayerCards, setPokerPlayerCards] = useState({});
+const [pokerStatus, setPokerStatus] = useState('waiting');
+const [pokerMessage, setPokerMessage] = useState('Waiting for another player...');
+const [currentTurn, setCurrentTurn] = useState(null);
+const [pokerPot, setPokerPot] = useState(0);
+const [currentBet, setCurrentBet] = useState(0);
+const [playerBets, setPlayerBets] = useState({});
+const [gamePhase, setGamePhase] = useState('pre-flop');
+const [opponentCardsVisible, setOpponentCardsVisible] = useState(false);
+const [waitingPlayersList, setWaitingPlayersList] = useState([]); // Lista dei giocatori in attesa
+const [dealerMessage, setDealerMessage] = useState(''); // Messaggi del dealer
 
-  // Ref per i suoni
-  const spinAudioRef = useRef(null);
-  const winAudioRef = useRef(null);
+// Configurazione Socket.IO per Poker PvP
+useEffect(() => {
+  socket.on('connect', () => console.log('Connected to backend'));
+  socket.on('connect_error', (err) => console.error('Connection error:', err));
+  socket.on('waiting', (data) => {
+    setPokerMessage(data.message);
+    setWaitingPlayersList(data.players || []);
+  });
+  socket.on('waitingPlayers', (data) => {
+    setWaitingPlayersList(data.players || []);
+  });
+  socket.on('gameState', (game) => {
+    setPokerPlayers(game.players || []);
+    setPokerTableCards(game.tableCards || []);
+    setPokerPlayerCards(game.playerCards || {});
+    setPokerStatus(game.status || 'waiting');
+    setPokerMessage(game.message || 'Waiting for another player...');
+    setCurrentTurn(game.currentTurn || null);
+    setPokerPot(game.pot || 0);
+    setCurrentBet(game.currentBet || 0);
+    setPlayerBets(game.playerBets || {});
+    setGamePhase(game.gamePhase || 'pre-flop');
+    setOpponentCardsVisible(game.opponentCardsVisible || false);
+    setDealerMessage(game.dealerMessage || '');
+    if (game.gameId) {
+      localStorage.setItem('currentGameId', game.gameId);
+    }
+  });
 
-  // Configurazione Socket.IO per Poker PvP
-  useEffect(() => {
-    socket.on('connect', () => console.log('Connected to backend'));
-    socket.on('connect_error', (err) => console.error('Connection error:', err));
-    socket.on('gameState', (game) => {
-      setPokerPlayers(game.players || []);
-      setPokerTableCards(game.tableCards || []);
-      setPokerPlayerCards(game.playerCards || {});
-      setPokerStatus(game.status || 'waiting');
-      setPokerMessage(game.message || 'Waiting for another player...');
-      setCurrentTurn(game.currentTurn || null);
-      setPokerPot(game.pot || 0);
-      setCurrentBet(game.currentBet || 0);
-      setPlayerBets(game.playerBets || {});
-      setGamePhase(game.gamePhase || 'pre-flop');
-      setOpponentCardsVisible(game.opponentCardsVisible || false);
-      if (game.gameId) {
-        localStorage.setItem('currentGameId', game.gameId);
+  socket.on('distributeWinnings', async ({ winnerAddress, amount }) => {
+    if (winnerAddress === publicKey?.toString()) {
+      const winAmountInLamports = amount * LAMPORTS_PER_SOL;
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: wallet.publicKey,
+          toPubkey: publicKey,
+          lamports: winAmountInLamports,
+        })
+      );
+
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = wallet.publicKey;
+      transaction.partialSign(wallet);
+
+      try {
+        const signature = await connection.sendRawTransaction(transaction.serialize());
+        await connection.confirmTransaction(signature);
+        setTriggerWinEffect(true);
+        playSound(winAudioRef);
+        setPlayerStats(prev => ({
+          ...prev,
+          wins: prev.wins + 1,
+          totalWinnings: prev.totalWinnings + amount,
+        }));
+      } catch (err) {
+        console.error('Error distributing winnings:', err);
+        setPokerMessage('Winnings not distributed. Contact support.');
       }
-    });
+    }
+  });
 
-    socket.on('distributeWinnings', async ({ winnerAddress, amount }) => {
-      if (winnerAddress === publicKey?.toString()) {
-        const winAmountInLamports = amount * LAMPORTS_PER_SOL;
-        const transaction = new Transaction().add(
-          SystemProgram.transfer({
-            fromPubkey: wallet.publicKey,
-            toPubkey: publicKey,
-            lamports: winAmountInLamports,
-          })
-        );
+  return () => {
+    socket.off('connect');
+    socket.off('connect_error');
+    socket.off('waiting');
+    socket.off('waitingPlayers');
+    socket.off('gameState');
+    socket.off('distributeWinnings');
+  };
+}, [publicKey]);
 
-        const { blockhash } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = wallet.publicKey;
-        transaction.partialSign(wallet);
 
-        try {
-          const signature = await connection.sendRawTransaction(transaction.serialize());
-          await connection.confirmTransaction(signature);
-          setTriggerWinEffect(true);
-          playSound(winAudioRef);
-          setPlayerStats(prev => ({
-            ...prev,
-            wins: prev.wins + 1,
-            totalWinnings: prev.totalWinnings + amount,
-          }));
-        } catch (err) {
-          console.error('Error distributing winnings:', err);
-          setPokerMessage('Winnings not distributed. Contact support.');
-        }
-      }
-    });
 
-    return () => {
-      socket.off('connect');
-      socket.off('connect_error');
-      socket.off('gameState');
-      socket.off('distributeWinnings');
-    };
-  }, [publicKey]);
 
-  // Fetch della classifica dal backend
-  useEffect(() => {
+
+
+// Recupera la classifica
+useEffect(() => {
+  const fetchLeaderboard = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/leaderboard`);
+      const data = await response.json();
+      setLeaderboard(data);
+      console.log('Leaderboard updated:', data);
+    } catch (err) {
+      console.error('Error fetching leaderboard:', err);
+    }
+  };
+
+  // Carica la leaderboard all'avvio
+  fetchLeaderboard();
+
+  // Aggiorna la leaderboard ogni 30 secondi
+  const interval = setInterval(fetchLeaderboard, 30000);
+
+  return () => clearInterval(interval);
+}, []);
+
+// Aggiorna la leaderboard quando il giocatore vince
+useEffect(() => {
+  if (connected && publicKey) {
     const fetchLeaderboard = async () => {
       try {
         const response = await fetch(`${BACKEND_URL}/leaderboard`);
@@ -837,7 +873,8 @@ const RewardsDashboard = () => {
       }
     };
     fetchLeaderboard();
-  }, []);
+  }
+}, [playerStats, connected, publicKey]);
 
   // Funzioni utili
   const playSound = (audioRef) => {
@@ -923,13 +960,13 @@ const RewardsDashboard = () => {
       setPokerMessage('Connect your wallet to play!');
       return;
     }
-
+  
     const betError = validateBet(betAmount);
     if (betError) {
       setPokerMessage(betError);
       return;
     }
-
+  
     const betInLamports = betAmount * LAMPORTS_PER_SOL;
     const transaction = new Transaction().add(
       SystemProgram.transfer({
@@ -938,16 +975,16 @@ const RewardsDashboard = () => {
         lamports: betInLamports,
       })
     );
-
+  
     const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = publicKey;
-
+  
     try {
       const signed = await signTransaction(transaction);
       const signature = await connection.sendRawTransaction(signed.serialize());
       await connection.confirmTransaction(signature);
-
+  
       socket.emit('joinGame', {
         playerAddress: publicKey.toString(),
         betAmount,
@@ -958,29 +995,29 @@ const RewardsDashboard = () => {
       setPokerMessage('Bet failed. Please try again.');
     }
   };
-
+  
   const makePokerMove = async (move, amount = 0) => {
     if (!connected || !publicKey || pokerStatus !== 'playing') {
       setPokerMessage('Game not in progress or wallet not connected!');
       return;
     }
-
+  
     const gameId = localStorage.getItem('currentGameId');
     if (!gameId) {
       setPokerMessage('No active game found!');
       return;
     }
-
+  
     if (currentTurn !== socket.id) {
       setPokerMessage("It's not your turn!");
       return;
     }
-
+  
     if ((move === 'bet' || move === 'raise') && validateBet(amount)) {
       setPokerMessage(validateBet(amount));
       return;
     }
-
+  
     if (move === 'bet' || move === 'raise') {
       const additionalBet = amount - (playerBets[publicKey.toString()] || 0);
       const betInLamports = additionalBet * LAMPORTS_PER_SOL;
@@ -991,11 +1028,11 @@ const RewardsDashboard = () => {
           lamports: betInLamports,
         })
       );
-
+  
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
-
+  
       try {
         const signed = await signTransaction(transaction);
         const signature = await connection.sendRawTransaction(signed.serialize());
@@ -1006,10 +1043,11 @@ const RewardsDashboard = () => {
         return;
       }
     }
-
+  
     socket.emit('makeMove', { gameId, move, amount });
   };
 
+   
   // Fetch dei dati di reward
   useEffect(() => {
     if (connection && wallet && MINT_ADDRESS) {
@@ -2324,140 +2362,177 @@ const RewardsDashboard = () => {
                   </div>
                 </div>
               )}
+              
+
+
+
               {selectedGame === 'Poker PvP' && (
-                <div>
-                  <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
-                    Poker PvP
-                  </h2>
-                  <div className="mb-6 text-center">
-                    <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={betAmount}
-                      onChange={handleBetChange}
-                      className="bet-input"
-                      placeholder="Enter bet (0.01 - 1 SOL)"
-                    />
-                    {betError && <p className="bet-error">{betError}</p>}
-                  </div>
-                  <div className="game-box p-6 mb-10">
-                    <p className="text-lg text-orange-700 mb-2 text-center">Pot: {pokerPot.toFixed(2)} SOL</p>
-                    <p className="text-lg text-orange-700 mb-2 text-center">Current Bet: {currentBet.toFixed(2)} SOL</p>
-                    <p className="text-lg text-orange-700 mb-2 text-center">Community Cards:</p>
-                    <div className="flex gap-4 justify-center">
-                      {pokerTableCards.map((card, index) => (
-                        <div
-                          key={index}
-                          className="card"
-                          style={{
-                            backgroundImage: `url(${card.image})`,
-                            backgroundSize: 'cover',
-                            width: '100px',
-                            height: '140px',
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-lg text-orange-700 mb-2 text-center">Your Cards:</p>
-                    <div className="flex gap-4 justify-center">
-                      {pokerPlayerCards[publicKey?.toString()]?.map((card, index) => (
-                        <div
-                          key={index}
-                          className="card"
-                          style={{
-                            backgroundImage: `url(${card.image})`,
-                            backgroundSize: 'cover',
-                            width: '100px',
-                            height: '140px',
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-lg text-orange-700 mb-2 text-center">Opponent's Cards:</p>
-                    <div className="flex gap-4 justify-center">
-                      {pokerPlayerCards[pokerPlayers.find(p => p.address !== publicKey?.toString())?.address]?.map((card, index) => (
-                        <div
-                          key={index}
-                          className="card"
-                          style={{
-                            backgroundImage: opponentCardsVisible ? `url(${card.image})` : `url(${CARD_BACK_IMAGE})`,
-                            backgroundSize: 'cover',
-                            width: '100px',
-                            height: '140px',
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-center text-orange-700 mb-4 text-lg">{pokerMessage}</p>
-                    {pokerStatus === 'waiting' ? (
-                      <button onClick={joinPokerGame} className="w-full casino-button" disabled={!!betError}>
-                        Join Game (Bet {betAmount.toFixed(2)} SOL)
-                      </button>
-                    ) : pokerStatus === 'playing' && currentTurn === socket.id ? (
-                      <div className="flex flex-col gap-4">
-                        <div className="flex gap-4">
-                          <button onClick={() => makePokerMove('call')} className="flex-1 casino-button">
-                            Call ({(currentBet - (playerBets[publicKey?.toString()] || 0)).toFixed(2)} SOL)
-                          </button>
-                          <button onClick={() => makePokerMove('fold')} className="flex-1 casino-button">
-                            Fold
-                          </button>
-                          <button onClick={() => makePokerMove('check')} className="flex-1 casino-button">
-                            Check
-                          </button>
-                        </div>
-                        <div className="flex gap-4">
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            max="1"
-                            value={betAmount}
-                            onChange={handleBetChange}
-                            className="bet-input flex-1"
-                            placeholder="Bet/Raise Amount"
-                          />
-                          <button onClick={() => makePokerMove('bet', betAmount)} className="flex-1 casino-button">
-                            Bet
-                          </button>
-                          <button onClick={() => makePokerMove('raise', betAmount)} className="flex-1 casino-button">
-                            Raise
-                          </button>
-                        </div>
-                      </div>
-                    ) : pokerStatus === 'finished' ? (
-                      <button
-                        onClick={() => {
-                          setPokerStatus('waiting');
-                          setPokerPlayers([]);
-                          setPokerTableCards([]);
-                          setPokerPlayerCards({});
-                          setPokerMessage('Waiting for another player...');
-                          setPokerPot(0);
-                          setCurrentBet(0);
-                          setPlayerBets({});
-                          setGamePhase('pre-flop');
-                          setOpponentCardsVisible(false);
-                          localStorage.removeItem('currentGameId');
-                        }}
-                        className="w-full casino-button"
-                        disabled={!!betError}
-                      >
-                        Play Again (Bet {betAmount.toFixed(2)} SOL)
-                      </button>
-                    ) : (
-                      <p className="text-center text-orange-700">Opponent's turn...</p>
-                    )}
-                    <button
-                      onClick={() => setSelectedGame(null)}
-                      className="w-full casino-button mt-4"
-                    >
-                      Back to Casino Floor
-                    </button>
-                  </div>
-                </div>
-              )}
+  <div>
+    <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
+      Poker PvP
+    </h2>
+    <div className="mb-6 text-center">
+      <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
+      <input
+        type="number"
+        step="0.01"
+        value={betAmount}
+        onChange={handleBetChange}
+        className="bet-input"
+        placeholder="Enter bet (0.01 - 1 SOL)"
+      />
+      {betError && <p className="bet-error">{betError}</p>}
+    </div>
+    <div className="game-box p-6 mb-10">
+      {waitingPlayersList.length > 0 && pokerStatus === 'waiting' && (
+        <div className="mb-6">
+          <p className="text-lg text-orange-700 mb-2 text-center">Players Waiting:</p>
+          <ul className="text-center">
+            {waitingPlayersList.map((player, index) => (
+              <li key={index} className="text-orange-700">
+                {player.address.slice(0, 8)}... (Bet: {player.bet.toFixed(2)} SOL)
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {pokerPlayers.length > 0 && (
+        <div className="mb-6">
+          <p className="text-lg text-orange-700 mb-2 text-center">Players at Table:</p>
+          <ul className="text-center">
+            {pokerPlayers.map((player, index) => (
+              <li key={index} className="text-orange-700">
+                {player.address.slice(0, 8)}... (Bet: {player.bet.toFixed(2)} SOL)
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p className="text-lg text-orange-700 mb-2 text-center">Pot: {pokerPot.toFixed(2)} SOL</p>
+      <p className="text-lg text-orange-700 mb-2 text-center">Current Bet: {currentBet.toFixed(2)} SOL</p>
+      <p className="text-lg text-orange-700 mb-2 text-center">Community Cards:</p>
+      <div className="flex gap-4 justify-center">
+        {pokerTableCards.map((card, index) => (
+          <div
+            key={index}
+            className="card"
+            style={{
+              backgroundImage: `url(${card.image})`,
+              backgroundSize: 'cover',
+              width: '100px',
+              height: '140px',
+            }}
+          />
+        ))}
+      </div>
+      <p className="text-lg text-orange-700 mb-2 text-center">Your Cards:</p>
+      <div className="flex gap-4 justify-center">
+        {pokerPlayerCards[publicKey?.toString()]?.map((card, index) => (
+          <div
+            key={index}
+            className="card"
+            style={{
+              backgroundImage: `url(${card.image})`,
+              backgroundSize: 'cover',
+              width: '100px',
+              height: '140px',
+            }}
+          />
+        ))}
+      </div>
+      <p className="text-lg text-orange-700 mb-2 text-center">Opponent's Cards:</p>
+      <div className="flex gap-4 justify-center">
+        {pokerPlayerCards[pokerPlayers.find(p => p.address !== publicKey?.toString())?.address]?.map((card, index) => (
+          <div
+            key={index}
+            className="card"
+            style={{
+              backgroundImage: opponentCardsVisible ? `url(${card.image})` : `url(${CARD_BACK_IMAGE})`,
+              backgroundSize: 'cover',
+              width: '100px',
+              height: '140px',
+            }}
+          />
+        ))}
+      </div>
+      <p className="text-center text-orange-700 mb-4 text-lg">{pokerMessage}</p>
+      {dealerMessage && (
+        <p className="text-center text-orange-700 mb-4 text-lg font-bold">{dealerMessage}</p>
+      )}
+      {pokerStatus === 'waiting' ? (
+        <button onClick={joinPokerGame} className="w-full casino-button" disabled={!!betError}>
+          Join Game (Bet {betAmount.toFixed(2)} SOL)
+        </button>
+      ) : pokerStatus === 'playing' && currentTurn === socket.id ? (
+        <div className="flex flex-col gap-4">
+          <div className="flex gap-4">
+            <button onClick={() => makePokerMove('call')} className="flex-1 casino-button">
+              Call ({(currentBet - (playerBets[publicKey?.toString()] || 0)).toFixed(2)} SOL)
+            </button>
+            <button onClick={() => makePokerMove('fold')} className="flex-1 casino-button">
+              Fold
+            </button>
+            <button onClick={() => makePokerMove('check')} className="flex-1 casino-button">
+              Check
+            </button>
+          </div>
+          <div className="flex gap-4">
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              max="1"
+              value={betAmount}
+              onChange={handleBetChange}
+              className="bet-input flex-1"
+              placeholder="Bet/Raise Amount"
+            />
+            <button onClick={() => makePokerMove('bet', betAmount)} className="flex-1 casino-button">
+              Bet
+            </button>
+            <button onClick={() => makePokerMove('raise', betAmount)} className="flex-1 casino-button">
+              Raise
+            </button>
+          </div>
+        </div>
+      ) : pokerStatus === 'finished' ? (
+        <button
+          onClick={() => {
+            setPokerStatus('waiting');
+            setPokerPlayers([]);
+            setPokerTableCards([]);
+            setPokerPlayerCards({});
+            setPokerMessage('Waiting for another player...');
+            setPokerPot(0);
+            setCurrentBet(0);
+            setPlayerBets({});
+            setGamePhase('pre-flop');
+            setOpponentCardsVisible(false);
+            setDealerMessage('');
+            localStorage.removeItem('currentGameId');
+          }}
+          className="w-full casino-button"
+          disabled={!!betError}
+        >
+          Play Again (Bet {betAmount.toFixed(2)} SOL)
+        </button>
+      ) : (
+        <p className="text-center text-orange-700">Opponent's turn...</p>
+      )}
+      <button
+        onClick={() => setSelectedGame(null)}
+        className="w-full casino-button mt-4"
+      >
+        Back to Casino Floor
+      </button>
+    </div>
+  </div>
+)}
+
+
+
+
+
               {selectedGame === 'Crazy Time' && (
                 <div>
                   <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
