@@ -721,6 +721,8 @@ const RewardsDashboard = () => {
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [rotationAngle, setRotationAngle] = useState(0);
   const audioRef = useRef(null);
+  const spinAudioRef = useRef(null); // Aggiunto
+  const winAudioRef = useRef(null);  // Aggiunto
   const wheelRef = useRef(null);
 
   // Stato per la paginazione
@@ -746,20 +748,20 @@ const RewardsDashboard = () => {
   // Stato per gli effetti visivi
   const [triggerWinEffect, setTriggerWinEffect] = useState(false);
 
-// Stato per Poker PvP (gestito dal backend)
-const [pokerPlayers, setPokerPlayers] = useState([]);
-const [pokerTableCards, setPokerTableCards] = useState([]);
-const [pokerPlayerCards, setPokerPlayerCards] = useState({});
-const [pokerStatus, setPokerStatus] = useState('waiting');
-const [pokerMessage, setPokerMessage] = useState('Waiting for another player...');
-const [currentTurn, setCurrentTurn] = useState(null);
-const [pokerPot, setPokerPot] = useState(0);
-const [currentBet, setCurrentBet] = useState(0);
-const [playerBets, setPlayerBets] = useState({});
-const [gamePhase, setGamePhase] = useState('pre-flop');
-const [opponentCardsVisible, setOpponentCardsVisible] = useState(false);
-const [waitingPlayersList, setWaitingPlayersList] = useState([]); // Lista dei giocatori in attesa
-const [dealerMessage, setDealerMessage] = useState(''); // Messaggi del dealer
+  // Stato per Poker PvP (gestito dal backend)
+  const [pokerPlayers, setPokerPlayers] = useState([]);
+  const [pokerTableCards, setPokerTableCards] = useState([]);
+  const [pokerPlayerCards, setPokerPlayerCards] = useState({});
+  const [pokerStatus, setPokerStatus] = useState('waiting');
+  const [pokerMessage, setPokerMessage] = useState('Waiting for another player...');
+  const [currentTurn, setCurrentTurn] = useState(null);
+  const [pokerPot, setPokerPot] = useState(0);
+  const [currentBet, setCurrentBet] = useState(0);
+  const [playerBets, setPlayerBets] = useState({});
+  const [gamePhase, setGamePhase] = useState('pre-flop');
+  const [opponentCardsVisible, setOpponentCardsVisible] = useState(false);
+  const [waitingPlayersList, setWaitingPlayersList] = useState([]); // Lista dei giocatori in attesa
+  const [dealerMessage, setDealerMessage] = useState(''); // Messaggi del dealer
 
 // Configurazione Socket.IO per Poker PvP
 useEffect(() => {
@@ -876,14 +878,15 @@ useEffect(() => {
   }
 }, [playerStats, connected, publicKey]);
 
-  // Funzioni utili
-  const playSound = (audioRef) => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(err => console.error('Audio playback failed:', err));
-    }
-  };
+const playSound = (audioRef) => {
+  if (audioRef && audioRef.current) {
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+    audioRef.current.play().catch(err => console.error('Audio playback failed:', err));
+  } else {
+    console.warn('Audio ref is not defined or not initialized:', audioRef);
+  }
+};
 
   const validateBet = (amount) => {
     if (isNaN(amount) || amount <= 0) return 'Bet must be a positive number.';
