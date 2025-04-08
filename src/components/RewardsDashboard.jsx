@@ -8,6 +8,9 @@ import { Canvas, useThree, useLoader } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Text, useFBX, useAnimations, Stars, useHelper } from '@react-three/drei';
 import * as THREE from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import io from 'socket.io-client';
+import axios from 'axios';
+
 
 // File audio
 const backgroundMusic = 'crazy-time-background.mp3';
