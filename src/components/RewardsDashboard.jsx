@@ -8,6 +8,9 @@ import { Canvas, useThree, useLoader } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Text, useFBX, useAnimations, Stars, useHelper } from '@react-three/drei';
 import * as THREE from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import io from 'socket.io-client';
+import axios from 'axios';
+
 
 // File audio
 const backgroundMusic = 'crazy-time-background.mp3';
@@ -39,6 +42,10 @@ const wallet = WALLET_PRIVATE_KEY ? Keypair.fromSecretKey(bs58.decode(WALLET_PRI
 
 
 const CARD_BACK_IMAGE = '/assets/card-back.png';
+
+
+const BACKEND_URL = 'https://casino-of-meme-backend.onrender.com'; // Sostituisci con l'URL del backend su Render
+const socket = io(BACKEND_URL);
 
 // Percentuale di vittoria del computer per ogni minigioco
 const COMPUTER_WIN_CHANCE = {
