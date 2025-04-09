@@ -796,24 +796,27 @@ useEffect(() => {
   };
 
   const handleDistributeWinnings = async ({ winnerAddress, amount }) => {
+    console.log('Distribute winnings:', { winnerAddress, amount });
     if (winnerAddress === publicKey?.toString()) {
+      // Trasferisci la ricompensa dal tax wallet al giocatore vincitore
       const winAmountInLamports = amount * LAMPORTS_PER_SOL;
       const transaction = new Transaction().add(
         SystemProgram.transfer({
-          fromPubkey: wallet.publicKey,
-          toPubkey: publicKey,
+          fromPubkey: wallet.publicKey, // Tax wallet
+          toPubkey: publicKey, // Wallet del giocatore vincitore
           lamports: winAmountInLamports,
         })
       );
-  
+
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = wallet.publicKey;
       transaction.partialSign(wallet);
-  
+
       try {
         const signature = await connection.sendRawTransaction(transaction.serialize());
         await connection.confirmTransaction(signature);
+        console.log(`Transferred ${amount} SOL from tax wallet to ${publicKey.toString()}`);
         setTriggerWinEffect(true);
         playSound(winAudioRef);
         setPlayerStats(prev => ({
@@ -821,10 +824,13 @@ useEffect(() => {
           wins: prev.wins + 1,
           totalWinnings: prev.totalWinnings + amount,
         }));
+        setPokerMessage(`You won ${amount.toFixed(2)} SOL!`);
       } catch (err) {
         console.error('Error distributing winnings:', err);
         setPokerMessage('Winnings not distributed. Contact support.');
       }
+    } else {
+      setPokerMessage(`${winnerAddress.slice(0, 8)}... won ${amount.toFixed(2)} SOL!`);
     }
   };
 
@@ -836,29 +842,33 @@ useEffect(() => {
       socket.emit('reconnectPlayer', { playerAddress: publicKey.toString(), gameId });
     }
   });
+
   socket.on('connect_error', (err) => {
     console.error('Socket connection error:', err);
     setPokerMessage('Failed to connect to server. Retrying...');
-    // Ritenta la connessione dopo 5 secondi
-    setTimeout(() => {
-      console.log('Retrying socket connection...');
-      socket.connect();
-    }, 5000);
+    setTimeout(() => socket.connect(), 5000);
   });
+
   socket.on('waiting', (data) => {
     console.log('Received waiting event:', data);
     setPokerMessage(data.message);
     setWaitingPlayersList(data.players || []);
   });
+
   socket.on('waitingPlayers', (data) => {
     console.log('Received waitingPlayers event:', data);
     setWaitingPlayersList(data.players || []);
   });
+
   socket.on('gameState', handleGameState);
   socket.on('distributeWinnings', handleDistributeWinnings);
+  socket.on('error', (data) => {
+    console.error('Error from server:', data);
+    setPokerMessage(data.message);
+  });
 
   if (!socket.connected) {
-    console.log('Socket not connected, attempting to connect...');
+    console.log('Connecting socket...');
     socket.connect();
   }
 
@@ -869,8 +879,9 @@ useEffect(() => {
     socket.off('waitingPlayers');
     socket.off('gameState', handleGameState);
     socket.off('distributeWinnings', handleDistributeWinnings);
+    socket.off('error');
   };
-}, []);
+}, [publicKey]);
 
 // Determina se è il turno del giocatore corrente
 const isMyTurn = currentTurn === socket.id;
