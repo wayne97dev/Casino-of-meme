@@ -798,7 +798,6 @@ useEffect(() => {
   const handleDistributeWinnings = async ({ winnerAddress, amount }) => {
     console.log('Distribute winnings:', { winnerAddress, amount });
     if (winnerAddress === publicKey?.toString()) {
-      // Trasferisci la ricompensa dal tax wallet al giocatore vincitore
       const winAmountInLamports = amount * LAMPORTS_PER_SOL;
       const transaction = new Transaction().add(
         SystemProgram.transfer({
@@ -807,12 +806,12 @@ useEffect(() => {
           lamports: winAmountInLamports,
         })
       );
-
+  
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = wallet.publicKey;
       transaction.partialSign(wallet);
-
+  
       try {
         const signature = await connection.sendRawTransaction(transaction.serialize());
         await connection.confirmTransaction(signature);
@@ -1024,7 +1023,7 @@ useEffect(() => {
     const transaction = new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: publicKey,
-        toPubkey: wallet.publicKey,
+        toPubkey: wallet.publicKey, // Tax wallet
         lamports: betInLamports,
       })
     );
@@ -1037,6 +1036,7 @@ useEffect(() => {
       const signed = await signTransaction(transaction);
       const signature = await connection.sendRawTransaction(signed.serialize());
       await connection.confirmTransaction(signature);
+      console.log(`Transferred ${betAmount} SOL from ${publicKey.toString()} to tax wallet`);
   
       socket.emit('joinGame', {
         playerAddress: publicKey.toString(),
@@ -1044,8 +1044,8 @@ useEffect(() => {
       });
       setPokerMessage('You have joined the game! Waiting for another player...');
     } catch (err) {
-      console.error('Bet error:', err);
-      setPokerMessage('Bet failed. Please try again.');
+      console.error('Join game error:', err);
+      setPokerMessage('Failed to join game. Try again.');
     }
   };
 
@@ -1072,35 +1072,44 @@ useEffect(() => {
       return;
     }
   
-    if (move === 'bet' || move === 'raise') {
-      const additionalBet = amount - (playerBets[publicKey.toString()] || 0);
-      const betInLamports = additionalBet * LAMPORTS_PER_SOL;
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: wallet.publicKey,
-          lamports: betInLamports,
-        })
-      );
+    // Gestisci il trasferimento SOL per "Call", "Bet" e "Raise"
+    if (move === 'call' || move === 'bet' || move === 'raise') {
+      let additionalBet;
+      if (move === 'call') {
+        additionalBet = currentBet - (playerBets[publicKey?.toString()] || 0);
+      } else {
+        additionalBet = amount - (playerBets[publicKey?.toString()] || 0);
+      }
   
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = publicKey;
+      if (additionalBet > 0) {
+        const betInLamports = additionalBet * LAMPORTS_PER_SOL;
+        const transaction = new Transaction().add(
+          SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey: wallet.publicKey, // Tax wallet
+            lamports: betInLamports,
+          })
+        );
   
-      try {
-        const signed = await signTransaction(transaction);
-        const signature = await connection.sendRawTransaction(signed.serialize());
-        await connection.confirmTransaction(signature);
-      } catch (err) {
-        console.error('Bet error:', err);
-        setPokerMessage('Bet failed. Please try again.');
-        return;
+        const { blockhash } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = publicKey;
+  
+        try {
+          const signed = await signTransaction(transaction);
+          const signature = await connection.sendRawTransaction(signed.serialize());
+          await connection.confirmTransaction(signature);
+          console.log(`Transferred ${additionalBet} SOL from ${publicKey.toString()} to tax wallet for ${move}`);
+        } catch (err) {
+          console.error('Bet error:', err);
+          setPokerMessage('Bet failed. Please try again.');
+          return;
+        }
       }
     }
   
     socket.emit('makeMove', { gameId, move, amount });
   };
-  
 
    
   // Fetch dei dati di reward
