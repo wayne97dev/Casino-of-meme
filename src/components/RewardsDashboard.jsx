@@ -1485,7 +1485,7 @@ const spinSlots = async () => {
 
     // Durata totale dello spin
     const spinDuration = 5000; // 5 secondi
-    const intervalTime = 400; // Aggiornamento ogni 100ms
+    const intervalTime = 800; // Aggiornamento ogni 800ms sec
     let elapsedTime = 0;
 
     // Calcola il risultato finale in anticipo
@@ -1529,8 +1529,8 @@ const spinSlots = async () => {
         setIsStopping(true);
 
         // Ferma i rulli uno alla volta per un effetto realistico
-        setTimeout(() => setSlotReelsDisplay(result.slice(0, 3).concat(Array(6).fill(null))), 200);
-        setTimeout(() => setSlotReelsDisplay(result.slice(0, 6).concat(Array(3).fill(null))), 400);
+        setTimeout(() => setSlotReelsDisplay(result.slice(0, 3).concat(Array(6).fill(null))), 500);
+        setTimeout(() => setSlotReelsDisplay(result.slice(0, 6).concat(Array(3).fill(null))), 800);
         setTimeout(() => {
           setSlotReelsDisplay(result);
           setIsStopping(false);
