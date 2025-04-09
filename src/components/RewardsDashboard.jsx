@@ -1446,147 +1446,168 @@ useEffect(() => {
     }
   };
 
-  const spinSlots = async () => {
-    if (!connected || !publicKey) {
-      setSlotMessage('Please connect your wallet to play!');
-      return;
+  const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(9).fill(null));
+const [isStopping, setIsStopping] = useState(false); // Stato per la fase di fermata
+
+const spinSlots = async () => {
+  if (!connected || !publicKey) {
+    setSlotMessage('Please connect your wallet to play!');
+    return;
+  }
+
+  const betError = validateBet(betAmount);
+  if (betError) {
+    setSlotMessage(betError);
+    return;
+  }
+
+  setSlotStatus('spinning');
+  setIsStopping(false);
+  playSound(spinAudioRef);
+
+  const betInLamports = betAmount * LAMPORTS_PER_SOL;
+  const transaction = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: publicKey,
+      toPubkey: wallet.publicKey,
+      lamports: betInLamports,
+    })
+  );
+
+  const { blockhash } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = publicKey;
+
+  try {
+    const signed = await signTransaction(transaction);
+    const signature = await connection.sendRawTransaction(signed.serialize());
+    await connection.confirmTransaction(signature);
+
+    // Durata totale dello spin
+    const spinDuration = 3000; // 3 secondi
+    const intervalTime = 100; // Aggiornamento ogni 100ms
+    let elapsedTime = 0;
+
+    // Calcola il risultato finale in anticipo
+    let result;
+    if (Math.random() < COMPUTER_WIN_CHANCE.memeSlots) {
+      result = Array(9).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
+      let attempts = 0;
+      while (attempts < 10) {
+        let hasWin = false;
+        const winLines = [[0, 1, 2], [3, 4, 5], [6, 7, 8]];
+        for (const line of winLines) {
+          const symbolsInLine = line.map(index => result[index].name);
+          if (symbolsInLine.every(symbol => symbol === symbolsInLine[0])) {
+            hasWin = true;
+            break;
+          }
+        }
+        if (!hasWin) break;
+        result = Array(9).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
+        attempts++;
+      }
+    } else {
+      result = Array(9).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
+      const winningSymbol = slotMemes[Math.floor(Math.random() * slotMemes.length)];
+      const winLines = [[0, 1, 2], [3, 4, 5], [6, 7, 8]];
+      const winningLine = winLines[Math.floor(Math.random() * winLines.length)];
+      winningLine.forEach(index => {
+        result[index] = winningSymbol;
+      });
     }
 
-    const betError = validateBet(betAmount);
-    if (betError) {
-      setSlotMessage(betError);
-      return;
+    setSlotReels(result);
+
+    // Animazione dei rulli
+    const spinInterval = setInterval(() => {
+      setSlotReelsDisplay(Array(9).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]));
+      elapsedTime += intervalTime;
+
+      if (elapsedTime >= spinDuration - 500) { // Inizia a fermarsi 500ms prima della fine
+        clearInterval(spinInterval);
+        setIsStopping(true);
+
+        // Ferma i rulli uno alla volta per un effetto realistico
+        setTimeout(() => setSlotReelsDisplay(result.slice(0, 3).concat(Array(6).fill(null))), 200);
+        setTimeout(() => setSlotReelsDisplay(result.slice(0, 6).concat(Array(3).fill(null))), 400);
+        setTimeout(() => {
+          setSlotReelsDisplay(result);
+          setIsStopping(false);
+          evaluateResult(result);
+        }, 600);
+      }
+    }, intervalTime);
+  } catch (err) {
+    console.error('Spin failed:', err);
+    setSlotMessage('Spin failed. Try again.');
+    setSlotStatus('idle');
+  }
+};
+
+// Funzione per valutare il risultato
+const evaluateResult = (result) => {
+  const winLines = [[0, 1, 2], [3, 4, 5], [6, 7, 8]];
+  const winningLinesFound = [];
+  let totalWin = 0;
+
+  for (let i = 0; i < winLines.length; i++) {
+    const line = winLines[i];
+    const symbolsInLine = line.map(index => result[index].name);
+    if (symbolsInLine.every(symbol => symbol === symbolsInLine[0])) {
+      winningLinesFound.push(i);
+      const winAmount = betAmount * 5;
+      totalWin += winAmount;
     }
+  }
 
-    setSlotStatus('spinning');
-    playSound(spinAudioRef);
+  setWinningLines(winningLinesFound);
 
-    const betInLamports = betAmount * LAMPORTS_PER_SOL;
+  if (winningLinesFound.length > 0) {
+    setSlotStatus('won');
+    const winAmountInLamports = totalWin * LAMPORTS_PER_SOL;
+    setSlotMessage(`Jackpot! You won ${totalWin.toFixed(2)} SOL!`);
+
     const transaction = new Transaction().add(
       SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: wallet.publicKey,
-        lamports: betInLamports,
+        fromPubkey: wallet.publicKey,
+        toPubkey: publicKey,
+        lamports: winAmountInLamports,
       })
     );
 
-    const { blockhash } = await connection.getLatestBlockhash();
+    const { blockhash } = connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
-    transaction.feePayer = publicKey;
+    transaction.feePayer = wallet.publicKey;
+    transaction.partialSign(wallet);
 
-    try {
-      const signed = await signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(signature);
+    (async () => {
+      try {
+        const signature = await connection.sendRawTransaction(transaction.serialize());
+        await connection.confirmTransaction(signature);
+        setTriggerWinEffect(true);
+        playSound(winAudioRef);
+      } catch (err) {
+        console.error('Prize distribution failed:', err);
+        setSlotMessage('You won, but prize distribution failed. Contact support.');
+      }
+    })();
 
-      setTimeout(async () => {
-        let result;
-        if (Math.random() < COMPUTER_WIN_CHANCE.memeSlots) {
-          result = Array(9).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
-          let attempts = 0;
-          while (attempts < 10) {
-            let hasWin = false;
-            const winLines = [
-              [0, 1, 2],
-              [3, 4, 5],
-              [6, 7, 8],
-            ];
-            for (const line of winLines) {
-              const symbolsInLine = line.map(index => result[index].name);
-              if (symbolsInLine.every(symbol => symbol === symbolsInLine[0])) {
-                hasWin = true;
-                break;
-              }
-            }
-            if (!hasWin) break;
-            result = Array(9).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
-            attempts++;
-          }
-        } else {
-          result = Array(9).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
-          const winningSymbol = slotMemes[Math.floor(Math.random() * slotMemes.length)];
-          const winLines = [
-            [0, 1, 2],
-            [3, 4, 5],
-            [6, 7, 8],
-          ];
-          const winningLine = winLines[Math.floor(Math.random() * winLines.length)];
-          winningLine.forEach(index => {
-            result[index] = winningSymbol;
-          });
-        }
+    setPlayerStats(prev => ({
+      ...prev,
+      totalWinnings: prev.totalWinnings + totalWin,
+    }));
+  } else {
+    setSlotStatus('lost');
+    setSlotMessage('No luck this time. Spin again!');
+  }
 
-        setSlotReels(result);
-
-        const winLines = [
-          [0, 1, 2],
-          [3, 4, 5],
-          [6, 7, 8],
-        ];
-        const winningLinesFound = [];
-        let totalWin = 0;
-        for (let i = 0; i < winLines.length; i++) {
-          const line = winLines[i];
-          const symbolsInLine = line.map(index => result[index].name);
-          if (symbolsInLine.every(symbol => symbol === symbolsInLine[0])) {
-            winningLinesFound.push(i);
-            const winAmount = betAmount * 5;
-            totalWin += winAmount;
-          }
-        }
-
-        setWinningLines(winningLinesFound);
-
-        if (winningLinesFound.length > 0) {
-          setSlotStatus('won');
-          const winAmountInLamports = totalWin * LAMPORTS_PER_SOL;
-          setSlotMessage(`Jackpot! You won ${totalWin.toFixed(2)} SOL!`);
-
-          const transaction = new Transaction().add(
-            SystemProgram.transfer({
-              fromPubkey: wallet.publicKey,
-              toPubkey: publicKey,
-              lamports: winAmountInLamports,
-            })
-          );
-
-          const { blockhash } = await connection.getLatestBlockhash();
-          transaction.recentBlockhash = blockhash;
-          transaction.feePayer = wallet.publicKey;
-          transaction.partialSign(wallet);
-
-          try {
-            const signature = await connection.sendRawTransaction(transaction.serialize());
-            await connection.confirmTransaction(signature);
-            console.log('Prize distributed:', signature);
-            setTriggerWinEffect(true);
-            playSound(winAudioRef);
-          } catch (err) {
-            console.error('Prize distribution failed:', err);
-            setSlotMessage('You won, but prize distribution failed. Contact support.');
-          }
-
-          setPlayerStats(prev => ({
-            ...prev,
-            totalWinnings: prev.totalWinnings + totalWin,
-          }));
-        } else {
-          setSlotStatus('lost');
-          setSlotMessage('No luck this time. Spin again!');
-        }
-
-        updateMissionProgress(1);
-        setPlayerStats(prev => ({
-          ...prev,
-          spins: prev.spins + 1,
-        }));
-      }, 2000);
-    } catch (err) {
-      console.error('Spin failed:', err);
-      setSlotMessage('Spin failed. Try again.');
-      setSlotStatus('idle');
-    }
-  };
+  updateMissionProgress(1);
+  setPlayerStats(prev => ({
+    ...prev,
+    spins: prev.spins + 1,
+  }));
+};
 
   const flipCoin = async (choice) => {
     if (!connected || !publicKey) {
@@ -2352,54 +2373,60 @@ useEffect(() => {
                   </div>
                 </div>
               )}
+              
+
+
               {selectedGame === 'Meme Slots' && (
-                <div>
-                  <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
-                    Meme Slots
-                  </h2>
-                  <div className="mb-6 text-center">
-                    <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={betAmount}
-                      onChange={handleBetChange}
-                      className="bet-input"
-                      placeholder="Enter bet (0.01 - 1 SOL)"
-                    />
-                    {betError && <p className="bet-error">{betError}</p>}
-                  </div>
-                  <div className="game-box p-6 mb-10">
-                    <div className={`slot-machine ${slotStatus === 'won' ? 'winning' : ''}`}>
-                      <div className="grid grid-cols-3 gap-1">
-                        {slotReels.map((meme, index) => (
-                          <div
-                            key={index}
-                            className={`slot-reel ${slotStatus === 'spinning' ? 'spinning' : ''}`}
-                            style={{ backgroundImage: meme ? `url(${meme.image})` : 'none' }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-center text-orange-700 mb-4 text-lg">{slotMessage}</p>
-                    <button
-                      onClick={spinSlots}
-                      className="w-full casino-button"
-                      disabled={slotStatus === 'spinning' || !!betError}
-                    >
-                      {slotStatus === 'spinning'
-                        ? 'Spinning...'
-                        : `Spin (Bet ${betAmount.toFixed(2)} SOL)`}
-                    </button>
-                    <button
-                      onClick={() => setSelectedGame(null)}
-                      className="w-full casino-button mt-4"
-                    >
-                      Back to Casino Floor
-                    </button>
-                  </div>
-                </div>
-              )}
+  <div>
+    <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
+      Meme Slots
+    </h2>
+    <div className="mb-6 text-center">
+      <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
+      <input
+        type="number"
+        step="0.01"
+        value={betAmount}
+        onChange={handleBetChange}
+        className="bet-input"
+        placeholder="Enter bet (0.01 - 1 SOL)"
+      />
+      {betError && <p className="bet-error">{betError}</p>}
+    </div>
+    <div className="game-box p-6 mb-10">
+      <div className={`slot-machine ${slotStatus === 'won' ? 'winning' : ''}`}>
+        <div className="grid grid-cols-3 gap-1">
+          {slotReelsDisplay.map((meme, index) => (
+            <div
+              key={index}
+              className={`slot-reel ${slotStatus === 'spinning' ? 'spinning' : ''} ${isStopping && slotReelsDisplay[index] === slotReels[index] ? 'stopping' : ''}`}
+              style={{ backgroundImage: meme ? `url(${meme.image})` : 'none' }}
+            />
+          ))}
+        </div>
+      </div>
+      <p className="text-center text-orange-700 mb-4 text-lg">{slotMessage}</p>
+      <button
+        onClick={spinSlots}
+        className="w-full casino-button"
+        disabled={slotStatus === 'spinning' || !!betError}
+      >
+        {slotStatus === 'spinning'
+          ? 'Spinning...'
+          : `Spin (Bet ${betAmount.toFixed(2)} SOL)`}
+      </button>
+      <button
+        onClick={() => setSelectedGame(null)}
+        className="w-full casino-button mt-4"
+      >
+        Back to Casino Floor
+      </button>
+    </div>
+  </div>
+)}
+
+
+
               {selectedGame === 'Coin Flip' && (
                 <div>
                   <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
