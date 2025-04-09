@@ -885,10 +885,9 @@ const isMyTurn = currentTurn === socket.id;
 useEffect(() => {
   const fetchLeaderboard = async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/leaderboard`);
+      const response = await fetch('https://casino-of-meme-backend-production.up.railway.app/leaderboard');
       const data = await response.json();
       setLeaderboard(data);
-      console.log('Leaderboard updated:', data);
     } catch (err) {
       console.error('Error fetching leaderboard:', err);
     }
