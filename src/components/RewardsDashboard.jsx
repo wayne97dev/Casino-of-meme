@@ -774,17 +774,10 @@ const [timeLeft, setTimeLeft] = useState(30); // Stato per il tempo rimanente
 
 // Configurazione Socket.IO per Poker PvP
 useEffect(() => {
-  socket.on('connect', () => console.log('Connected to backend'));
-  socket.on('connect_error', (err) => console.error('Connection error:', err));
-  socket.on('waiting', (data) => {
-    setPokerMessage(data.message);
-    setWaitingPlayersList(data.players || []);
-  });
-  socket.on('waitingPlayers', (data) => {
-    setWaitingPlayersList(data.players || []);
-  });
-  socket.on('gameState', (game) => {
+  const handleGameState = (game) => {
     console.log('Received game state:', game);
+    console.log('Current socket.id:', socket.id);
+    console.log('Current turn:', game.currentTurn);
     setPokerPlayers(game.players || []);
     setPokerTableCards(game.tableCards || []);
     setPokerPlayerCards(game.playerCards || {});
@@ -797,13 +790,13 @@ useEffect(() => {
     setGamePhase(game.gamePhase || 'pre-flop');
     setOpponentCardsVisible(game.opponentCardsVisible || false);
     setDealerMessage(game.dealerMessage || '');
-    setTimeLeft(game.timeLeft || 30); // Aggiorna il tempo rimanente
+    setTimeLeft(game.timeLeft || 30);
     if (game.gameId) {
       localStorage.setItem('currentGameId', game.gameId);
     }
-  });
+  };
 
-  socket.on('distributeWinnings', async ({ winnerAddress, amount }) => {
+  const handleDistributeWinnings = async ({ winnerAddress, amount }) => {
     if (winnerAddress === publicKey?.toString()) {
       const winAmountInLamports = amount * LAMPORTS_PER_SOL;
       const transaction = new Transaction().add(
@@ -834,20 +827,36 @@ useEffect(() => {
         setPokerMessage('Winnings not distributed. Contact support.');
       }
     }
-  });
+  };
 
+  // Registra i listener
+  socket.on('connect', () => console.log('Socket connected:', socket.id));
+  socket.on('connect_error', (err) => console.error('Socket connection error:', err));
+  socket.on('waiting', (data) => {
+    setPokerMessage(data.message);
+    setWaitingPlayersList(data.players || []);
+  });
+  socket.on('waitingPlayers', (data) => {
+    setWaitingPlayersList(data.players || []);
+  });
+  socket.on('gameState', handleGameState);
+  socket.on('distributeWinnings', handleDistributeWinnings);
+
+  // Forza una riconnessione se necessario
+  if (!socket.connected) {
+    socket.connect();
+  }
+
+  // Cleanup: rimuove tutti i listener quando il componente si smonta
   return () => {
     socket.off('connect');
     socket.off('connect_error');
     socket.off('waiting');
     socket.off('waitingPlayers');
-    socket.off('gameState');
-    socket.off('distributeWinnings');
+    socket.off('gameState', handleGameState);
+    socket.off('distributeWinnings', handleDistributeWinnings);
   };
-}, [publicKey]);
-
-
-
+}, []); // Dipendenza vuota: il listener viene registrato una sola volta
 
 
 // Recupera la classifica
@@ -2380,8 +2389,6 @@ useEffect(() => {
               )}
               
 
-
-
               {selectedGame === 'Poker PvP' && (
   <div>
     <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
@@ -2475,7 +2482,7 @@ useEffect(() => {
       {dealerMessage && (
         <p className="text-center text-orange-700 mb-4 text-lg font-bold">{dealerMessage}</p>
       )}
-      {pokerStatus === 'playing' && currentTurn === socket.id && (
+      {pokerStatus === 'playing' && (
         <p className="text-center text-orange-700 mb-4 text-lg font-bold">
           Time Left: {timeLeft} seconds
         </p>
@@ -2516,6 +2523,8 @@ useEffect(() => {
             </button>
           </div>
         </div>
+      ) : pokerStatus === 'playing' ? (
+        <p className="text-center text-orange-700">Opponent's turn... (Time Left: {timeLeft} seconds)</p>
       ) : pokerStatus === 'finished' ? (
         <button
           onClick={() => {
@@ -2538,9 +2547,7 @@ useEffect(() => {
         >
           Play Again (Bet {betAmount.toFixed(2)} SOL)
         </button>
-      ) : (
-        <p className="text-center text-orange-700">Opponent's turn... (Time Left: {timeLeft} seconds)</p>
-      )}
+      ) : null}
       <button
         onClick={() => setSelectedGame(null)}
         className="w-full casino-button mt-4"
@@ -2551,8 +2558,7 @@ useEffect(() => {
   </div>
 )}
 
-
-
+             
 
               {selectedGame === 'Crazy Time' && (
                 <div>
