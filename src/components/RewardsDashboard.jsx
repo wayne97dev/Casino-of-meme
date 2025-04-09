@@ -837,7 +837,14 @@ useEffect(() => {
       socket.emit('reconnectPlayer', { playerAddress: publicKey.toString(), gameId });
     }
   });
-  socket.on('connect_error', (err) => console.error('Socket connection error:', err));
+  socket.on('connect_error', (err) => {
+    console.error('Socket connection error:', err);
+    // Ritenta la connessione dopo 5 secondi
+    setTimeout(() => {
+      console.log('Retrying socket connection...');
+      socket.connect();
+    }, 5000);
+  });
   socket.on('waiting', (data) => {
     console.log('Received waiting event:', data);
     setPokerMessage(data.message);
