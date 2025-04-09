@@ -807,12 +807,12 @@ useEffect(() => {
           lamports: winAmountInLamports,
         })
       );
-
+  
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = wallet.publicKey;
       transaction.partialSign(wallet);
-
+  
       try {
         const signature = await connection.sendRawTransaction(transaction.serialize());
         await connection.confirmTransaction(signature);
@@ -2516,14 +2516,17 @@ useEffect(() => {
         currentTurn === socket.id ? (
           <div className="flex flex-col gap-4">
             <div className="flex gap-4">
-              <button onClick={() => makePokerMove('call')} className="flex-1 casino-button">
-                Call ({(currentBet - (playerBets[publicKey?.toString()] || 0)).toFixed(2)} SOL)
-              </button>
+              {currentBet > (playerBets[publicKey?.toString()] || 0) ? (
+                <button onClick={() => makePokerMove('call')} className="flex-1 casino-button">
+                  Call ({(currentBet - (playerBets[publicKey?.toString()] || 0)).toFixed(2)} SOL)
+                </button>
+              ) : (
+                <button onClick={() => makePokerMove('check')} className="flex-1 casino-button">
+                  Check
+                </button>
+              )}
               <button onClick={() => makePokerMove('fold')} className="flex-1 casino-button">
                 Fold
-              </button>
-              <button onClick={() => makePokerMove('check')} className="flex-1 casino-button">
-                Check
               </button>
             </div>
             <div className="flex gap-4">
