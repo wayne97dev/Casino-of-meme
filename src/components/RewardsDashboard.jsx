@@ -785,7 +785,7 @@ useEffect(() => {
     setPokerStatus(game.status || 'waiting');
     setPokerMessage(game.message || 'Waiting for another player...');
     setCurrentTurn(game.currentTurn || null);
-    setPokerPot(game.pot || 0);
+    setPokerPot(game.pot !== undefined ? game.pot : 0); // Assicurati che game.pot sia definito
     setCurrentBet(game.currentBet || 0);
     setPlayerBets(game.playerBets || {});
     setGamePhase(game.gamePhase || 'pre-flop');
