@@ -175,14 +175,6 @@ body {
   }
 }
 
-@keyframes spinReel {
-  0% { transform: translateY(-300%); }
-  100% { transform: translateY(0); }
-}
-
-.slot-machine.winning {
-  animation: winningGlow 1s infinite alternate;
-}
 
 @keyframes winningGlow {
   0% { box-shadow: 0 0 10px #ffcc00, inset 0 0 15px #ffcc00; }
