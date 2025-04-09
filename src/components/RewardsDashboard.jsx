@@ -1484,8 +1484,8 @@ const spinSlots = async () => {
     await connection.confirmTransaction(signature);
 
     // Durata totale dello spin
-    const spinDuration = 3000; // 3 secondi
-    const intervalTime = 100; // Aggiornamento ogni 100ms
+    const spinDuration = 5000; // 5 secondi
+    const intervalTime = 400; // Aggiornamento ogni 100ms
     let elapsedTime = 0;
 
     // Calcola il risultato finale in anticipo
