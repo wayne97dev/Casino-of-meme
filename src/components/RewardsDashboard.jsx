@@ -784,19 +784,20 @@ useEffect(() => {
     console.log('My socket.id:', socket.id);
     console.log('New currentTurn:', game.currentTurn);
     console.log('Updated pot:', game.pot);
+    console.log('Updated timeLeft:', game.timeLeft);
     setPokerPlayers(game.players || []);
     setPokerTableCards(game.tableCards || []);
     setPokerPlayerCards(game.playerCards || {});
     setPokerStatus(game.status || 'waiting');
     setPokerMessage(game.message || 'Waiting for another player...');
     setCurrentTurn(game.currentTurn || null);
-    setPokerPot(game.pot !== undefined ? game.pot : 0); // Assicurati che game.pot sia definito
+    setPokerPot(game.pot !== undefined ? game.pot : 0);
     setCurrentBet(game.currentBet || 0);
     setPlayerBets(game.playerBets || {});
     setGamePhase(game.gamePhase || 'pre-flop');
     setOpponentCardsVisible(game.opponentCardsVisible || false);
     setDealerMessage(game.dealerMessage || '');
-    setTimeLeft(game.timeLeft || 30);
+    setTimeLeft(game.timeLeft !== undefined ? game.timeLeft : 30); // Assicurati che timeLeft sia definito
     if (game.gameId) {
       localStorage.setItem('currentGameId', game.gameId);
     }
@@ -895,9 +896,14 @@ useEffect(() => {
   };
 }, [publicKey]);
 
+
 // Determina se è il turno del giocatore corrente
 const isMyTurn = currentTurn === socket.id;
-console.log('Is my turn after check:', isMyTurn);
+
+// Aggiungi un useEffect per monitorare i cambiamenti di isMyTurn
+useEffect(() => {
+  console.log('DEBUG - isMyTurn updated:', isMyTurn, 'currentTurn:', currentTurn, 'socket.id:', socket.id);
+}, [isMyTurn, currentTurn, socket.id]);
 
 
 
