@@ -41,7 +41,7 @@ const wallet = WALLET_PRIVATE_KEY ? Keypair.fromSecretKey(bs58.decode(WALLET_PRI
 
 const CARD_BACK_IMAGE = '/card-back.png';
 
-const BACKEND_URL = 'https://casino-of-meme-backend.onrender.com';
+const BACKEND_URL = 'https://casino-of-meme-backend.railway.app/';
 const socket = io(BACKEND_URL);
 
 // Percentuale di vittoria del computer per ogni minigioco
@@ -874,6 +874,8 @@ useEffect(() => {
   };
 }, []);
 
+// Determina se è il turno del giocatore corrente
+const isMyTurn = currentTurn === socket.id;
 
 
 
@@ -2511,40 +2513,44 @@ useEffect(() => {
         <button onClick={joinPokerGame} className="w-full casino-button" disabled={!!betError}>
           Join Game (Bet {betAmount.toFixed(2)} SOL)
         </button>
-      ) : pokerStatus === 'playing' && currentTurn === socket.id ? (
-        <div className="flex flex-col gap-4">
-          <div className="flex gap-4">
-            <button onClick={() => makePokerMove('call')} className="flex-1 casino-button">
-              Call ({(currentBet - (playerBets[publicKey?.toString()] || 0)).toFixed(2)} SOL)
-            </button>
-            <button onClick={() => makePokerMove('fold')} className="flex-1 casino-button">
-              Fold
-            </button>
-            <button onClick={() => makePokerMove('check')} className="flex-1 casino-button">
-              Check
-            </button>
-          </div>
-          <div className="flex gap-4">
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              max="1"
-              value={raiseAmount}
-              onChange={(e) => setRaiseAmount(parseFloat(e.target.value))}
-              className="bet-input flex-1"
-              placeholder="Bet/Raise Amount"
-            />
-            <button onClick={() => makePokerMove('bet', raiseAmount)} className="flex-1 casino-button">
-              Bet
-            </button>
-            <button onClick={() => makePokerMove('raise', raiseAmount)} className="flex-1 casino-button">
-              Raise
-            </button>
-          </div>
-        </div>
       ) : pokerStatus === 'playing' ? (
-        <p className="text-center text-orange-700">Opponent's turn... (Time Left: {timeLeft} seconds)</p>
+        currentTurn === socket.id ? (
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-4">
+              <button onClick={() => makePokerMove('call')} className="flex-1 casino-button">
+                Call ({(currentBet - (playerBets[publicKey?.toString()] || 0)).toFixed(2)} SOL)
+              </button>
+              <button onClick={() => makePokerMove('fold')} className="flex-1 casino-button">
+                Fold
+              </button>
+              <button onClick={() => makePokerMove('check')} className="flex-1 casino-button">
+                Check
+              </button>
+            </div>
+            <div className="flex gap-4">
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                max="1"
+                value={raiseAmount}
+                onChange={(e) => setRaiseAmount(parseFloat(e.target.value))}
+                className="bet-input flex-1"
+                placeholder="Bet/Raise Amount"
+              />
+              <button onClick={() => makePokerMove('bet', raiseAmount)} className="flex-1 casino-button">
+                Bet
+              </button>
+              <button onClick={() => makePokerMove('raise', raiseAmount)} className="flex-1 casino-button">
+                Raise
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-center text-orange-700">
+            Opponent's turn... (Time Left: {timeLeft} seconds)
+          </p>
+        )
       ) : pokerStatus === 'finished' ? (
         <button
           onClick={() => {
