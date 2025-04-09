@@ -829,8 +829,13 @@ useEffect(() => {
     }
   };
 
-  // Registra i listener
-  socket.on('connect', () => console.log('Socket connected:', socket.id));
+  socket.on('connect', () => {
+    console.log('Socket connected:', socket.id);
+    const gameId = localStorage.getItem('currentGameId');
+    if (gameId && publicKey) {
+      socket.emit('reconnectPlayer', { playerAddress: publicKey.toString(), gameId });
+    }
+  });
   socket.on('connect_error', (err) => console.error('Socket connection error:', err));
   socket.on('waiting', (data) => {
     setPokerMessage(data.message);
@@ -842,12 +847,10 @@ useEffect(() => {
   socket.on('gameState', handleGameState);
   socket.on('distributeWinnings', handleDistributeWinnings);
 
-  // Forza una riconnessione se necessario
   if (!socket.connected) {
     socket.connect();
   }
 
-  // Cleanup: rimuove tutti i listener quando il componente si smonta
   return () => {
     socket.off('connect');
     socket.off('connect_error');
@@ -856,7 +859,13 @@ useEffect(() => {
     socket.off('gameState', handleGameState);
     socket.off('distributeWinnings', handleDistributeWinnings);
   };
-}, []); // Dipendenza vuota: il listener viene registrato una sola volta
+}, []);
+
+
+
+
+
+
 
 
 // Recupera la classifica
