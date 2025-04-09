@@ -778,6 +778,7 @@ useEffect(() => {
     console.log('Received game state:', game);
     console.log('Current socket.id:', socket.id);
     console.log('Current turn:', game.currentTurn);
+    console.log('Time left:', game.timeLeft);
     setPokerPlayers(game.players || []);
     setPokerTableCards(game.tableCards || []);
     setPokerPlayerCards(game.playerCards || {});
@@ -796,39 +797,7 @@ useEffect(() => {
     }
   };
 
-  const handleDistributeWinnings = async ({ winnerAddress, amount }) => {
-    if (winnerAddress === publicKey?.toString()) {
-      const winAmountInLamports = amount * LAMPORTS_PER_SOL;
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: wallet.publicKey,
-          toPubkey: publicKey,
-          lamports: winAmountInLamports,
-        })
-      );
-
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = wallet.publicKey;
-      transaction.partialSign(wallet);
-
-      try {
-        const signature = await connection.sendRawTransaction(transaction.serialize());
-        await connection.confirmTransaction(signature);
-        setTriggerWinEffect(true);
-        playSound(winAudioRef);
-        setPlayerStats(prev => ({
-          ...prev,
-          wins: prev.wins + 1,
-          totalWinnings: prev.totalWinnings + amount,
-        }));
-      } catch (err) {
-        console.error('Error distributing winnings:', err);
-        setPokerMessage('Winnings not distributed. Contact support.');
-      }
-    }
-  };
-
+  // Altri listener...
   socket.on('connect', () => {
     console.log('Socket connected:', socket.id);
     const gameId = localStorage.getItem('currentGameId');
@@ -860,7 +829,6 @@ useEffect(() => {
     socket.off('distributeWinnings', handleDistributeWinnings);
   };
 }, []);
-
 
 
 
