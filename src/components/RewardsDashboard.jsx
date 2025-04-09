@@ -775,10 +775,8 @@ const [timeLeft, setTimeLeft] = useState(30); // Stato per il tempo rimanente
 // Configurazione Socket.IO per Poker PvP
 useEffect(() => {
   const handleGameState = (game) => {
-    console.log('Received game state:', game);
-    console.log('Current socket.id:', socket.id);
-    console.log('Current turn:', game.currentTurn);
-    console.log('Time left:', game.timeLeft);
+    console.log('Game state received:', game);
+    console.log('My socket.id:', socket.id);
     setPokerPlayers(game.players || []);
     setPokerTableCards(game.tableCards || []);
     setPokerPlayerCards(game.playerCards || {});
