@@ -778,6 +778,7 @@ useEffect(() => {
     console.log('Game state received:', game);
     console.log('My socket.id:', socket.id);
     console.log('New currentTurn:', game.currentTurn);
+    console.log('Updated pot:', game.pot);
     setPokerPlayers(game.players || []);
     setPokerTableCards(game.tableCards || []);
     setPokerPlayerCards(game.playerCards || {});
@@ -1101,6 +1102,9 @@ useEffect(() => {
           const signature = await connection.sendRawTransaction(signed.serialize());
           await connection.confirmTransaction(signature);
           console.log(`Transferred ${additionalBet} SOL from ${publicKey.toString()} to tax wallet for ${move}`);
+          if (move === 'bet' || move === 'raise') {
+            setPokerMessage(`You ${move === 'bet' ? 'bet' : 'raised'} ${additionalBet.toFixed(2)} SOL. Click "Check" to pass the turn to your opponent.`);
+          }
         } catch (err) {
           console.error('Bet error:', err);
           setPokerMessage('Bet failed. Please try again.');
@@ -2427,7 +2431,6 @@ useEffect(() => {
                 </div>
               )}
               
-
               {selectedGame === 'Poker PvP' && (
   <div>
     <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
@@ -2533,6 +2536,12 @@ useEffect(() => {
       ) : pokerStatus === 'playing' ? (
         currentTurn === socket.id ? (
           <div className="flex flex-col gap-4">
+            {/* Aggiungi il messaggio qui */}
+            {(currentBet > (playerBets[publicKey?.toString()] || 0)) && (
+              <p className="text-center text-orange-700 mb-4 text-lg font-bold">
+                You placed a bet. Click "Check" to pass the turn to your opponent.
+              </p>
+            )}
             <div className="flex gap-4">
               {currentBet > (playerBets[publicKey?.toString()] || 0) ? (
                 <button onClick={() => makePokerMove('call')} className="flex-1 casino-button">
