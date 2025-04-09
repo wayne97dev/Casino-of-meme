@@ -832,6 +832,7 @@ useEffect(() => {
 
   socket.on('connect', () => {
     console.log('Socket connected:', socket.id);
+    setPokerMessage('Connected to server');
     const gameId = localStorage.getItem('currentGameId');
     if (gameId && publicKey) {
       socket.emit('reconnectPlayer', { playerAddress: publicKey.toString(), gameId });
@@ -839,6 +840,7 @@ useEffect(() => {
   });
   socket.on('connect_error', (err) => {
     console.error('Socket connection error:', err);
+    setPokerMessage('Failed to connect to server. Retrying...');
     // Ritenta la connessione dopo 5 secondi
     setTimeout(() => {
       console.log('Retrying socket connection...');
