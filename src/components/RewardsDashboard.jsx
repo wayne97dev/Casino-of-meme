@@ -777,6 +777,7 @@ useEffect(() => {
   const handleGameState = (game) => {
     console.log('Game state received:', game);
     console.log('My socket.id:', socket.id);
+    console.log('New currentTurn:', game.currentTurn);
     setPokerPlayers(game.players || []);
     setPokerTableCards(game.tableCards || []);
     setPokerPlayerCards(game.playerCards || {});
@@ -884,7 +885,7 @@ useEffect(() => {
 
 // Determina se è il turno del giocatore corrente
 const isMyTurn = currentTurn === socket.id;
-
+console.log('Is my turn after check:', isMyTurn);
 
 
 
@@ -1110,7 +1111,6 @@ useEffect(() => {
   
     socket.emit('makeMove', { gameId, move, amount });
   };
-
    
   // Fetch dei dati di reward
   useEffect(() => {
