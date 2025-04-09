@@ -785,6 +785,7 @@ useEffect(() => {
     console.log('New currentTurn:', game.currentTurn);
     console.log('Updated pot:', game.pot);
     console.log('Updated timeLeft:', game.timeLeft);
+    console.log('Game phase:', game.gamePhase);
     setPokerPlayers(game.players || []);
     setPokerTableCards(game.tableCards || []);
     setPokerPlayerCards(game.playerCards || {});
@@ -797,7 +798,7 @@ useEffect(() => {
     setGamePhase(game.gamePhase || 'pre-flop');
     setOpponentCardsVisible(game.opponentCardsVisible || false);
     setDealerMessage(game.dealerMessage || '');
-    setTimeLeft(game.timeLeft !== undefined ? game.timeLeft : 30); // Assicurati che timeLeft sia definito
+    setTimeLeft(game.timeLeft !== undefined ? game.timeLeft : 30);
     if (game.gameId) {
       localStorage.setItem('currentGameId', game.gameId);
     }
