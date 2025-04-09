@@ -42,7 +42,12 @@ const wallet = WALLET_PRIVATE_KEY ? Keypair.fromSecretKey(bs58.decode(WALLET_PRI
 const CARD_BACK_IMAGE = '/card-back.png';
 
 const BACKEND_URL = 'https://casino-of-meme-backend-production.up.railway.app/';
-const socket = io(BACKEND_URL);
+const socket = io(BACKEND_URL, {
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  transports: ['websocket'], // Forza l'uso di WebSocket per evitare problemi con polling
+});
 
 // Percentuale di vittoria del computer per ogni minigioco
 const COMPUTER_WIN_CHANCE = {
@@ -808,12 +813,12 @@ useEffect(() => {
           lamports: winAmountInLamports,
         })
       );
-  
+
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = wallet.publicKey;
       transaction.partialSign(wallet);
-  
+
       try {
         const signature = await connection.sendRawTransaction(transaction.serialize());
         await connection.confirmTransaction(signature);
@@ -859,6 +864,12 @@ useEffect(() => {
   socket.on('waitingPlayers', (data) => {
     console.log('Received waitingPlayers event:', data);
     setWaitingPlayersList(data.players || []);
+  });
+
+  // Aggiungi un listener separato per il debug
+  socket.on('gameState', (game) => {
+    console.log('DEBUG - Evento gameState ricevuto:', game);
+    console.log('DEBUG - Valore del pot ricevuto:', game.pot);
   });
 
   socket.on('gameState', handleGameState);
@@ -1011,7 +1022,7 @@ useEffect(() => {
 
   const joinPokerGame = async () => {
     if (!connected || !publicKey) {
-      setPokerMessage('Connect your wallet to play!');
+      setPokerMessage('Connetti il tuo portafoglio per giocare!');
       return;
     }
   
@@ -1038,34 +1049,40 @@ useEffect(() => {
       const signed = await signTransaction(transaction);
       const signature = await connection.sendRawTransaction(signed.serialize());
       await connection.confirmTransaction(signature);
-      console.log(`Transferred ${betAmount} SOL from ${publicKey.toString()} to tax wallet`);
+      console.log(`Trasferiti ${betAmount} SOL da ${publicKey.toString()} al tax wallet`);
   
       socket.emit('joinGame', {
         playerAddress: publicKey.toString(),
         betAmount,
       });
-      setPokerMessage('You have joined the game! Waiting for another player...');
+      setPokerMessage('Ti sei unito al gioco! In attesa di un altro giocatore...');
     } catch (err) {
-      console.error('Join game error:', err);
-      setPokerMessage('Failed to join game. Try again.');
+      console.error('Errore nell\'unione al gioco:', err);
+      if (err.message.includes('insufficient funds')) {
+        setPokerMessage('Fondi insufficienti nel tuo portafoglio. Aggiungi SOL e riprova.');
+      } else if (err.message.includes('Transaction simulation failed')) {
+        setPokerMessage('Simulazione della transazione fallita. Controlla il tuo portafoglio e riprova.');
+      } else {
+        setPokerMessage('Impossibile unirsi al gioco. Riprova.');
+      }
     }
   };
 
 
   const makePokerMove = async (move, amount = 0) => {
     if (!connected || !publicKey || pokerStatus !== 'playing') {
-      setPokerMessage('Game not in progress or wallet not connected!');
+      setPokerMessage('Gioco non in corso o portafoglio non connesso!');
       return;
     }
   
     const gameId = localStorage.getItem('currentGameId');
     if (!gameId) {
-      setPokerMessage('No active game found!');
+      setPokerMessage('Nessun gioco attivo trovato!');
       return;
     }
   
     if (currentTurn !== socket.id) {
-      setPokerMessage("It's not your turn!");
+      setPokerMessage("Non è il tuo turno!");
       return;
     }
   
@@ -1101,18 +1118,25 @@ useEffect(() => {
           const signed = await signTransaction(transaction);
           const signature = await connection.sendRawTransaction(signed.serialize());
           await connection.confirmTransaction(signature);
-          console.log(`Transferred ${additionalBet} SOL from ${publicKey.toString()} to tax wallet for ${move}`);
+          console.log(`Trasferiti ${additionalBet} SOL da ${publicKey.toString()} al tax wallet per ${move}`);
           if (move === 'bet' || move === 'raise') {
-            setPokerMessage(`You ${move === 'bet' ? 'bet' : 'raised'} ${additionalBet.toFixed(2)} SOL. Click "Check" to pass the turn to your opponent.`);
+            setPokerMessage(`Hai ${move === 'bet' ? 'scommesso' : 'rilanciato'} ${additionalBet.toFixed(2)} SOL. Clicca "Check" per passare il turno al tuo avversario.`);
           }
         } catch (err) {
-          console.error('Bet error:', err);
-          setPokerMessage('Bet failed. Please try again.');
+          console.error('Errore nella scommessa:', err);
+          if (err.message.includes('insufficient funds')) {
+            setPokerMessage('Fondi insufficienti nel tuo portafoglio. Aggiungi SOL e riprova.');
+          } else if (err.message.includes('Transaction simulation failed')) {
+            setPokerMessage('Simulazione della transazione fallita. Controlla il tuo portafoglio e riprova.');
+          } else {
+            setPokerMessage('Scommessa fallita. Riprova.');
+          }
           return;
         }
       }
     }
   
+    console.log(`Emissione evento makeMove: gameId=${gameId}, move=${move}, amount=${amount}`);
     socket.emit('makeMove', { gameId, move, amount });
   };
    
