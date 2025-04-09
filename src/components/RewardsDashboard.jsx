@@ -41,7 +41,7 @@ const wallet = WALLET_PRIVATE_KEY ? Keypair.fromSecretKey(bs58.decode(WALLET_PRI
 
 const CARD_BACK_IMAGE = '/card-back.png';
 
-const BACKEND_URL = 'https://casino-of-meme-backend.railway.app/';
+const BACKEND_URL = 'https://casino-of-meme-backend-production.up.railway.app/';
 const socket = io(BACKEND_URL);
 
 // Percentuale di vittoria del computer per ogni minigioco
