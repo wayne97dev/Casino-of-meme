@@ -39,7 +39,7 @@ const TOKEN_SYMBOL = 'COM';
 const connection = RPC_ENDPOINT ? new Connection(RPC_ENDPOINT, 'confirmed') : null;
 const wallet = WALLET_PRIVATE_KEY ? Keypair.fromSecretKey(bs58.decode(WALLET_PRIVATE_KEY)) : null;
 
-const CARD_BACK_IMAGE = 'card-back.png';
+const CARD_BACK_IMAGE = '/public/card-back.png';
 
 const BACKEND_URL = 'https://casino-of-meme-backend.onrender.com';
 const socket = io(BACKEND_URL);
