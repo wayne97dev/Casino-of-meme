@@ -797,7 +797,6 @@ useEffect(() => {
     }
   };
 
-  
   const handleDistributeWinnings = async ({ winnerAddress, amount }) => {
     if (winnerAddress === publicKey?.toString()) {
       const winAmountInLamports = amount * LAMPORTS_PER_SOL;
@@ -830,7 +829,7 @@ useEffect(() => {
       }
     }
   };
- 
+
   socket.on('connect', () => {
     console.log('Socket connected:', socket.id);
     const gameId = localStorage.getItem('currentGameId');
@@ -840,16 +839,19 @@ useEffect(() => {
   });
   socket.on('connect_error', (err) => console.error('Socket connection error:', err));
   socket.on('waiting', (data) => {
+    console.log('Received waiting event:', data);
     setPokerMessage(data.message);
     setWaitingPlayersList(data.players || []);
   });
   socket.on('waitingPlayers', (data) => {
+    console.log('Received waitingPlayers event:', data);
     setWaitingPlayersList(data.players || []);
   });
   socket.on('gameState', handleGameState);
   socket.on('distributeWinnings', handleDistributeWinnings);
 
   if (!socket.connected) {
+    console.log('Socket not connected, attempting to connect...');
     socket.connect();
   }
 
@@ -862,7 +864,6 @@ useEffect(() => {
     socket.off('distributeWinnings', handleDistributeWinnings);
   };
 }, []);
-
 
 
 
