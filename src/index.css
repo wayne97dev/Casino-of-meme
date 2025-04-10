@@ -5,10 +5,17 @@
 body {
   font-family: 'Comic Neue', cursive;
   margin: 0;
-  padding: 40px;
+  padding: 40px; /* Default per desktop */
   color: #e0e0e0;
   background: url('/my-background.jpg') no-repeat center center fixed;
   background-size: cover;
+  overflow-x: hidden;
+}
+
+/* Stili per componenti React */
+canvas {
+  width: 100% !important; /* Forza la larghezza al 100% */
+  height: 600px; /* Default per desktop */
 }
 
 @keyframes casinoBackground {
@@ -19,11 +26,11 @@ body {
 
 @keyframes neon-glow {
   0% { box-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc; }
-  50% { box-shadow: 0 0 20px #00ffcc, 0 0 30px #00ffcc; }
+  50% { box-shadow: 0 0 20px #00ffcc, 0 0 30px #00ffcc; } /* Default per desktop */
   100% { box-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc; }
 }
 
-/* Stile per le intestazioni */
+/* Stile per le intestazioni - Default per desktop */
 .header-box {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 2px solid #ffcc00;
@@ -33,7 +40,7 @@ body {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
 }
 
-/* Stile per i pulsanti a tema casinò */
+/* Stile per i pulsanti a tema casinò - Default per desktop */
 .casino-button {
   background: linear-gradient(135deg, #ff4500, #ff8c00);
   border: 2px solid #ffcc00;
@@ -77,7 +84,7 @@ body {
   left: 100%;
 }
 
-/* Stile per le carte */
+/* Stile per le carte - Default per desktop */
 .card {
   width: 100px;
   height: 150px;
@@ -107,7 +114,7 @@ body {
   box-shadow: 0 12px 24px rgba(255, 204, 0, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.5);
 }
 
-/* Stile per la slot machine */
+/* Stile per la slot machine - Default per desktop */
 .slot-machine {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 4px solid #ffcc00;
@@ -123,7 +130,6 @@ body {
   margin: 0 auto;
 }
 
-/* Effetto radiale di sfondo */
 .slot-machine::before {
   content: '';
   position: absolute;
@@ -136,7 +142,7 @@ body {
   z-index: 1;
 }
 
-/* Stile per ogni rullo */
+/* Stile per ogni rullo - Default per desktop */
 .slot-reel {
   width: 90px;
   height: 90px;
@@ -151,84 +157,44 @@ body {
   z-index: 2;
 }
 
-/* Animazione durante lo spin */
 .slot-reel.spinning {
   animation: spinReel 0.08s linear infinite;
 }
 
-/* Animazione dei rulli che girano */
 @keyframes spinReel {
-  0% {
-    transform: translateY(-100%);
-    filter: blur(4px);
-  }
-  100% {
-    transform: translateY(0);
-    filter: blur(4px);
-  }
+  0% { transform: translateY(-100%); filter: blur(4px); }
+  100% { transform: translateY(0); filter: blur(4px); }
 }
 
-/* Effetto di fermata graduale */
 .slot-reel.stopping {
   animation: stopReel 0.6s ease-out forwards;
 }
 
-/* Animazione di fermata */
 @keyframes stopReel {
-  0% {
-    transform: translateY(-50%);
-    filter: blur(4px);
-  }
-  100% {
-    transform: translateY(0);
-    filter: blur(0);
-  }
+  0% { transform: translateY(-50%); filter: blur(4px); }
+  100% { transform: translateY(0); filter: blur(0); }
 }
 
-/* Effetto di vincita */
 .slot-machine.winning .slot-reel {
   animation: winningGlow 0.5s infinite alternate;
 }
 
-/* Animazione glow per la vincita */
 @keyframes winningGlow {
-  0% {
-    box-shadow: 0 0 10px #ffcc00, inset 0 0 15px #ffcc00;
-  }
-  100% {
-    box-shadow: 0 0 30px #ffcc00, inset 0 0 30px #ffcc00;
-  }
+  0% { box-shadow: 0 0 10px #ffcc00, inset 0 0 15px #ffcc00; }
+  100% { box-shadow: 0 0 30px #ffcc00, inset 0 0 30px #ffcc00; }
 }
 
-/* Stile per i rulli vincenti */
 .slot-reel.winning {
   border: 3px solid #ffcc00;
   animation: winningPulse 0.5s infinite alternate;
 }
 
 @keyframes winningPulse {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 0 10px #ffcc00;
-  }
-  100% {
-    transform: scale(1.05);
-    box-shadow: 0 0 20px #ffcc00;
-  }
+  0% { transform: scale(1); box-shadow: 0 0 10px #ffcc00; }
+  100% { transform: scale(1.05); box-shadow: 0 0 20px #ffcc00; }
 }
 
-/* Responsive per schermi piccoli */
-@media (max-width: 600px) {
-  .slot-reel {
-    width: 60px;
-    height: 60px;
-  }
-  .slot-machine {
-    padding: 10px;
-  }
-}
-
-/* Stile per la tabella dei pagamenti */
+/* Stile per la tabella dei pagamenti - Default per desktop */
 .payout-table {
   min-width: 200px;
   max-width: 300px;
@@ -301,22 +267,7 @@ body {
   background: rgba(255, 204, 0, 0.1);
 }
 
-/* Responsività per schermi piccoli */
-@media (max-width: 768px) {
-  .game-box {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .payout-table {
-    margin-top: 20px;
-    width: 100%;
-    max-width: none;
-    transform: perspective(1000px) rotateX(0deg);
-  }
-}
-
-/* Stile per la moneta di Coin Flip */
+/* Stile per la moneta di Coin Flip - Default per desktop */
 .coin {
   width: 120px;
   height: 120px;
@@ -346,7 +297,7 @@ body {
   100% { transform: rotateY(2160deg) translateZ(0px); }
 }
 
-/* Stile per i box dei giochi */
+/* Stile per i box dei giochi - Default per desktop */
 .game-box {
   background: linear-gradient(135deg, #2a4066, #1e1e2f);
   border: 4px solid #ffcc00;
@@ -356,6 +307,7 @@ body {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7);
   position: relative;
   overflow: hidden;
+  padding: 15px;
 }
 
 .game-box::before {
@@ -374,7 +326,7 @@ body {
   box-shadow: 0 15px 30px rgba(255, 204, 0, 0.8);
 }
 
-/* Stile per l'input del bet */
+/* Stile per l'input del bet - Default per desktop */
 .bet-input {
   background: linear-gradient(135deg, #ff4500, #ff8c00);
   border: 2px solid #ffcc00;
@@ -408,7 +360,7 @@ body {
   text-align: center;
 }
 
-/* Stile per la ruota di Crazy Time */
+/* Stile per la ruota di Crazy Time - Default per desktop */
 .wheel-container {
   position: relative;
   display: inline-block;
@@ -486,7 +438,7 @@ body {
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
 }
 
-/* Stile per il round bonus Coin Flip */
+/* Stile per il round bonus Coin Flip - Default per desktop */
 .coin-flip {
   display: flex;
   justify-content: center;
@@ -519,7 +471,7 @@ body {
   animation: flipCoin 2s ease-in-out forwards;
 }
 
-/* Stile per il round bonus Pachinko */
+/* Stile per il round bonus Pachinko - Default per desktop */
 .pachinko-board {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 4px solid #ffcc00;
@@ -580,7 +532,7 @@ body {
   100% { box-shadow: 0 0 15px #ffcc00; }
 }
 
-/* Stile per il round bonus Cash Hunt */
+/* Stile per il round bonus Cash Hunt - Default per desktop */
 .cash-hunt-board {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 4px solid #ffcc00;
@@ -595,7 +547,7 @@ body {
   font-size: 1.1rem;
 }
 
-/* Stile per il round bonus Crazy Time */
+/* Stile per il round bonus Crazy Time - Default per desktop */
 .crazy-time-board {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 4px solid #ffcc00;
@@ -610,7 +562,7 @@ body {
   font-size: 1.1rem;
 }
 
-/* Stile per la chat simulata */
+/* Stile per la chat simulata - Default per desktop */
 .chat-box {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 2px solid #ffcc00;
@@ -627,7 +579,7 @@ body {
   font-size: 0.9rem;
 }
 
-/* Stile per il presentatore */
+/* Stile per il presentatore - Default per desktop */
 .presenter {
   position: relative;
   width: 100px;
@@ -651,4 +603,283 @@ body {
 /* Mantieni il colore bianco per i testi dentro le tabelle */
 table {
   color: #e0e0e0;
+}
+
+/* Media Queries per Mobile */
+@media (max-width: 768px) {
+  body {
+    padding: 20px; /* Ridotto per mobile */
+  }
+
+  canvas {
+    height: 400px; /* Ridotto per mobile */
+  }
+
+  @keyframes neon-glow {
+    0% { box-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc; }
+    50% { box-shadow: 0 0 15px #00ffcc, 0 0 20px #00ffcc; } /* Ridotto per mobile */
+    100% { box-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc; }
+  }
+
+  .header-box {
+    padding: 8px 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    font-size: clamp(1.25rem, 5vw, 2.5rem);
+  }
+
+  .casino-button {
+    padding: 10px 20px;
+    font-size: clamp(0.9rem, 3vw, 1.25rem);
+    box-shadow: 0 0 8px rgba(255, 204, 0, 0.5), inset 0 0 4px rgba(255, 255, 255, 0.3);
+    min-height: 44px;
+    width: 100%;
+    max-width: 300px;
+    margin: 0.5rem auto;
+  }
+
+  .casino-button:hover {
+    box-shadow: 0 0 15px rgba(255, 204, 0, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.5);
+  }
+
+  .card {
+    width: 70px;
+    height: 100px;
+    border: 2px solid #ffcc00;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6), inset 0 0 5px rgba(255, 255, 255, 0.3);
+  }
+
+  .card:hover {
+    transform: rotateY(10deg) translateZ(20px) scale(1.05);
+    box-shadow: 0 6px 12px rgba(255, 204, 0, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.5);
+  }
+
+  .slot-machine {
+    border: 3px solid #ffcc00;
+    padding: 10px;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
+    max-width: 320px;
+  }
+
+  .slot-reel {
+    width: 50px;
+    height: 50px;
+    border-radius: 6px;
+    border: 2px solid #ffcc00;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+  }
+
+  .slot-reel.spinning {
+    animation: spinReelMobile 0.1s linear infinite;
+  }
+
+  @keyframes spinReelMobile {
+    0% { transform: translateY(-100%); filter: blur(2px); }
+    100% { transform: translateY(0); filter: blur(2px); }
+  }
+
+  .slot-reel.stopping {
+    animation: stopReelMobile 0.5s ease-out forwards;
+  }
+
+  @keyframes stopReelMobile {
+    0% { transform: translateY(-50%); filter: blur(2px); }
+    100% { transform: translateY(0); filter: blur(0); }
+  }
+
+  .slot-machine.winning .slot-reel {
+    animation: winningGlowMobile 0.5s infinite alternate;
+  }
+
+  @keyframes winningGlowMobile {
+    0% { box-shadow: 0 0 5px #ffcc00, inset 0 0 10px #ffcc00; }
+    100% { box-shadow: 0 0 15px #ffcc00, inset 0 0 20px #ffcc00; }
+  }
+
+  .slot-reel.winning {
+    border: 2px solid #ffcc00;
+    animation: winningPulseMobile 0.5s infinite alternate;
+  }
+
+  @keyframes winningPulseMobile {
+    0% { transform: scale(1); box-shadow: 0 0 5px #ffcc00; }
+    100% { transform: scale(1.05); box-shadow: 0 0 10px #ffcc00; }
+  }
+
+  .payout-table {
+    width: 100%;
+    max-width: 280px;
+    border: 3px solid #ffcc00;
+    padding: 10px;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
+    transform: none;
+    margin-top: 1rem;
+  }
+
+  .payout-table h3 {
+    font-size: 1.25rem;
+  }
+
+  .payout-table table {
+    font-size: 0.9rem;
+  }
+
+  .payout-table th,
+  .payout-table td {
+    padding: 8px;
+  }
+
+  .coin {
+    width: 80px;
+    height: 80px;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
+    border: 3px solid #ffcc00;
+  }
+
+  .coin.flipping {
+    animation: flipCoinMobile 1s ease-in-out;
+  }
+
+  @keyframes flipCoinMobile {
+    0% { transform: rotateY(0deg); }
+    50% { transform: rotateY(720deg) translateZ(30px); }
+    100% { transform: rotateY(1440deg); }
+  }
+
+  .game-box {
+    border: 3px solid #ffcc00;
+    padding: 1rem;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
+    transform: none;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .bet-input {
+    padding: 8px;
+    box-shadow: 0 0 8px rgba(255, 204, 0, 0.5);
+    width: 100%;
+    max-width: 150px;
+    margin: 0.5rem auto;
+    display: block;
+  }
+
+  .bet-input:hover,
+  .bet-input:focus {
+    box-shadow: 0 0 15px rgba(255, 204, 0, 0.8);
+  }
+
+  .wheel-container {
+    width: 300px;
+    height: 300px;
+  }
+
+  .wheel {
+    width: 100%;
+    height: 100%;
+  }
+
+  .wheel-indicator {
+    bottom: -20px;
+  }
+
+  .wheel-result {
+    font-size: 1rem;
+  }
+
+  .coin-flip .coin {
+    width: 70px;
+    height: 70px;
+    font-size: 1rem;
+  }
+
+  .pachinko-board {
+    width: 100%;
+    max-width: 300px;
+    height: 200px;
+    border: 3px solid #ffcc00;
+    padding: 15px;
+  }
+
+  .pachinko-board .disc {
+    width: 15px;
+    height: 15px;
+  }
+
+  .pachinko-board .slot {
+    width: 45px;
+    height: 30px;
+    font-size: 0.9rem;
+  }
+
+  @keyframes fallDisc {
+    0% { top: 0; }
+    100% { top: 160px; }
+  }
+
+  .chat-box {
+    max-height: 100px;
+  }
+
+  .presenter {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 10px;
+  }
+
+  .header-box {
+    padding: 6px 12px;
+    font-size: 1rem;
+  }
+
+  .casino-button {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+
+  .card {
+    width: 60px;
+    height: 85px;
+  }
+
+  .slot-reel {
+    width: 40px;
+    height: 40px;
+  }
+
+  .slot-machine {
+    max-width: 280px;
+    padding: 8px;
+  }
+
+  .coin {
+    width: 60px;
+    height: 60px;
+    font-size: 0.9rem;
+  }
+
+  .wheel-container {
+    width: 250px;
+    height: 250px;
+  }
+
+  .pachinko-board {
+    max-width: 250px;
+    height: 180px;
+  }
+
+  .pachinko-board .slot {
+    width: 40px;
+    height: 25px;
+    font-size: 0.8rem;
+  }
+
+  @keyframes fallDisc {
+    0% { top: 0; }
+    100% { top: 140px; }
+  }
 }

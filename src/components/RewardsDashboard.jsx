@@ -462,10 +462,10 @@ const CoinFlip = ({ position, gameName, onClick }) => {
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
     >
-      <primitive object={fbx} scale={[0.1, 0.1, 0.1]} />
+      <primitive object={fbx} scale={[0.02, 0.02, 0.02]} />
       <Text
-        position={[0, 0, 1]}
-        fontSize={1.3}
+        position={[0, 0.5, 0.5]}
+        fontSize={0.5}
         color={hovered ? "yellow" : "red"}
         anchorX="center"
         anchorY="middle"
@@ -500,7 +500,7 @@ const CasinoTable = ({ position }) => {
 
   return (
     <group ref={group} position={position}>
-      <primitive object={fbx} scale={[0.04, 0.04, 0.04]} />
+      <primitive object={fbx} scale={[0.05, 0.05, 0.05]} />
     </group>
   );
 };
@@ -548,6 +548,50 @@ const BlackjackTable = ({ position, onSelectGame }) => {
       >
         Poker PvP
       </Text>
+    </group>
+  );
+};
+
+
+// Componente per il tappeto rosso con barriere
+const RedCarpetModule = ({ position }) => {
+  const group = useRef();
+  const fbx = useFBX('/models/red-carpet-module.fbx'); // Percorso del file FBX
+  const carpetTexture = useLoader(THREE.TextureLoader, '/models/carpet.jpg'); // Texture del tappeto
+  const pillarsTexture = useLoader(THREE.TextureLoader, '/models/pillars.jpg'); // Texture dei pillar
+  const ropesTexture = useLoader(THREE.TextureLoader, '/models/ropes.jpg'); // Texture delle corde
+
+  useEffect(() => {
+    fbx.traverse((child) => {
+      if (child.isMesh) {
+        let textureToApply;
+        // Applica la texture in base al nome dell'oggetto o del materiale
+        if (child.name.toLowerCase().includes('carpet')) {
+          textureToApply = carpetTexture;
+        } else if (child.name.toLowerCase().includes('pillar')) {
+          textureToApply = pillarsTexture;
+        } else if (child.name.toLowerCase().includes('rope')) {
+          textureToApply = ropesTexture;
+        } else {
+          textureToApply = carpetTexture; // Default al tappeto
+        }
+
+        child.material = new THREE.MeshStandardMaterial({
+          map: textureToApply,
+          side: THREE.DoubleSide,
+          roughness: 0.8, // Aspetto morbido per il tappeto, regolabile per pillar e ropes
+          metalness: child.name.toLowerCase().includes('pillar') ? 0.5 : 0.1, // Pillar più metallici
+        });
+        child.material.needsUpdate = true;
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+  }, [fbx, carpetTexture, pillarsTexture, ropesTexture]);
+
+  return (
+    <group ref={group} position={position}>
+      <primitive object={fbx} scale={[0.08, 0.1, 0.08]} /> {/* Scala da regolare */}
     </group>
   );
 };
@@ -611,31 +655,32 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         />
       </mesh>
 
-      <Croupier position={[-12, -1, -5]} currentAnimation={croupierAnimation} />
+      <Croupier position={[-14, -1, 10]} currentAnimation={croupierAnimation} />
 
       <PokerCard
-        position={[-13, 2, 18]}
+        position={[-17, 2.5, -15]}
         gameName="Solana Card Duel"
         onClick={() => handleSelectGame('Solana Card Duel')}
       />
       <SlotMachine
-        position={[15, -1, -15]}
+        position={[18, -1, -15]}
         gameName="Meme Slots"
         onClick={() => handleSelectGame('Meme Slots')}
       />
       <CoinFlip
-        position={[15, 0, 1]}
+        position={[-12.5, 2.5, -15]}
         gameName="Coin Flip"
         onClick={() => handleSelectGame('Coin Flip')}
       />
       <CrazyTimeWheel
-        position={[15, -1, 15]}
+        position={[2, -1, -16]}
         gameName="Crazy Time"
         onClick={() => handleSelectGame('Crazy Time')}
       />
 
-      <CasinoTable position={[-13, -1, 17]} />
-      <BlackjackTable position={[0, -1, 0]} onSelectGame={handleSelectGame} />
+      <CasinoTable position={[-15, -1, -15]} />
+      <BlackjackTable position={[0, -1, 2]} onSelectGame={handleSelectGame} />
+      <RedCarpetModule position={[0, -1, 10]} />{/* Aggiunto qui sotto il tavolo da blackjack */}
 
       {showParticles && <Particles position={[0, 2, 0]} />}
 
@@ -651,16 +696,12 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 // Componente principale CasinoScene
 const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
   const [croupierAnimation, setCroupierAnimation] = useState('Idle');
-
   return (
     <Canvas
-      style={{ height: '600px', width: '100%' }}
+      className="w-full" // Usa classi invece di stili inline
       gl={{
         antialias: true,
-        shadowMap: {
-          enabled: true,
-          type: THREE.PCFSoftShadowMap,
-        },
+        shadowMap: { enabled: true, type: THREE.PCFSoftShadowMap },
       }}
       scene={{ background: new THREE.Color('#000000') }}
     >
@@ -673,6 +714,8 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     </Canvas>
   );
 };
+
+
 
 // Componente principale
 const RewardsDashboard = () => {
@@ -2353,113 +2396,121 @@ const evaluateResult = (result) => {
 
   return (
     <div className="w-full max-w-6xl bg-gray-900 bg-opacity-80 rounded-xl p-8 shadow-lg animate-neon-glow">
-      <audio ref={audioRef} src={backgroundMusic} loop />
-      <audio ref={spinAudioRef} src={spinSound} />
-      <audio ref={winAudioRef} src={winSound} />
-
-      {loading ? (
-        <p className="text-center text-orange-700 animate-pulse text-2xl">Initializing...</p>
-      ) : error ? (
-        <p className="text-center text-red-500 text-2xl">{error}</p>
-      ) : (
-        <>
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-5xl font-bold text-orange-700 tracking-wide header-box">{TOKEN_NAME}</h2>
-            <WalletMultiButton className="casino-button" />
+    <audio ref={audioRef} src={backgroundMusic} loop />
+    <audio ref={spinAudioRef} src={spinSound} />
+    <audio ref={winAudioRef} src={winSound} />
+  
+    {loading ? (
+      <p className="text-center text-orange-700 animate-pulse text-2xl">Initializing...</p>
+    ) : error ? (
+      <p className="text-center text-red-500 text-2xl">{error}</p>
+    ) : (
+      <>
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-5xl font-bold text-orange-700 tracking-wide header-box">{TOKEN_NAME}</h2>
+          <WalletMultiButton className="casino-button" />
+        </div>
+  
+        {connected && publicKey && (
+          <div className="game-box p-6 mb-8">
+            <p className="text-lg text-orange-700">
+              Your Wallet: <span className="text-orange-700">{publicKey.toString()}</span>
+            </p>
+            <p className="text-lg text-orange-700">
+              Your {TOKEN_SYMBOL} Balance: <span className="text-orange-700">{userTokens.toFixed(6)}</span>
+            </p>
+            <p className="text-lg text-orange-700">SOL Reward: {userRewards.sol.toFixed(6)}</p>
+            <p className="text-lg text-orange-700">WBTC Reward: {userRewards.wbtc.toFixed(8)}</p>
+            <p className="text-lg text-orange-700">WETH Reward: {userRewards.weth.toFixed(8)}</p>
           </div>
-
-          {connected && publicKey && (
-            <div className="game-box p-6 mb-8">
-              <p className="text-lg text-orange-700">
-                Your Wallet: <span className="text-orange-700">{publicKey.toString()}</span>
-              </p>
-              <p className="text-lg text-orange-700">
-                Your {TOKEN_SYMBOL} Balance: <span className="text-orange-700">{userTokens.toFixed(6)}</span>
-              </p>
-              <p className="text-lg text-orange-700">SOL Reward: {userRewards.sol.toFixed(6)}</p>
-              <p className="text-lg text-orange-700">WBTC Reward: {userRewards.wbtc.toFixed(8)}</p>
-              <p className="text-lg text-orange-700">WETH Reward: {userRewards.weth.toFixed(8)}</p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-            <div className="game-box p-6">
-              <p className="text-lg text-orange-700">Tax Wallet Balance</p>
-              <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
-            </div>
-            <div className="game-box p-6">
-              <p className="text-lg text-orange-700">SOL Rewards</p>
-              <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
-            </div>
-            <div className="game-box p-6">
-              <p className="text-lg text-orange-700">WBTC Rewards</p>
-              <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
-            </div>
-            <div className="game-box p-6">
-              <p className="text-lg text-orange-700">WETH Rewards</p>
-              <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
-            </div>
+        )}
+  
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+          <div className="game-box p-6">
+            <p className="text-lg text-orange-700">Tax Wallet Balance</p>
+            <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
           </div>
-
-          <button onClick={fetchRewardsData} className="w-full casino-button">
+          <div className="game-box p-6">
+            <p className="text-lg text-orange-700">SOL Rewards</p>
+            <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
+          </div>
+          <div className="game-box p-6">
+            <p className="text-lg text-orange-700">WBTC Rewards</p>
+            <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
+          </div>
+          <div className="game-box p-6">
+            <p className="text-lg text-orange-700">WETH Rewards</p>
+            <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
+          </div>
+        </div>
+  
+        {/* Pulsante Sync Data accorciato e centrato */}
+        <div className="flex justify-center">
+          <button onClick={fetchRewardsData} className="w-32 casino-button">
             Sync Data
           </button>
-
-          <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
-            {TOKEN_SYMBOL} Holder Network
-          </h2>
-          <div className="game-box p-6 mb-6">
-            <p className="text-lg text-orange-700">
-              Total Supply: <span className="text-orange-700">{totalSupply.toFixed(6)} {TOKEN_SYMBOL}</span>
-            </p>
-            <p className="text-lg text-orange-700">
-              Number of Holders (excluding pool): <span className="text-orange-700">{holderCount}</span>
-            </p>
-          </div>
-          <button onClick={toggleHolders} className="w-full casino-button mb-6">
+        </div>
+  
+        <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
+          {TOKEN_SYMBOL} Holder Network
+        </h2>
+        <div className="game-box p-6 mb-6">
+          <p className="text-lg text-orange-700">
+            Total Supply: <span className="text-orange-700">{totalSupply.toFixed(6)} {TOKEN_SYMBOL}</span>
+          </p>
+          <p className="text-lg text-orange-700">
+            Number of Holders (excluding pool): <span className="text-orange-700">{holderCount}</span>
+          </p>
+        </div>
+  
+        {/* Pulsante Holders accorciato e centrato */}
+        <div className="flex justify-center mb-6">
+          <button onClick={toggleHolders} className="w-32 casino-button">
             {showHolders ? 'Hide Holders' : 'Show Holders'}
           </button>
-          {showHolders && holders.length > 0 ? (
-            <div className="game-box p-6 mb-10">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-gray-700 text-cyan-400">
-                      <th className="p-4 text-lg">Holder Address</th>
-                      <th className="p-4 text-lg">Amount ({TOKEN_SYMBOL})</th>
-                      <th className="p-4 text-lg">SOL Reward</th>
-                      <th className="p-4 text-lg">WBTC Reward</th>
-                      <th className="p-4 text-lg">WETH Reward</th>
+        </div>
+  
+        {showHolders && holders.length > 0 ? (
+          <div className="game-box p-6 mb-10">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-gray-700 text-cyan-400">
+                    <th className="p-4 text-lg">Holder Address</th>
+                    <th className="p-4 text-lg">Amount ({TOKEN_SYMBOL})</th>
+                    <th className="p-4 text-lg">SOL Reward</th>
+                    <th className="p-4 text-lg">WBTC Reward</th>
+                    <th className="p-4 text-lg">WETH Reward</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentHolders.map((holder, index) => (
+                    <tr key={index} className="border-t border-gray-600 hover:bg-gray-600 transition-all">
+                      <td className="p-4 text-gray-200 font-mono">{holder.address}</td>
+                      <td className="p-4 text-gray-200">{holder.amount.toFixed(6)}</td>
+                      <td className="p-4 text-green-400">{holder.solReward.toFixed(6)}</td>
+                      <td className="p-4 text-yellow-400">{holder.wbtcReward.toFixed(8)}</td>
+                      <td className="p-4 text-purple-400">{holder.wethReward.toFixed(8)}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {currentHolders.map((holder, index) => (
-                      <tr key={index} className="border-t border-gray-600 hover:bg-gray-600 transition-all">
-                        <td className="p-4 text-gray-200 font-mono">{holder.address}</td>
-                        <td className="p-4 text-gray-200">{holder.amount.toFixed(6)}</td>
-                        <td className="p-4 text-green-400">{holder.solReward.toFixed(6)}</td>
-                        <td className="p-4 text-yellow-400">{holder.wbtcReward.toFixed(8)}</td>
-                        <td className="p-4 text-purple-400">{holder.wethReward.toFixed(8)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex justify-between items-center mt-4">
-                <button onClick={prevPage} disabled={currentPage === 1} className="casino-button">
-                  Previous
-                </button>
-                <p className="text-orange-700">Page {currentPage} of {totalPages}</p>
-                <button onClick={nextPage} disabled={currentPage === totalPages} className="casino-button">
-                  Next
-                </button>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ) : showHolders ? (
-            <p className="text-center text-orange-700 mb-10 text-lg">
-              No holders detected in the network (excluding pool).
-            </p>
-          ) : null}
+            <div className="flex justify-between items-center mt-4">
+              <button onClick={prevPage} disabled={currentPage === 1} className="casino-button">
+                Previous
+              </button>
+              <p className="text-orange-700">Page {currentPage} of {totalPages}</p>
+              <button onClick={nextPage} disabled={currentPage === totalPages} className="casino-button">
+                Next
+              </button>
+            </div>
+          </div>
+        ) : showHolders ? (
+          <p className="text-center text-orange-700 mb-10 text-lg">
+            No holders detected in the network (excluding pool).
+          </p>
+        ) : null}
 
           <div className="mb-10">
             <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
@@ -3006,18 +3057,16 @@ const evaluateResult = (result) => {
                     <div className="mb-6 text-center">
                       <p className="text-lg text-orange-700 mb-2">Wheel Result:</p>
                       <div className="wheel-wrapper">
-                        <div className="wheel-container">
-                          <svg
-                            ref={wheelRef}
-                            className="wheel"
-                            style={{
-                              transform: `rotate(${rotationAngle}deg)`,
-                              transition: wheelStatus === 'spinning' ? 'transform 5s ease-out' : 'none',
-                            }}
-                            width="500"
-                            height="500"
-                            viewBox="0 0 500 500"
-                          >
+                      <div className="wheel-container">
+  <svg
+    className="wheel"
+    style={{
+      transform: `rotate(${rotationAngle}deg)`,
+      transition: wheelStatus === 'spinning' ? 'transform 5s ease-out' : 'none',
+    }}
+    viewBox="0 0 500 500" // Mantieni il viewBox per proporzioni
+  >
+  
                             <g transform="translate(250, 250)">
                               <circle cx="0" cy="0" r="100" fill="#ff3333" stroke="#d4af37" strokeWidth="5" />
                               <text
@@ -3245,3 +3294,12 @@ const evaluateResult = (result) => {
 };
 
 export default RewardsDashboard; 
+
+
+
+
+
+
+
+
+
