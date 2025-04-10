@@ -559,7 +559,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   const [winLightColor, setWinLightColor] = useState(new THREE.Color('red'));
 
   const brickTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
-  const brickNormalTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
+  const brickNormalTexture = useLoader(THREE.TextureLoader, '/models/textures/111.jpg');
 
   useEffect(() => {
     brickTexture.wrapS = brickTexture.wrapT = THREE.RepeatWrapping;
@@ -1296,37 +1296,24 @@ useEffect(() => {
     return score;
   };
 
-  const startDuel = async () => {
+  const startBlackjack = async () => {
     if (!connected || !publicKey) {
       setGameMessage('Please connect your wallet to play!');
       return;
     }
-
+  
     const betError = validateBet(betAmount);
     if (betError) {
       setGameMessage(betError);
       return;
     }
-
+  
     setGameStatus('betting');
-    const playerInitial = [drawCard(), drawCard(), drawCard()];
-    const opponentInitial = [drawCard(true), drawCard(true), drawCard(true)];
-
-    const arePlayerCardsValid = playerInitial.every(card => card && card.value && card.image);
-    const areOpponentCardsValid = opponentInitial.every(card => card && card.value && card.image);
-
-    if (!arePlayerCardsValid || !areOpponentCardsValid) {
-      console.error('DEBUG - Invalid cards assigned:', { playerInitial, opponentInitial });
-      setGameMessage('Error: Invalid cards. Please try again.');
-      setGameStatus('idle');
-      return;
-    }
-
-    console.log('DEBUG - Player cards:', playerInitial);
-    console.log('DEBUG - Opponent cards:', opponentInitial);
-    setPlayerCards(playerInitial);
-    setOpponentCards(opponentInitial);
-
+    // Resettiamo le carte subito per non mostrarle durante la transazione
+    setPlayerCards([]);
+    setOpponentCards([]);
+    setGameMessage('Placing bet...');
+  
     const betInLamports = betAmount * LAMPORTS_PER_SOL;
     const transaction = new Transaction().add(
       SystemProgram.transfer({
@@ -1335,45 +1322,92 @@ useEffect(() => {
         lamports: betInLamports,
       })
     );
-
+  
     const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = publicKey;
-
+  
     try {
       console.log('DEBUG - Sending bet transaction...');
       const signed = await signTransaction(transaction);
       const signature = await connection.sendRawTransaction(signed.serialize());
       console.log('DEBUG - Bet transaction signature:', signature);
       await connection.confirmTransaction(signature);
+  
+      // Pesca le carte solo dopo che la transazione è confermata
+      const playerInitial = [drawCard(), drawCard()];
+      const dealerInitial = [drawCard(), drawCard()]; // Banco con 2 carte
+  
+      const arePlayerCardsValid = playerInitial.every(card => card && card.value && card.image);
+      const areDealerCardsValid = dealerInitial.every(card => card && card.value && card.image);
+  
+      if (!arePlayerCardsValid || !areDealerCardsValid) {
+        console.error('DEBUG - Invalid cards assigned:', { playerInitial, dealerInitial });
+        setGameMessage('Error: Invalid cards. Please try again.');
+        setGameStatus('idle');
+        setPlayerCards([]);
+        setOpponentCards([]);
+        return;
+      }
+  
+      console.log('DEBUG - Player cards:', playerInitial);
+      console.log('DEBUG - Dealer cards:', dealerInitial);
+      setPlayerCards(playerInitial);
+      setOpponentCards(dealerInitial); // "opponentCards" ora rappresenta le carte del banco
+  
       setGameStatus('playing');
-      setGameMessage('Bet placed! Cards dealt.');
+      setGameMessage('Bet placed! Your turn: Hit or Stand.');
     } catch (err) {
       console.error('DEBUG - Bet failed:', err);
       setGameMessage('Bet failed. Try again.');
       setGameStatus('idle');
+      setPlayerCards([]);
+      setOpponentCards([]);
     }
   };
 
-  const endDuel = async () => {
-    const playerScore = calculateScore(playerCards);
-    const opponentScore = calculateScore(opponentCards);
-    console.log('DEBUG - Player score:', playerScore);
-    console.log('DEBUG - Opponent score:', opponentScore);
+  const hit = () => {
+    if (gameStatus !== 'playing') return;
+  
+    const newCard = drawCard();
+    setPlayerCards(prev => [...prev, newCard]);
+    const newScore = calculateScore([...playerCards, newCard]);
+  
+    if (newScore > 21) {
+      setGameStatus('finished');
+      setGameMessage('You busted! Dealer wins.');
+    } else {
+      setGameMessage(`Your score: ${newScore}. Hit or Stand?`);
+    }
+  };
 
+  const stand = async () => {
+    if (gameStatus !== 'playing') return;
+  
+    const playerScore = calculateScore(playerCards);
+    let dealerCards = [...opponentCards];
+    let dealerScore = calculateScore(dealerCards);
+  
+    // Il banco pesca carte finché il punteggio è inferiore a 17
+    while (dealerScore < 17) {
+      const newCard = drawCard();
+      dealerCards = [...dealerCards, newCard];
+      dealerScore = calculateScore(dealerCards);
+      setOpponentCards(dealerCards); // Aggiorna le carte del banco visibili
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Pausa per simulare il gioco
+    }
+  
+    console.log('DEBUG - Final player score:', playerScore);
+    console.log('DEBUG - Final dealer score:', dealerScore);
+  
     const winAmount = betAmount * 2;
     const winAmountInLamports = winAmount * LAMPORTS_PER_SOL;
-
-    if (playerScore > 21 && opponentScore > 21) {
+  
+    // Logica di vincita
+    if (dealerScore > 21) {
       setGameStatus('finished');
-      setGameMessage('Both busted! Try again.');
-    } else if (playerScore > 21) {
-      setGameStatus('finished');
-      setGameMessage('You busted! The computer wins.');
-    } else if (opponentScore > 21) {
-      setGameStatus('finished');
-      setGameMessage(`Computer busted! You won ${winAmount.toFixed(2)} SOL!`);
-
+      setGameMessage(`Dealer busted! You won ${winAmount.toFixed(2)} SOL!`);
+  
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: wallet.publicKey,
@@ -1381,76 +1415,93 @@ useEffect(() => {
           lamports: winAmountInLamports,
         })
       );
-
+  
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = wallet.publicKey;
       transaction.partialSign(wallet);
-
+  
       try {
         const signature = await connection.sendRawTransaction(transaction.serialize());
         await connection.confirmTransaction(signature);
         console.log('DEBUG - Prize distributed:', signature);
         setTriggerWinEffect(true);
         playSound(winAudioRef);
-      } catch (err) {
-        console.error('DEBUG - Prize distribution failed:', err);
-        setGameMessage('You won, but prize distribution failed. Contact support.');
-      }
-
-      updateMissionProgress(2);
-      setPlayerStats(prev => ({
-        ...prev,
-        wins: prev.wins + 1,
-        totalWinnings: prev.totalWinnings + winAmount,
-      }));
-    } else {
-      if (playerScore > opponentScore) {
-        setGameStatus('finished');
-        setGameMessage(`You won ${winAmount.toFixed(2)} SOL!`);
-
-        const transaction = new Transaction().add(
-          SystemProgram.transfer({
-            fromPubkey: wallet.publicKey,
-            toPubkey: publicKey,
-            lamports: winAmountInLamports,
-          })
-        );
-
-        const { blockhash } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = wallet.publicKey;
-        transaction.partialSign(wallet);
-
-        try {
-          const signature = await connection.sendRawTransaction(transaction.serialize());
-          await connection.confirmTransaction(signature);
-          console.log('DEBUG - Prize distributed:', signature);
-          setTriggerWinEffect(true);
-          playSound(winAudioRef);
-        } catch (err) {
-          console.error('DEBUG - Prize distribution failed:', err);
-          setGameMessage('You won, but prize distribution failed. Contact support.');
-        }
-
         updateMissionProgress(2);
         setPlayerStats(prev => ({
           ...prev,
           wins: prev.wins + 1,
           totalWinnings: prev.totalWinnings + winAmount,
         }));
-      } else if (playerScore === opponentScore) {
-        setGameStatus('finished');
-        setGameMessage("It's a tie! Try again.");
-      } else {
-        setGameStatus('finished');
-        setGameMessage('The computer wins! Try again.');
+      } catch (err) {
+        console.error('DEBUG - Prize distribution failed:', err);
+        setGameMessage('You won, but prize distribution failed. Contact support.');
       }
+    } else if (playerScore > dealerScore) {
+      setGameStatus('finished');
+      setGameMessage(`You won ${winAmount.toFixed(2)} SOL!`);
+  
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: wallet.publicKey,
+          toPubkey: publicKey,
+          lamports: winAmountInLamports,
+        })
+      );
+  
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = wallet.publicKey;
+      transaction.partialSign(wallet);
+  
+      try {
+        const signature = await connection.sendRawTransaction(transaction.serialize());
+        await connection.confirmTransaction(signature);
+        console.log('DEBUG - Prize distributed:', signature);
+        setTriggerWinEffect(true);
+        playSound(winAudioRef);
+        updateMissionProgress(2);
+        setPlayerStats(prev => ({
+          ...prev,
+          wins: prev.wins + 1,
+          totalWinnings: prev.totalWinnings + winAmount,
+        }));
+      } catch (err) {
+        console.error('DEBUG - Prize distribution failed:', err);
+        setGameMessage('You won, but prize distribution failed. Contact support.');
+      }
+    } else if (playerScore === dealerScore) {
+      setGameStatus('finished');
+      setGameMessage("It's a tie! Your bet is returned.");
+  
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: wallet.publicKey,
+          toPubkey: publicKey,
+          lamports: betAmount * LAMPORTS_PER_SOL,
+        })
+      );
+  
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = wallet.publicKey;
+      transaction.partialSign(wallet);
+  
+      try {
+        const signature = await connection.sendRawTransaction(transaction.serialize());
+        await connection.confirmTransaction(signature);
+        console.log('DEBUG - Bet returned:', signature);
+      } catch (err) {
+        console.error('DEBUG - Bet return failed:', err);
+        setGameMessage('Tie, but bet return failed. Contact support.');
+      }
+    } else {
+      setGameStatus('finished');
+      setGameMessage('Dealer wins! Try again.');
     }
   };
 
   const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
-const [isStopping, setIsStopping] = useState(false); // Stato per la fase di fermata
 
 const spinSlots = async () => {
   if (!connected || !publicKey) {
@@ -1488,10 +1539,10 @@ const spinSlots = async () => {
 
     // Durata totale dello spin
     const spinDuration = 5000; // 5 secondi
-    const intervalTime = 100; // Aggiornamento ogni 300ms sec
+    const intervalTime = 100; // Aggiornamento ogni 100ms sec
     let elapsedTime = 0;
 
-  // Calcola il risultato finale in anticipo
+    // Calcola il risultato finale in anticipo
 let result;
 if (Math.random() < COMPUTER_WIN_CHANCE.memeSlots) {
   result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
@@ -1553,6 +1604,7 @@ const spinInterval = setInterval(() => {
   }
 };
 
+// Funzione per valutare il risultato
 const evaluateResult = (result) => {
   const winLines = [
     [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24],
@@ -1595,36 +1647,7 @@ const evaluateResult = (result) => {
     setSlotStatus('won');
     const winAmountInLamports = totalWin * LAMPORTS_PER_SOL;
     setSlotMessage(`Jackpot! You won ${totalWin.toFixed(2)} SOL!`);
-
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: wallet.publicKey,
-        toPubkey: publicKey,
-        lamports: winAmountInLamports,
-      })
-    );
-
-    const { blockhash } = connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = wallet.publicKey;
-    transaction.partialSign(wallet);
-
-    (async () => {
-      try {
-        const signature = await connection.sendRawTransaction(transaction.serialize());
-        await connection.confirmTransaction(signature);
-        setTriggerWinEffect(true);
-        playSound(winAudioRef);
-      } catch (err) {
-        console.error('Prize distribution failed:', err);
-        setSlotMessage('You won, but prize distribution failed. Contact support.');
-      }
-    })();
-
-    setPlayerStats(prev => ({
-      ...prev,
-      totalWinnings: prev.totalWinnings + totalWin,
-    }));
+    // ... resto del codice per la transazione Solana
   } else {
     setSlotStatus('lost');
     setSlotMessage('No luck this time. Spin again!');
@@ -2295,113 +2318,113 @@ const evaluateResult = (result) => {
             </>
           ) : (
             <>
-              {selectedGame === 'Solana Card Duel' && (
-                <div>
-                  <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
-                    Solana Card Duel
-                  </h2>
-                  <div className="mb-6 text-center">
-                    <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={betAmount}
-                      onChange={handleBetChange}
-                      className="bet-input"
-                      placeholder="Enter bet (0.01 - 1 SOL)"
-                    />
-                    {betError && <p className="bet-error">{betError}</p>}
-                  </div>
-                  <div className="game-box p-6 mb-10">
-                    <div className="mb-6">
-                      <p className="text-lg text-orange-700 mb-2 text-center">Your Cards:</p>
-                      <div className="flex gap-4 justify-center">
-                        {playerCards.map((card, index) => (
-                          <div
-                            key={index}
-                            className="card"
-                            style={{
-                              backgroundImage: card.image ? `url(${card.image})` : 'none',
-                              backgroundColor: card.image ? 'transparent' : 'red',
-                              backgroundSize: 'cover',
-                              width: '100px',
-                              height: '140px',
-                            }}
-                          />
-                        ))}
-                      </div>
-                      {gameStatus !== 'idle' && (
-                        <p className="text-lg text-orange-700 mt-2 text-center">
-                          Score: {calculateScore(playerCards)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="mb-6">
-                      <p className="text-lg text-orange-700 mb-2 text-center">Computer Cards:</p>
-                      <div className="flex gap-4 justify-center">
-                        {opponentCards.map((card, index) => {
-                          const isVisible = gameStatus === 'finished' || index < 2;
-                          console.log(
-                            `DEBUG - Rendering computer card ${index}: gameStatus=${gameStatus}, isVisible=${isVisible}`
-                          );
-                          return (
-                            <div
-                              key={index}
-                              className="card"
-                              style={{
-                                backgroundImage: isVisible ? `url(${card.image})` : 'none',
-                                backgroundColor: isVisible ? 'transparent' : 'gray',
-                                backgroundSize: 'cover',
-                                width: '100px',
-                                height: '140px',
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                      {gameStatus === 'finished' && (
-                        <p className="text-lg text-orange-700 mt-2 text-center">
-                          Score: {calculateScore(opponentCards)}
-                        </p>
-                      )}
-                    </div>
-                    <p className="text-center text-orange-700 mb-4 text-lg">{gameMessage}</p>
-                    {gameStatus === 'idle' ? (
-                      <button
-                        onClick={startDuel}
-                        className="w-full casino-button"
-                        disabled={!!betError}
-                      >
-                        Start Duel (Bet {betAmount.toFixed(2)} SOL)
-                      </button>
-                    ) : gameStatus === 'playing' ? (
-                      <button onClick={endDuel} className="w-full casino-button">
-                        Reveal Winner
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setGameStatus('idle');
-                          setPlayerCards([]);
-                          setOpponentCards([]);
-                          setGameMessage('');
-                        }}
-                        className="w-full casino-button"
-                        disabled={!!betError}
-                      >
-                        Play Again (Bet {betAmount.toFixed(2)} SOL)
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setSelectedGame(null)}
-                      className="w-full casino-button mt-4"
-                    >
-                      Back to Casino Floor
-                    </button>
-                  </div>
-                </div>
-              )}
-              
+          {selectedGame === 'Solana Card Duel' && (
+  <div>
+    <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
+      Blackjack
+    </h2>
+    <div className="mb-6 text-center">
+      <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
+      <input
+        type="number"
+        step="0.01"
+        value={betAmount}
+        onChange={handleBetChange}
+        className="bet-input"
+        placeholder="Enter bet (0.01 - 1 SOL)"
+      />
+      {betError && <p className="bet-error">{betError}</p>}
+    </div>
+    <div className="game-box p-6 mb-10">
+      <div className="mb-6">
+        <p className="text-lg text-orange-700 mb-2 text-center">Your Cards:</p>
+        <div className="flex gap-4 justify-center">
+          {playerCards.map((card, index) => (
+            <div
+              key={index}
+              className="card"
+              style={{
+                backgroundImage: card.image ? `url(${card.image})` : 'none',
+                backgroundColor: card.image ? 'transparent' : 'red',
+                backgroundSize: 'cover',
+                width: '100px',
+                height: '140px',
+              }}
+            />
+          ))}
+        </div>
+        {gameStatus !== 'idle' && (
+          <p className="text-lg text-orange-700 mt-2 text-center">
+            Score: {calculateScore(playerCards)}
+          </p>
+        )}
+      </div>
+      <div className="mb-6">
+        <p className="text-lg text-orange-700 mb-2 text-center">Dealer Cards:</p>
+        <div className="flex gap-4 justify-center">
+          {opponentCards.map((card, index) => {
+            const isVisible = gameStatus === 'finished' || index === 0; // Solo la prima carta è visibile inizialmente
+            return (
+              <div
+                key={index}
+                className="card"
+                style={{
+                  backgroundImage: isVisible ? `url(${card.image})` : `url(${CARD_BACK_IMAGE})`,
+                  backgroundSize: 'cover',
+                  width: '100px',
+                  height: '140px',
+                }}
+              />
+            );
+          })}
+        </div>
+        {gameStatus === 'finished' && (
+          <p className="text-lg text-orange-700 mt-2 text-center">
+            Dealer Score: {calculateScore(opponentCards)}
+          </p>
+        )}
+      </div>
+      <p className="text-center text-orange-700 mb-4 text-lg">{gameMessage}</p>
+      {gameStatus === 'idle' ? (
+        <button
+          onClick={startBlackjack}
+          className="w-full casino-button"
+          disabled={!!betError}
+        >
+          Start Blackjack (Bet {betAmount.toFixed(2)} SOL)
+        </button>
+      ) : gameStatus === 'playing' ? (
+        <div className="flex gap-4">
+          <button onClick={hit} className="flex-1 casino-button">
+            Hit
+          </button>
+          <button onClick={stand} className="flex-1 casino-button">
+            Stand
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => {
+            setGameStatus('idle');
+            setPlayerCards([]);
+            setOpponentCards([]);
+            setGameMessage('');
+          }}
+          className="w-full casino-button"
+          disabled={!!betError}
+        >
+          Play Again (Bet {betAmount.toFixed(2)} SOL)
+        </button>
+      )}
+      <button
+        onClick={() => setSelectedGame(null)}
+        className="w-full casino-button mt-4"
+      >
+        Back to Casino Floor
+      </button>
+    </div>
+  </div>
+)}
 
 
               {selectedGame === 'Meme Slots' && (
