@@ -1624,39 +1624,75 @@ const evaluateResult = (result) => {
   ];
 
   const winningLinesFound = [];
+  const winningIndices = new Set();
   let totalWin = 0;
 
   for (let i = 0; i < winLines.length; i++) {
     const line = winLines[i];
     const symbolsInLine = line.map(index => result[index].name);
 
-    for (let j = 0; j <= line.length - 3; j++) {
-      const segment = symbolsInLine.slice(j, j + 3);
-      if (segment.every(symbol => symbol === segment[0])) {
-        winningLinesFound.push(i);
-        let winAmount = betAmount * 3;
-        if (segment[0] === 'BONUS') {
-          winAmount *= 2;
-        }
-        if (j <= line.length - 4 && symbolsInLine[j + 3] === segment[0]) {
-          winAmount += betAmount * 2;
-          if (j <= line.length - 5 && symbolsInLine[j + 4] === segment[0]) {
-            winAmount += betAmount * 3;
+    let currentSymbol = symbolsInLine[0];
+    let streak = 1;
+    let streakStart = 0;
+
+    for (let j = 1; j < symbolsInLine.length; j++) {
+      if (symbolsInLine[j] === currentSymbol) {
+        streak++;
+      } else {
+        if (streak >= 3) {
+          winningLinesFound.push(i);
+          for (let k = streakStart; k < streakStart + streak; k++) {
+            winningIndices.add(line[k]);
           }
+          let winAmount = betAmount * 3;
+          if (currentSymbol === 'BONUS') {
+            winAmount *= 2;
+          }
+          if (streak >= 4) winAmount += betAmount * 2;
+          if (streak === 5) winAmount += betAmount * 3;
+          totalWin += winAmount;
         }
-        totalWin += winAmount;
-        break;
+        currentSymbol = symbolsInLine[j];
+        streak = 1;
+        streakStart = j;
       }
+    }
+
+    if (streak >= 3) {
+      winningLinesFound.push(i);
+      for (let k = streakStart; k < streakStart + streak; k++) {
+        winningIndices.add(line[k]);
+      }
+      let winAmount = betAmount * 3;
+      if (currentSymbol === 'BONUS') {
+        winAmount *= 2;
+      }
+      if (streak >= 4) winAmount += betAmount * 2;
+      if (streak === 5) winAmount += betAmount * 3;
+      totalWin += winAmount;
     }
   }
 
   setWinningLines(winningLinesFound);
+  setWinningIndices(Array.from(winningIndices));
 
   if (winningLinesFound.length > 0) {
     setSlotStatus('won');
-    const winAmountInLamports = totalWin * LAMPORTS_PER_SOL;
     setSlotMessage(`Jackpot! You won ${totalWin.toFixed(2)} SOL!`);
 
+    // Verifica delle condizioni iniziali
+    if (!connection || !wallet || !publicKey || !signTransaction) {
+      console.error('Missing required objects for transaction:', {
+        connection: !!connection,
+        wallet: !!wallet,
+        publicKey: !!publicKey,
+        signTransaction: !!signTransaction,
+      });
+      setSlotMessage('Error: Cannot distribute prize. Missing wallet or connection.');
+      return;
+    }
+
+    const winAmountInLamports = totalWin * LAMPORTS_PER_SOL;
     const transaction = new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: wallet.publicKey,
@@ -1665,27 +1701,48 @@ const evaluateResult = (result) => {
       })
     );
 
-    const { blockhash } = connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = wallet.publicKey;
-    transaction.partialSign(wallet);
-
     (async () => {
       try {
-        const signature = await connection.sendRawTransaction(transaction.serialize());
-        await connection.confirmTransaction(signature);
+        // Ottieni il blockhash in modo asincrono
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = publicKey;
+
+        // Firma parziale con il tax wallet
+        transaction.partialSign(wallet);
+
+        // Firma con il wallet del giocatore
+        const signedTransaction = await signTransaction(transaction);
+
+        // Invia la transazione
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        console.log('DEBUG - Transaction signature:', signature);
+
+        // Conferma la transazione
+        const confirmation = await connection.confirmTransaction({
+          signature,
+          blockhash,
+          lastValidBlockHeight,
+        });
+
+        if (confirmation.value.err) {
+          throw new Error('Transaction confirmation failed: ' + JSON.stringify(confirmation.value.err));
+        }
+
+        console.log('DEBUG - Prize distributed successfully:', signature);
         setTriggerWinEffect(true);
         playSound(winAudioRef);
+
+        // Aggiorna le statistiche solo dopo il successo della transazione
+        setPlayerStats(prev => ({
+          ...prev,
+          totalWinnings: prev.totalWinnings + totalWin,
+        }));
       } catch (err) {
         console.error('Prize distribution failed:', err);
-        setSlotMessage('You won, but prize distribution failed. Contact support.');
+        setSlotMessage(`You won ${totalWin.toFixed(2)} SOL, but prize distribution failed: ${err.message}. Contact support.`);
       }
     })();
-
-    setPlayerStats(prev => ({
-      ...prev,
-      totalWinnings: prev.totalWinnings + totalWin,
-    }));
   } else {
     setSlotStatus('lost');
     setSlotMessage('No luck this time. Spin again!');
