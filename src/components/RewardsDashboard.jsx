@@ -104,6 +104,9 @@ const slotMemes = [
   { name: 'Wojak', image: '/wojak.png' },
   { name: 'Shiba', image: '/shiba.png' },
   { name: 'Moon', image: '/moon.png' },
+  { name: 'Meme', image: '/meme.png' },       // Nuovo simbolo
+  { name: 'BONUS', image: '/BONUS.png' },    // Nuovo simbolo
+  { name: 'Random', image: '/random.png' },  // Nuovo simbolo
 ];
 
 // Componente per le particelle (effetto visivo per le vincite)
@@ -694,7 +697,7 @@ const RewardsDashboard = () => {
   const [gameMessage, setGameMessage] = useState('');
 
   // Stato per Meme Slots
-  const [slotReels, setSlotReels] = useState(Array(9).fill(null));
+  const [slotReels, setSlotReels] = useState(Array(25).fill(null));
   const [slotStatus, setSlotStatus] = useState('idle');
   const [slotMessage, setSlotMessage] = useState('');
   const [winningLines, setWinningLines] = useState([]);
@@ -1446,7 +1449,7 @@ useEffect(() => {
     }
   };
 
-  const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(9).fill(null));
+  const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
 const [isStopping, setIsStopping] = useState(false); // Stato per la fase di fermata
 
 const spinSlots = async () => {
@@ -1488,56 +1491,61 @@ const spinSlots = async () => {
     const intervalTime = 100; // Aggiornamento ogni 100ms sec
     let elapsedTime = 0;
 
-    // Calcola il risultato finale in anticipo
-    let result;
-    if (Math.random() < COMPUTER_WIN_CHANCE.memeSlots) {
-      result = Array(9).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
-      let attempts = 0;
-      while (attempts < 10) {
-        let hasWin = false;
-        const winLines = [[0, 1, 2], [3, 4, 5], [6, 7, 8]];
-        for (const line of winLines) {
-          const symbolsInLine = line.map(index => result[index].name);
-          if (symbolsInLine.every(symbol => symbol === symbolsInLine[0])) {
-            hasWin = true;
-            break;
-          }
-        }
-        if (!hasWin) break;
-        result = Array(9).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
-        attempts++;
+  // Calcola il risultato finale in anticipo
+let result;
+if (Math.random() < COMPUTER_WIN_CHANCE.memeSlots) {
+  result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
+  let attempts = 0;
+  while (attempts < 10) {
+    let hasWin = false;
+    const winLines = [
+      [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24],
+      [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24],
+      [0, 6, 12, 18, 24], [4, 8, 12, 16, 20],
+    ];
+    for (const line of winLines) {
+      const symbolsInLine = line.map(index => result[index].name);
+      if (symbolsInLine.every(symbol => symbol === symbolsInLine[0])) {
+        hasWin = true;
+        break;
       }
-    } else {
-      result = Array(9).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
-      const winningSymbol = slotMemes[Math.floor(Math.random() * slotMemes.length)];
-      const winLines = [[0, 1, 2], [3, 4, 5], [6, 7, 8]];
-      const winningLine = winLines[Math.floor(Math.random() * winLines.length)];
-      winningLine.forEach(index => {
-        result[index] = winningSymbol;
-      });
     }
+    if (!hasWin) break;
+    result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
+    attempts++;
+  }
+} else {
+  result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
+  const winningSymbol = slotMemes[Math.floor(Math.random() * slotMemes.length)];
+  const winLines = [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24]];
+  const winningLine = winLines[Math.floor(Math.random() * winLines.length)];
+  winningLine.forEach(index => {
+    result[index] = winningSymbol;
+  });
+}
+setSlotReels(result);
 
-    setSlotReels(result);
+// Animazione dei rulli
+const spinInterval = setInterval(() => {
+  setSlotReelsDisplay(Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]));
+  elapsedTime += intervalTime;
 
-    // Animazione dei rulli
-    const spinInterval = setInterval(() => {
-      setSlotReelsDisplay(Array(9).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]));
-      elapsedTime += intervalTime;
+  if (elapsedTime >= spinDuration - 500) {
+    clearInterval(spinInterval);
+    setIsStopping(true);
 
-      if (elapsedTime >= spinDuration - 500) { // Inizia a fermarsi 500ms prima della fine
-        clearInterval(spinInterval);
-        setIsStopping(true);
-
-        // Ferma i rulli uno alla volta per un effetto realistico
-        setTimeout(() => setSlotReelsDisplay(result.slice(0, 3).concat(Array(6).fill(null))), 200);
-        setTimeout(() => setSlotReelsDisplay(result.slice(0, 6).concat(Array(3).fill(null))), 400);
-        setTimeout(() => {
-          setSlotReelsDisplay(result);
-          setIsStopping(false);
-          evaluateResult(result);
-        }, 600);
-      }
-    }, intervalTime);
+    // Ferma i rulli colonna per colonna (5 colonne)
+    setTimeout(() => setSlotReelsDisplay(result.slice(0, 5).concat(Array(20).fill(null))), 200);
+    setTimeout(() => setSlotReelsDisplay(result.slice(0, 10).concat(Array(15).fill(null))), 400);
+    setTimeout(() => setSlotReelsDisplay(result.slice(0, 15).concat(Array(10).fill(null))), 600);
+    setTimeout(() => setSlotReelsDisplay(result.slice(0, 20).concat(Array(5).fill(null))), 800);
+    setTimeout(() => {
+      setSlotReelsDisplay(result);
+      setIsStopping(false);
+      evaluateResult(result);
+    }, 100);
+  }
+}, intervalTime);
   } catch (err) {
     console.error('Spin failed:', err);
     setSlotMessage('Spin failed. Try again.');
@@ -1545,9 +1553,26 @@ const spinSlots = async () => {
   }
 };
 
-// Funzione per valutare il risultato
 const evaluateResult = (result) => {
-  const winLines = [[0, 1, 2], [3, 4, 5], [6, 7, 8]];
+  // Definiamo le linee di pagamento per una griglia 5x5
+  const winLines = [
+    // Linee orizzontali
+    [0, 1, 2, 3, 4],    // Riga 1
+    [5, 6, 7, 8, 9],    // Riga 2
+    [10, 11, 12, 13, 14], // Riga 3
+    [15, 16, 17, 18, 19], // Riga 4
+    [20, 21, 22, 23, 24], // Riga 5
+    // Linee verticali
+    [0, 5, 10, 15, 20],  // Colonna 1
+    [1, 6, 11, 16, 21],  // Colonna 2
+    [2, 7, 12, 17, 22],  // Colonna 3
+    [3, 8, 13, 18, 23],  // Colonna 4
+    [4, 9, 14, 19, 24],  // Colonna 5
+    // Diagonali
+    [0, 6, 12, 18, 24],  // Diagonale da sinistra in alto a destra in basso
+    [4, 8, 12, 16, 20],  // Diagonale da destra in alto a sinistra in basso
+  ];
+
   const winningLinesFound = [];
   let totalWin = 0;
 
@@ -1556,7 +1581,10 @@ const evaluateResult = (result) => {
     const symbolsInLine = line.map(index => result[index].name);
     if (symbolsInLine.every(symbol => symbol === symbolsInLine[0])) {
       winningLinesFound.push(i);
-      const winAmount = betAmount * 5;
+      let winAmount = betAmount * 5; // Vincita base
+      if (symbolsInLine[0] === 'BONUS') {
+        winAmount *= 2; // Bonus raddoppia la vincita (esempio)
+      }
       totalWin += winAmount;
     }
   }
@@ -2394,17 +2422,17 @@ const evaluateResult = (result) => {
       {betError && <p className="bet-error">{betError}</p>}
     </div>
     <div className="game-box p-6 mb-10">
-      <div className={`slot-machine ${slotStatus === 'won' ? 'winning' : ''}`}>
-        <div className="grid grid-cols-3 gap-1">
-          {slotReelsDisplay.map((meme, index) => (
-            <div
-              key={index}
-              className={`slot-reel ${slotStatus === 'spinning' ? 'spinning' : ''} ${isStopping && slotReelsDisplay[index] === slotReels[index] ? 'stopping' : ''}`}
-              style={{ backgroundImage: meme ? `url(${meme.image})` : 'none' }}
-            />
-          ))}
-        </div>
-      </div>
+    <div className={`slot-machine ${slotStatus === 'won' ? 'winning' : ''}`}>
+  <div className="grid grid-cols-5 gap-1">
+    {slotReelsDisplay.map((meme, index) => (
+      <div
+        key={index}
+        className={`slot-reel ${slotStatus === 'spinning' ? 'spinning' : ''} ${isStopping && slotReelsDisplay[index] === slotReels[index] ? 'stopping' : ''}`}
+        style={{ backgroundImage: meme ? `url(${meme.image})` : 'none' }}
+      />
+    ))}
+  </div>
+</div>
       <p className="text-center text-orange-700 mb-4 text-lg">{slotMessage}</p>
       <button
         onClick={spinSlots}
