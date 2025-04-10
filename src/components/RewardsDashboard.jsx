@@ -1505,117 +1505,148 @@ useEffect(() => {
   };
 
   
+// Funzioni per la slot machine (aggiunte in precedenza)
+const generateSlotResult = () => {
+  let result;
+  if (Math.random() < COMPUTER_WIN_CHANCE.memeSlots) {
+    // Computer vince: genera un risultato senza linee vincenti (nemmeno 3 simboli consecutivi)
+    result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
+    let attempts = 0;
+    while (attempts < 20) {
+      let hasWin = false;
+      const winLines = [
+        [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24],
+        [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24],
+        [0, 6, 12, 18, 24], [4, 8, 12, 16, 20],
+      ];
 
-  const spinSlots = async () => {
-    if (!connected || !publicKey) {
-      setSlotMessage('Please connect your wallet to play!');
-      return;
-    }
-  
-    const betError = validateBet(betAmount);
-    if (betError) {
-      setSlotMessage(betError);
-      return;
-    }
-  
-    setSlotStatus('spinning');
-    setIsStopping(false);
-    playSound(spinAudioRef);
-  
-    const betInLamports = betAmount * LAMPORTS_PER_SOL;
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: wallet.publicKey,
-        lamports: betInLamports,
-      })
-    );
-  
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = publicKey;
-  
-    try {
-      const signed = await signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(signature);
-  
-      const spinDuration = 5000;
-      const intervalTime = 150; // Aumentato per migliorare le prestazioni
-      let elapsedTime = 0;
-  
-      let result;
-      if (Math.random() < COMPUTER_WIN_CHANCE.memeSlots) {
-        result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
-        let attempts = 0;
-        while (attempts < 10) {
-          let hasWin = false;
-          const winLines = [
-            [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24],
-            [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24],
-            [0, 6, 12, 18, 24], [4, 8, 12, 16, 20],
-          ];
-          for (const line of winLines) {
-            const symbolsInLine = line.map(index => result[index].name);
-            if (symbolsInLine.every(symbol => symbol === symbolsInLine[0])) {
+      for (const line of winLines) {
+        const symbolsInLine = line.map(index => result[index].name);
+        let currentSymbol = symbolsInLine[0];
+        let streak = 1;
+        for (let j = 1; j < symbolsInLine.length; j++) {
+          if (symbolsInLine[j] === currentSymbol) {
+            streak++;
+            if (streak >= 3) {
               hasWin = true;
               break;
             }
+          } else {
+            currentSymbol = symbolsInLine[j];
+            streak = 1;
           }
-          if (!hasWin) break;
-          result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
-          attempts++;
         }
-      } else {
-        result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
-        const winningSymbol = slotMemes[Math.floor(Math.random() * slotMemes.length)];
-        const winLines = [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24]];
-        const winningLine = winLines[Math.floor(Math.random() * winLines.length)];
-        winningLine.forEach(index => {
-          result[index] = winningSymbol;
-        });
+        if (hasWin) break;
       }
-      setSlotReels(result);
-  
-      const spinInterval = setInterval(() => {
-        setSlotReelsDisplay(Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]));
-        elapsedTime += intervalTime;
-  
-        if (elapsedTime >= spinDuration - 500) {
-          clearInterval(spinInterval);
-          setIsStopping(true);
-  
-          console.log('DEBUG - Result before animation:', result);
-          setTimeout(() => {
-            console.log('DEBUG - Setting first column:', result.slice(0, 5));
-            setSlotReelsDisplay(result.slice(0, 5).concat(Array(20).fill(null)));
-          }, 200);
-          setTimeout(() => {
-            console.log('DEBUG - Setting second column:', result.slice(0, 10));
-            setSlotReelsDisplay(result.slice(0, 10).concat(Array(15).fill(null)));
-          }, 400);
-          setTimeout(() => {
-            console.log('DEBUG - Setting third column:', result.slice(0, 15));
-            setSlotReelsDisplay(result.slice(0, 15).concat(Array(10).fill(null)));
-          }, 600);
-          setTimeout(() => {
-            console.log('DEBUG - Setting fourth column:', result.slice(0, 20));
-            setSlotReelsDisplay(result.slice(0, 20).concat(Array(5).fill(null)));
-          }, 800);
-          setTimeout(() => {
-            console.log('DEBUG - Final result:', result);
-            setSlotReelsDisplay(result);
-            setIsStopping(false);
-            evaluateResult(result);
-          }, 1200); // Aumentato per garantire che l'animazione sia completata
-        }
-      }, intervalTime);
-    } catch (err) {
-      console.error('Spin failed:', err);
-      setSlotMessage(`Spin failed: ${err.message}. Try again.`);
-      setSlotStatus('idle');
+
+      if (!hasWin) break;
+      result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
+      attempts++;
     }
-  };
+
+    if (attempts >= 20) {
+      console.log('DEBUG - Forcing a losing result after max attempts');
+      result = Array(25).fill().map((_, index) => slotMemes[index % slotMemes.length]);
+    }
+  } else {
+    // Giocatore vince: genera un risultato con almeno una linea vincente
+    result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
+    const winningSymbol = slotMemes[Math.floor(Math.random() * slotMemes.length)];
+    const winLines = [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24]];
+    const winningLine = winLines[Math.floor(Math.random() * winLines.length)];
+    winningLine.forEach(index => {
+      result[index] = winningSymbol;
+    });
+  }
+  return result;
+};
+
+const animateReels = (result, callback) => {
+  const spinDuration = 5000;
+  const intervalTime = 150;
+  let elapsedTime = 0;
+
+  const spinInterval = setInterval(() => {
+    elapsedTime += intervalTime;
+
+    if (elapsedTime >= spinDuration - 500) {
+      clearInterval(spinInterval);
+      setIsStopping(true);
+
+      console.log('DEBUG - Result before animation:', result);
+      setTimeout(() => {
+        console.log('DEBUG - Setting first column:', result.slice(0, 5));
+        setSlotReelsDisplay(result.slice(0, 5).concat(Array(20).fill(null)));
+      }, 200);
+      setTimeout(() => {
+        console.log('DEBUG - Setting second column:', result.slice(0, 10));
+        setSlotReelsDisplay(result.slice(0, 10).concat(Array(15).fill(null)));
+      }, 400);
+      setTimeout(() => {
+        console.log('DEBUG - Setting third column:', result.slice(0, 15));
+        setSlotReelsDisplay(result.slice(0, 15).concat(Array(10).fill(null)));
+      }, 600);
+      setTimeout(() => {
+        console.log('DEBUG - Setting fourth column:', result.slice(0, 20));
+        setSlotReelsDisplay(result.slice(0, 20).concat(Array(5).fill(null)));
+      }, 800);
+      setTimeout(() => {
+        console.log('DEBUG - Final result:', result);
+        setSlotReelsDisplay(result);
+        setIsStopping(false);
+        callback(result);
+      }, 1200);
+    }
+  }, intervalTime);
+};
+
+
+const spinSlots = async () => {
+  if (!connected || !publicKey) {
+    setSlotMessage('Please connect your wallet to play!');
+    return;
+  }
+
+  const betError = validateBet(betAmount);
+  if (betError) {
+    setSlotMessage(betError);
+    return;
+  }
+
+  setSlotStatus('spinning');
+  setIsStopping(false);
+  playSound(spinAudioRef);
+
+  const betInLamports = betAmount * LAMPORTS_PER_SOL;
+  const transaction = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: publicKey,
+      toPubkey: wallet.publicKey,
+      lamports: betInLamports,
+    })
+  );
+
+  const { blockhash } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = publicKey;
+
+  try {
+    const signed = await signTransaction(transaction);
+    const signature = await connection.sendRawTransaction(signed.serialize());
+    await connection.confirmTransaction(signature);
+
+    const result = generateSlotResult();
+    setSlotReels(result);
+    animateReels(result, evaluateResult);
+  } catch (err) {
+    console.error('Spin failed:', err);
+    setSlotMessage(`Spin failed: ${err.message}. Try again.`);
+    setSlotStatus('idle');
+  }
+};
+
+
+  
 
 // Funzione per valutare il risultato
 const evaluateResult = (result) => {
