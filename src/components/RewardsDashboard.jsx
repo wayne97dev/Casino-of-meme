@@ -1683,12 +1683,11 @@ const evaluateResult = (result) => {
     setSlotMessage(`Jackpot! You won ${totalWin.toFixed(2)} SOL!`);
 
     // Verifica delle condizioni iniziali
-    if (!connection || !wallet || !publicKey || !signTransaction) {
+    if (!connection || !wallet || !publicKey) {
       console.error('Missing required objects for transaction:', {
         connection: !!connection,
         wallet: !!wallet,
         publicKey: !!publicKey,
-        signTransaction: !!signTransaction,
       });
       setSlotMessage('Error: Cannot distribute prize. Missing wallet or connection.');
       return;
@@ -1697,8 +1696,8 @@ const evaluateResult = (result) => {
     const winAmountInLamports = totalWin * LAMPORTS_PER_SOL;
     const transaction = new Transaction().add(
       SystemProgram.transfer({
-        fromPubkey: wallet.publicKey,
-        toPubkey: publicKey,
+        fromPubkey: wallet.publicKey, // Tax wallet invia i fondi
+        toPubkey: publicKey, // Indirizzo del giocatore riceve i fondi
         lamports: winAmountInLamports,
       })
     );
@@ -1708,16 +1707,13 @@ const evaluateResult = (result) => {
         // Ottieni il blockhash in modo asincrono
         const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
         transaction.recentBlockhash = blockhash;
-        transaction.feePayer = publicKey;
+        transaction.feePayer = wallet.publicKey; // Tax wallet paga le commissioni
 
-        // Firma parziale con il tax wallet
-        transaction.partialSign(wallet);
-
-        // Firma con il wallet del giocatore
-        const signedTransaction = await signTransaction(transaction);
+        // Firma completa con il tax wallet
+        transaction.sign(wallet); // Usa sign invece di partialSign, poiché il tax wallet è il feePayer
 
         // Invia la transazione
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        const signature = await connection.sendRawTransaction(transaction.serialize());
         console.log('DEBUG - Transaction signature:', signature);
 
         // Conferma la transazione
