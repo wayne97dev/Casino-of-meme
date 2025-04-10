@@ -1537,13 +1537,13 @@ const spinInterval = setInterval(() => {
     // Ferma i rulli colonna per colonna (5 colonne)
     setTimeout(() => setSlotReelsDisplay(result.slice(0, 5).concat(Array(20).fill(null))), 200);
     setTimeout(() => setSlotReelsDisplay(result.slice(0, 10).concat(Array(15).fill(null))), 400);
-    setTimeout(() => setSlotReelsDisplay(result.slice(0, 15).concat(Array(10).fill(null))), 400);
-    setTimeout(() => setSlotReelsDisplay(result.slice(0, 20).concat(Array(5).fill(null))), 400);
+    setTimeout(() => setSlotReelsDisplay(result.slice(0, 15).concat(Array(10).fill(null))), 600);
+    setTimeout(() => setSlotReelsDisplay(result.slice(0, 20).concat(Array(5).fill(null))), 800);
     setTimeout(() => {
       setSlotReelsDisplay(result);
       setIsStopping(false);
       evaluateResult(result);
-    }, 100);
+    }, 1000);
   }
 }, intervalTime);
   } catch (err) {
@@ -1554,23 +1554,10 @@ const spinInterval = setInterval(() => {
 };
 
 const evaluateResult = (result) => {
-  // Definiamo le linee di pagamento per una griglia 5x5
   const winLines = [
-    // Linee orizzontali
-    [0, 1, 2, 3, 4],    // Riga 1
-    [5, 6, 7, 8, 9],    // Riga 2
-    [10, 11, 12, 13, 14], // Riga 3
-    [15, 16, 17, 18, 19], // Riga 4
-    [20, 21, 22, 23, 24], // Riga 5
-    // Linee verticali
-    [0, 5, 10, 15, 20],  // Colonna 1
-    [1, 6, 11, 16, 21],  // Colonna 2
-    [2, 7, 12, 17, 22],  // Colonna 3
-    [3, 8, 13, 18, 23],  // Colonna 4
-    [4, 9, 14, 19, 24],  // Colonna 5
-    // Diagonali
-    [0, 6, 12, 18, 24],  // Diagonale da sinistra in alto a destra in basso
-    [4, 8, 12, 16, 20],  // Diagonale da destra in alto a sinistra in basso
+    [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24],
+    [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24],
+    [0, 6, 12, 18, 24], [4, 8, 12, 16, 20],
   ];
 
   const winningLinesFound = [];
@@ -1579,13 +1566,26 @@ const evaluateResult = (result) => {
   for (let i = 0; i < winLines.length; i++) {
     const line = winLines[i];
     const symbolsInLine = line.map(index => result[index].name);
-    if (symbolsInLine.every(symbol => symbol === symbolsInLine[0])) {
-      winningLinesFound.push(i);
-      let winAmount = betAmount * 5; // Vincita base
-      if (symbolsInLine[0] === 'BONUS') {
-        winAmount *= 2; // Bonus raddoppia la vincita (esempio)
+
+    // Controlla sequenze di almeno 3 simboli consecutivi
+    for (let j = 0; j <= line.length - 3; j++) {
+      const segment = symbolsInLine.slice(j, j + 3);
+      if (segment.every(symbol => symbol === segment[0])) {
+        winningLinesFound.push(i);
+        let winAmount = betAmount * 3; // Vincita base per 3 simboli
+        if (segment[0] === 'BONUS') {
+          winAmount *= 2; // Bonus raddoppia
+        }
+        // Bonus aggiuntivo per 4 o 5 simboli
+        if (j <= line.length - 4 && symbolsInLine[j + 3] === segment[0]) {
+          winAmount += betAmount * 2; // Extra per 4 simboli
+          if (j <= line.length - 5 && symbolsInLine[j + 4] === segment[0]) {
+            winAmount += betAmount * 3; // Extra per 5 simboli
+          }
+        }
+        totalWin += winAmount;
+        break; // Evita di contare più volte la stessa linea
       }
-      totalWin += winAmount;
     }
   }
 
