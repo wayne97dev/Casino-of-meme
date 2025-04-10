@@ -696,12 +696,14 @@ const RewardsDashboard = () => {
   const [gameStatus, setGameStatus] = useState('idle');
   const [gameMessage, setGameMessage] = useState('');
 
-  // Stato per Meme Slots
-  const [slotReels, setSlotReels] = useState(Array(25).fill(null));
-  const [slotStatus, setSlotStatus] = useState('idle');
-  const [slotMessage, setSlotMessage] = useState('');
-  const [winningLines, setWinningLines] = useState([]);
-  const [isStopping, setIsStopping] = useState(false);
+// Stato per Meme Slots
+const [slotReels, setSlotReels] = useState(Array(25).fill(null));
+const [slotStatus, setSlotStatus] = useState('idle');
+const [slotMessage, setSlotMessage] = useState('');
+const [winningLines, setWinningLines] = useState([]);
+const [winningIndices, setWinningIndices] = useState([]); // Aggiunto
+const [isStopping, setIsStopping] = useState(false);
+const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
 
   // Stato per Coin Flip
   const [flipChoice, setFlipChoice] = useState(null);
@@ -1502,7 +1504,7 @@ useEffect(() => {
     }
   };
 
-  const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
+  
 
   const spinSlots = async () => {
     if (!connected || !publicKey) {
