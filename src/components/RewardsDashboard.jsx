@@ -1487,7 +1487,7 @@ const spinSlots = async () => {
     await connection.confirmTransaction(signature);
 
     // Durata totale dello spin
-    const spinDuration = 10000; // 10 secondi
+    const spinDuration = 5000; // 5 secondi
     const intervalTime = 100; // Aggiornamento ogni 300ms sec
     let elapsedTime = 0;
 
@@ -1537,8 +1537,8 @@ const spinInterval = setInterval(() => {
     // Ferma i rulli colonna per colonna (5 colonne)
     setTimeout(() => setSlotReelsDisplay(result.slice(0, 5).concat(Array(20).fill(null))), 200);
     setTimeout(() => setSlotReelsDisplay(result.slice(0, 10).concat(Array(15).fill(null))), 400);
-    setTimeout(() => setSlotReelsDisplay(result.slice(0, 15).concat(Array(10).fill(null))), 600);
-    setTimeout(() => setSlotReelsDisplay(result.slice(0, 20).concat(Array(5).fill(null))), 600);
+    setTimeout(() => setSlotReelsDisplay(result.slice(0, 15).concat(Array(10).fill(null))), 400);
+    setTimeout(() => setSlotReelsDisplay(result.slice(0, 20).concat(Array(5).fill(null))), 400);
     setTimeout(() => {
       setSlotReelsDisplay(result);
       setIsStopping(false);

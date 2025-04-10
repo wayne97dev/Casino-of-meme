@@ -112,14 +112,18 @@ body {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 4px solid #ffcc00;
   border-radius: 16px;
-  padding: 10px;
+  padding: 15px; /* Aumentato leggermente per più spazio con 5x5 */
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 204, 0, 0.3);
   position: relative;
   overflow: hidden;
   display: flex;
   justify-content: center;
+  max-width: 600px; /* Limite massimo per mantenere il controllo su schermi grandi */
+  width: 100%; /* Responsive */
+  margin: 0 auto; /* Centrato */
 }
 
+/* Effetto radiale di sfondo */
 .slot-machine::before {
   content: '';
   position: absolute;
@@ -129,11 +133,13 @@ body {
   height: 100%;
   background: radial-gradient(circle, rgba(255, 204, 0, 0.2), transparent);
   pointer-events: none;
+  z-index: 1; /* Sopra lo sfondo, sotto i rulli */
 }
 
+/* Stile per ogni rullo */
 .slot-reel {
-  width: 100px;
-  height: 100px;
+  width: 90px; /* Ridotto leggermente per adattarsi a 5 colonne */
+  height: 90px; /* Ridotto per uniformità */
   background-size: cover;
   background-position: center;
   border-radius: 8px;
@@ -141,33 +147,37 @@ body {
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
   position: relative;
   overflow: hidden;
-  transition: background-image 0.05s ease-out; /* Transizione fluida per il cambio immagine */
+  transition: background-image 0.05s ease-out, transform 0.1s ease-out; /* Aggiunto transform per animazioni */
+  z-index: 2; /* Sopra l'effetto radiale */
 }
 
+/* Animazione durante lo spin */
 .slot-reel.spinning {
-  animation: spinReel 0.1s linear infinite; /* Rotazione rapida durante lo spin */
+  animation: spinReel 0.08s linear infinite; /* Velocità aumentata per un effetto più dinamico */
 }
 
+/* Animazione dei rulli che girano */
 @keyframes spinReel {
   0% {
     transform: translateY(-100%);
-    filter: blur(3px); /* Sfocatura per simulare movimento */
+    filter: blur(4px); /* Sfocatura leggermente più pronunciata */
   }
   100% {
     transform: translateY(0);
-    filter: blur(3px);
+    filter: blur(4px);
   }
 }
 
-/* Aggiungiamo un effetto di "fermata" graduale */
+/* Effetto di fermata graduale */
 .slot-reel.stopping {
-  animation: stopReel 0.5s ease-out forwards;
+  animation: stopReel 0.6s ease-out forwards; /* Durata aumentata per più fluidità */
 }
 
+/* Animazione di fermata */
 @keyframes stopReel {
   0% {
     transform: translateY(-50%);
-    filter: blur(3px);
+    filter: blur(4px);
   }
   100% {
     transform: translateY(0);
@@ -175,10 +185,30 @@ body {
   }
 }
 
+/* Effetto di vincita */
+.slot-machine.winning .slot-reel {
+  animation: winningGlow 0.5s infinite alternate; /* Applicato ai rulli vincenti */
+}
 
+/* Animazione glow per la vincita */
 @keyframes winningGlow {
-  0% { box-shadow: 0 0 10px #ffcc00, inset 0 0 15px #ffcc00; }
-  100% { box-shadow: 0 0 30px #ffcc00, inset 0 0 30px #ffcc00; }
+  0% {
+    box-shadow: 0 0 10px #ffcc00, inset 0 0 15px #ffcc00;
+  }
+  100% {
+    box-shadow: 0 0 30px #ffcc00, inset 0 0 30px #ffcc00;
+  }
+}
+
+/* Responsive per schermi piccoli */
+@media (max-width: 600px) {
+  .slot-reel {
+    width: 60px; /* Rulli più piccoli su mobile */
+    height: 60px;
+  }
+  .slot-machine {
+    padding: 10px;
+  }
 }
 
 /* Stile per la moneta di Coin Flip */
