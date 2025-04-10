@@ -1908,25 +1908,25 @@ const evaluateResult = (result) => {
       addChatMessage('Please connect your wallet to play!');
       return;
     }
-
+  
     const totalBet = Object.values(bets).reduce((sum, bet) => sum + bet, 0);
     if (totalBet === 0) {
       setWheelMessage('Please place a bet on at least one segment!');
       addChatMessage('Please place a bet on at least one segment!');
       return;
     }
-
+  
     const betError = validateBet(totalBet);
     if (betError) {
       setWheelMessage(betError);
       addChatMessage(betError);
       return;
     }
-
+  
     setWheelStatus('spinning');
     addChatMessage('The wheel is spinning... Are you ready?');
     playSound(spinAudioRef);
-
+  
     const betInLamports = totalBet * LAMPORTS_PER_SOL;
     const transaction = new Transaction().add(
       SystemProgram.transfer({
@@ -1935,29 +1935,30 @@ const evaluateResult = (result) => {
         lamports: betInLamports,
       })
     );
-
+  
     const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = publicKey;
-
+  
     try {
       const signed = await signTransaction(transaction);
       const signature = await connection.sendRawTransaction(signed.serialize());
       await connection.confirmTransaction(signature);
-
-      const topSlotSegment = crazyTimeWheel[Math.floor(Math.random() * crazyTimeWheel.length)].value;
-      const topSlotMultiplier = [1, 2, 3, 5][Math.floor(Math.random() * 4)];
+  
+      // Seleziona un segmento per il Top Slot tra quelli su cui il giocatore ha scommesso
+      const betSegments = Object.keys(bets).filter(segment => bets[segment] > 0);
+      const topSlotSegment = betSegments[Math.floor(Math.random() * betSegments.length)];
+      const topSlotMultiplier = [2, 3, 5, 10][Math.floor(Math.random() * 4)]; // Moltiplicatori più realistici
       setTopSlot({ segment: topSlotSegment, multiplier: topSlotMultiplier });
       addChatMessage(`Top Slot: ${topSlotSegment} with multiplier ${topSlotMultiplier}x!`);
-
+  
       const spins = 5;
       const segmentAngle = 360 / crazyTimeWheel.length;
-
-      const betSegments = Object.keys(bets).filter(segment => bets[segment] > 0);
+  
       const betIndices = crazyTimeWheel
         .map((segment, index) => (betSegments.includes(String(segment.value)) ? index : -1))
         .filter(index => index !== -1);
-
+  
       let resultIndex;
       if (Math.random() < COMPUTER_WIN_CHANCE.crazyTime) {
         const nonBetIndices = crazyTimeWheel
@@ -1975,17 +1976,17 @@ const evaluateResult = (result) => {
           resultIndex = Math.floor(Math.random() * crazyTimeWheel.length);
         }
       }
-
+  
       const targetAngle = resultIndex * segmentAngle;
       const finalAngle = (spins * 360) + targetAngle + (Math.random() * segmentAngle);
       setRotationAngle(finalAngle);
       await new Promise((resolve) => setTimeout(resolve, 5000));
-
+  
       const normalizedAngle = finalAngle % 360;
       const adjustedAngle = (normalizedAngle - 90 + 360) % 360;
       const winningIndex = (crazyTimeWheel.length - Math.floor(adjustedAngle / segmentAngle) - 1) % crazyTimeWheel.length;
       const result = crazyTimeWheel[winningIndex];
-
+  
       console.log('Segment Angle:', segmentAngle);
       console.log('Final Angle:', finalAngle);
       console.log('Normalized Angle:', normalizedAngle);
@@ -1994,23 +1995,33 @@ const evaluateResult = (result) => {
       console.log('Result:', result.value);
       console.log('Result Color:', result.color, result.colorName);
       console.log('Crazy Time Wheel:', crazyTimeWheel);
-
+  
       setWheelResult(result);
       setLastResults((prev) => [...prev, result.value].slice(-10));
       addChatMessage(`The wheel stopped on ${result.value}!`);
-
+  
       if (result.type === 'number') {
         const betOnResult = bets[result.value] || 0;
         if (betOnResult > 0) {
           let multiplier = parseInt(result.value);
-          if (topSlot.segment === result.value) {
-            multiplier *= topSlot.multiplier;
+          let topSlotApplied = false;
+          if (String(topSlotSegment) === String(result.value)) {
+            multiplier *= topSlotMultiplier;
+            topSlotApplied = true;
           }
           const winAmount = betOnResult * multiplier;
           const winAmountInLamports = winAmount * LAMPORTS_PER_SOL;
-          setWheelMessage(`You won ${winAmount.toFixed(2)} SOL!`);
-          addChatMessage(`Great! You won ${winAmount.toFixed(2)} SOL!`);
-
+          setWheelMessage(
+            topSlotApplied
+              ? `You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+              : `You won ${winAmount.toFixed(2)} SOL!`
+          );
+          addChatMessage(
+            topSlotApplied
+              ? `Great! You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+              : `Great! You won ${winAmount.toFixed(2)} SOL!`
+          );
+  
           const transaction = new Transaction().add(
             SystemProgram.transfer({
               fromPubkey: wallet.publicKey,
@@ -2018,15 +2029,19 @@ const evaluateResult = (result) => {
               lamports: winAmountInLamports,
             })
           );
-
-          const { blockhash } = await connection.getLatestBlockhash();
-          transaction.recentBlockhash = blockhash;
+  
+          const { blockhash: winBlockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+          transaction.recentBlockhash = winBlockhash;
           transaction.feePayer = wallet.publicKey;
-          transaction.partialSign(wallet);
-
+          transaction.sign(wallet);
+  
           try {
             const signature = await connection.sendRawTransaction(transaction.serialize());
-            await connection.confirmTransaction(signature);
+            await connection.confirmTransaction({
+              signature,
+              blockhash: winBlockhash,
+              lastValidBlockHeight,
+            });
             console.log('Prize distributed:', signature);
             setTriggerWinEffect(true);
             playSound(winAudioRef);
@@ -2035,7 +2050,7 @@ const evaluateResult = (result) => {
             setWheelMessage('You won, but prize distribution failed. Contact support.');
             addChatMessage('You won, but prize distribution failed. Contact support.');
           }
-
+  
           setPlayerStats(prev => ({
             ...prev,
             totalWinnings: prev.totalWinnings + winAmount,
@@ -2048,24 +2063,34 @@ const evaluateResult = (result) => {
       } else {
         setWheelStatus('bonus');
         addChatMessage(`You triggered the ${result.value} bonus round!`);
-
+  
         if (result.value === 'Coin Flip') {
           const redMultiplier = [2, 3, 5, 10][Math.floor(Math.random() * 4)];
           const blueMultiplier = [2, 3, 5, 10][Math.floor(Math.random() * 4)];
           const side = Math.random() < 0.5 ? 'red' : 'blue';
           let multiplier = side === 'red' ? redMultiplier : blueMultiplier;
-          if (topSlot.segment === 'Coin Flip') {
-            multiplier *= topSlot.multiplier;
+          let topSlotApplied = false;
+          if (String(topSlotSegment) === 'Coin Flip') {
+            multiplier *= topSlotMultiplier;
+            topSlotApplied = true;
           }
           setBonusResult({ type: 'Coin Flip', side, redMultiplier, blueMultiplier, multiplier });
-
+  
           const betOnBonus = bets['Coin Flip'] || 0;
           if (betOnBonus > 0) {
             const winAmount = betOnBonus * multiplier;
             const winAmountInLamports = winAmount * LAMPORTS_PER_SOL;
-            setWheelMessage(`Coin Flip: ${side} wins! You won ${winAmount.toFixed(2)} SOL!`);
-            addChatMessage(`Coin Flip: ${side} wins! You won ${winAmount.toFixed(2)} SOL!`);
-
+            setWheelMessage(
+              topSlotApplied
+                ? `Coin Flip: ${side} wins! You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+                : `Coin Flip: ${side} wins! You won ${winAmount.toFixed(2)} SOL!`
+            );
+            addChatMessage(
+              topSlotApplied
+                ? `Coin Flip: ${side} wins! You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+                : `Coin Flip: ${side} wins! You won ${winAmount.toFixed(2)} SOL!`
+            );
+  
             const transaction = new Transaction().add(
               SystemProgram.transfer({
                 fromPubkey: wallet.publicKey,
@@ -2073,15 +2098,19 @@ const evaluateResult = (result) => {
                 lamports: winAmountInLamports,
               })
             );
-
-            const { blockhash } = await connection.getLatestBlockhash();
-            transaction.recentBlockhash = blockhash;
+  
+            const { blockhash: winBlockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+            transaction.recentBlockhash = winBlockhash;
             transaction.feePayer = wallet.publicKey;
-            transaction.partialSign(wallet);
-
+            transaction.sign(wallet);
+  
             try {
               const signature = await connection.sendRawTransaction(transaction.serialize());
-              await connection.confirmTransaction(signature);
+              await connection.confirmTransaction({
+                signature,
+                blockhash: winBlockhash,
+                lastValidBlockHeight,
+              });
               console.log('Prize distributed:', signature);
               setTriggerWinEffect(true);
               playSound(winAudioRef);
@@ -2090,7 +2119,7 @@ const evaluateResult = (result) => {
               setWheelMessage('You won, but prize distribution failed. Contact support.');
               addChatMessage('You won, but prize distribution failed. Contact support.');
             }
-
+  
             setPlayerStats(prev => ({
               ...prev,
               totalWinnings: prev.totalWinnings + winAmount,
@@ -2103,18 +2132,28 @@ const evaluateResult = (result) => {
           const multipliers = [2, 3, 5, 10, 20];
           const slotIndex = Math.floor(Math.random() * multipliers.length);
           let multiplier = multipliers[slotIndex];
-          if (topSlot.segment === 'Pachinko') {
-            multiplier *= topSlot.multiplier;
+          let topSlotApplied = false;
+          if (String(topSlotSegment) === 'Pachinko') {
+            multiplier *= topSlotMultiplier;
+            topSlotApplied = true;
           }
           setBonusResult({ type: 'Pachinko', slotIndex, multiplier });
-
+  
           const betOnBonus = bets['Pachinko'] || 0;
           if (betOnBonus > 0) {
             const winAmount = betOnBonus * multiplier;
             const winAmountInLamports = winAmount * LAMPORTS_PER_SOL;
-            setWheelMessage(`Pachinko: You won ${winAmount.toFixed(2)} SOL!`);
-            addChatMessage(`Pachinko: You won ${winAmount.toFixed(2)} SOL!`);
-
+            setWheelMessage(
+              topSlotApplied
+                ? `Pachinko: You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+                : `Pachinko: You won ${winAmount.toFixed(2)} SOL!`
+            );
+            addChatMessage(
+              topSlotApplied
+                ? `Pachinko: You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+                : `Pachinko: You won ${winAmount.toFixed(2)} SOL!`
+            );
+  
             const transaction = new Transaction().add(
               SystemProgram.transfer({
                 fromPubkey: wallet.publicKey,
@@ -2122,15 +2161,19 @@ const evaluateResult = (result) => {
                 lamports: winAmountInLamports,
               })
             );
-
-            const { blockhash } = await connection.getLatestBlockhash();
-            transaction.recentBlockhash = blockhash;
+  
+            const { blockhash: winBlockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+            transaction.recentBlockhash = winBlockhash;
             transaction.feePayer = wallet.publicKey;
-            transaction.partialSign(wallet);
-
+            transaction.sign(wallet);
+  
             try {
               const signature = await connection.sendRawTransaction(transaction.serialize());
-              await connection.confirmTransaction(signature);
+              await connection.confirmTransaction({
+                signature,
+                blockhash: winBlockhash,
+                lastValidBlockHeight,
+              });
               console.log('Prize distributed:', signature);
               setTriggerWinEffect(true);
               playSound(winAudioRef);
@@ -2139,7 +2182,7 @@ const evaluateResult = (result) => {
               setWheelMessage('You won, but prize distribution failed. Contact support.');
               addChatMessage('You won, but prize distribution failed. Contact support.');
             }
-
+  
             setPlayerStats(prev => ({
               ...prev,
               totalWinnings: prev.totalWinnings + winAmount,
@@ -2152,18 +2195,28 @@ const evaluateResult = (result) => {
           const multipliers = Array(10).fill().map(() => Math.floor(Math.random() * 50) + 1);
           const chosenMultiplier = multipliers[Math.floor(Math.random() * multipliers.length)];
           let multiplier = chosenMultiplier;
-          if (topSlot.segment === 'Cash Hunt') {
-            multiplier *= topSlot.multiplier;
+          let topSlotApplied = false;
+          if (String(topSlotSegment) === 'Cash Hunt') {
+            multiplier *= topSlotMultiplier;
+            topSlotApplied = true;
           }
           setBonusResult({ type: 'Cash Hunt', multipliers, chosenMultiplier, multiplier });
-
+  
           const betOnBonus = bets['Cash Hunt'] || 0;
           if (betOnBonus > 0) {
             const winAmount = betOnBonus * multiplier;
             const winAmountInLamports = winAmount * LAMPORTS_PER_SOL;
-            setWheelMessage(`Cash Hunt: You won ${winAmount.toFixed(2)} SOL!`);
-            addChatMessage(`Cash Hunt: You won ${winAmount.toFixed(2)} SOL!`);
-
+            setWheelMessage(
+              topSlotApplied
+                ? `Cash Hunt: You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+                : `Cash Hunt: You won ${winAmount.toFixed(2)} SOL!`
+            );
+            addChatMessage(
+              topSlotApplied
+                ? `Cash Hunt: You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+                : `Cash Hunt: You won ${winAmount.toFixed(2)} SOL!`
+            );
+  
             const transaction = new Transaction().add(
               SystemProgram.transfer({
                 fromPubkey: wallet.publicKey,
@@ -2171,15 +2224,19 @@ const evaluateResult = (result) => {
                 lamports: winAmountInLamports,
               })
             );
-
-            const { blockhash } = await connection.getLatestBlockhash();
-            transaction.recentBlockhash = blockhash;
+  
+            const { blockhash: winBlockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+            transaction.recentBlockhash = winBlockhash;
             transaction.feePayer = wallet.publicKey;
-            transaction.partialSign(wallet);
-
+            transaction.sign(wallet);
+  
             try {
               const signature = await connection.sendRawTransaction(transaction.serialize());
-              await connection.confirmTransaction(signature);
+              await connection.confirmTransaction({
+                signature,
+                blockhash: winBlockhash,
+                lastValidBlockHeight,
+              });
               console.log('Prize distributed:', signature);
               setTriggerWinEffect(true);
               playSound(winAudioRef);
@@ -2188,7 +2245,7 @@ const evaluateResult = (result) => {
               setWheelMessage('You won, but prize distribution failed. Contact support.');
               addChatMessage('You won, but prize distribution failed. Contact support.');
             }
-
+  
             setPlayerStats(prev => ({
               ...prev,
               totalWinnings: prev.totalWinnings + winAmount,
@@ -2201,18 +2258,28 @@ const evaluateResult = (result) => {
           const multipliers = [10, 20, 50, 100, 200];
           const chosenMultiplier = multipliers[Math.floor(Math.random() * multipliers.length)];
           let multiplier = chosenMultiplier;
-          if (topSlot.segment === 'Crazy Time') {
-            multiplier *= topSlot.multiplier;
+          let topSlotApplied = false;
+          if (String(topSlotSegment) === 'Crazy Time') {
+            multiplier *= topSlotMultiplier;
+            topSlotApplied = true;
           }
           setBonusResult({ type: 'Crazy Time', multiplier });
-
+  
           const betOnBonus = bets['Crazy Time'] || 0;
           if (betOnBonus > 0) {
             const winAmount = betOnBonus * multiplier;
             const winAmountInLamports = winAmount * LAMPORTS_PER_SOL;
-            setWheelMessage(`Crazy Time: You won ${winAmount.toFixed(2)} SOL!`);
-            addChatMessage(`Crazy Time: You won ${winAmount.toFixed(2)} SOL!`);
-
+            setWheelMessage(
+              topSlotApplied
+                ? `Crazy Time: You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+                : `Crazy Time: You won ${winAmount.toFixed(2)} SOL!`
+            );
+            addChatMessage(
+              topSlotApplied
+                ? `Crazy Time: You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+                : `Crazy Time: You won ${winAmount.toFixed(2)} SOL!`
+            );
+  
             const transaction = new Transaction().add(
               SystemProgram.transfer({
                 fromPubkey: wallet.publicKey,
@@ -2220,15 +2287,19 @@ const evaluateResult = (result) => {
                 lamports: winAmountInLamports,
               })
             );
-
-            const { blockhash } = await connection.getLatestBlockhash();
-            transaction.recentBlockhash = blockhash;
+  
+            const { blockhash: winBlockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+            transaction.recentBlockhash = winBlockhash;
             transaction.feePayer = wallet.publicKey;
-            transaction.partialSign(wallet);
-
+            transaction.sign(wallet);
+  
             try {
               const signature = await connection.sendRawTransaction(transaction.serialize());
-              await connection.confirmTransaction(signature);
+              await connection.confirmTransaction({
+                signature,
+                blockhash: winBlockhash,
+                lastValidBlockHeight,
+              });
               console.log('Prize distributed:', signature);
               setTriggerWinEffect(true);
               playSound(winAudioRef);
@@ -2237,7 +2308,7 @@ const evaluateResult = (result) => {
               setWheelMessage('You won, but prize distribution failed. Contact support.');
               addChatMessage('You won, but prize distribution failed. Contact support.');
             }
-
+  
             setPlayerStats(prev => ({
               ...prev,
               totalWinnings: prev.totalWinnings + winAmount,
@@ -2248,7 +2319,7 @@ const evaluateResult = (result) => {
           }
         }
       }
-
+  
       updateMissionProgress(3);
       setPlayerStats(prev => ({
         ...prev,
