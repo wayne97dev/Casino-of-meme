@@ -559,7 +559,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   const [winLightColor, setWinLightColor] = useState(new THREE.Color('red'));
 
   const brickTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
-  const brickNormalTexture = useLoader(THREE.TextureLoader, '/models/textures/111.jpg');
+  const brickNormalTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
 
   useEffect(() => {
     brickTexture.wrapS = brickTexture.wrapT = THREE.RepeatWrapping;
