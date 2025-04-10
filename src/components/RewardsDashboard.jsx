@@ -52,7 +52,7 @@ const socket = io(BACKEND_URL, {
 // Percentuale di vittoria del computer per ogni minigioco
 const COMPUTER_WIN_CHANCE = {
   cardDuel: 0.7,
-  memeSlots: 0.9,
+  memeSlots: 0.97,
   coinFlip: 0.6,
   crazyTime: 0.8,
 };
@@ -1677,12 +1677,17 @@ const evaluateResult = (result) => {
           for (let k = streakStart; k < streakStart + streak; k++) {
             winningIndices.add(line[k]);
           }
-          let winAmount = betAmount * 3;
-          if (currentSymbol === 'BONUS') {
-            winAmount *= 2;
+          let winAmount;
+          if (streak === 3) {
+            winAmount = betAmount * 0.5; // 3 simboli: 0.5x il bet
+          } else if (streak === 4) {
+            winAmount = betAmount * 3; // 4 simboli: 3x il bet
+          } else if (streak === 5) {
+            winAmount = betAmount * 10; // 5 simboli: 10x il bet
           }
-          if (streak >= 4) winAmount += betAmount * 2;
-          if (streak === 5) winAmount += betAmount * 3;
+          if (currentSymbol === 'BONUS') {
+            winAmount *= 2; // Bonus raddoppia la vincita
+          }
           totalWin += winAmount;
         }
         currentSymbol = symbolsInLine[j];
@@ -1691,17 +1696,23 @@ const evaluateResult = (result) => {
       }
     }
 
+    // Controlla l'ultima sequenza
     if (streak >= 3) {
       winningLinesFound.push(i);
       for (let k = streakStart; k < streakStart + streak; k++) {
         winningIndices.add(line[k]);
       }
-      let winAmount = betAmount * 3;
-      if (currentSymbol === 'BONUS') {
-        winAmount *= 2;
+      let winAmount;
+      if (streak === 3) {
+        winAmount = betAmount * 0.5; // 3 simboli: 0.5x il bet
+      } else if (streak === 4) {
+        winAmount = betAmount * 3; // 4 simboli: 3x il bet
+      } else if (streak === 5) {
+        winAmount = betAmount * 10; // 5 simboli: 10x il bet
       }
-      if (streak >= 4) winAmount += betAmount * 2;
-      if (streak === 5) winAmount += betAmount * 3;
+      if (currentSymbol === 'BONUS') {
+        winAmount *= 2; // Bonus raddoppia la vincita
+      }
       totalWin += winAmount;
     }
   }
@@ -1713,7 +1724,6 @@ const evaluateResult = (result) => {
     setSlotStatus('won');
     setSlotMessage(`Jackpot! You won ${totalWin.toFixed(2)} SOL!`);
 
-    // Verifica delle condizioni iniziali
     if (!connection || !wallet || !publicKey) {
       console.error('Missing required objects for transaction:', {
         connection: !!connection,
@@ -1727,27 +1737,22 @@ const evaluateResult = (result) => {
     const winAmountInLamports = totalWin * LAMPORTS_PER_SOL;
     const transaction = new Transaction().add(
       SystemProgram.transfer({
-        fromPubkey: wallet.publicKey, // Tax wallet invia i fondi
-        toPubkey: publicKey, // Indirizzo del giocatore riceve i fondi
+        fromPubkey: wallet.publicKey,
+        toPubkey: publicKey,
         lamports: winAmountInLamports,
       })
     );
 
     (async () => {
       try {
-        // Ottieni il blockhash in modo asincrono
         const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
         transaction.recentBlockhash = blockhash;
-        transaction.feePayer = wallet.publicKey; // Tax wallet paga le commissioni
+        transaction.feePayer = wallet.publicKey;
+        transaction.sign(wallet);
 
-        // Firma completa con il tax wallet
-        transaction.sign(wallet); // Usa sign invece di partialSign, poiché il tax wallet è il feePayer
-
-        // Invia la transazione
         const signature = await connection.sendRawTransaction(transaction.serialize());
         console.log('DEBUG - Transaction signature:', signature);
 
-        // Conferma la transazione
         const confirmation = await connection.confirmTransaction({
           signature,
           blockhash,
@@ -1762,7 +1767,6 @@ const evaluateResult = (result) => {
         setTriggerWinEffect(true);
         playSound(winAudioRef);
 
-        // Aggiorna le statistiche solo dopo il successo della transazione
         setPlayerStats(prev => ({
           ...prev,
           totalWinnings: prev.totalWinnings + totalWin,
@@ -2568,38 +2572,69 @@ const evaluateResult = (result) => {
       />
       {betError && <p className="bet-error">{betError}</p>}
     </div>
-    <div className="game-box p-6 mb-10">
+    <div className="game-box p-6 mb-10 flex flex-row gap-6">
+      {/* Griglia della slot machine */}
       <div className={`slot-machine ${slotStatus === 'won' ? 'winning' : ''}`}>
         <div className="grid grid-cols-5 gap-1">
           {slotReelsDisplay.map((meme, index) => (
             <div
               key={index}
-              className={`slot-reel ${slotStatus === 'spinning' ? 'spinning' : ''} ${isStopping && slotReelsDisplay[index] === slotReels[index] ? 'stopping' : ''}`}
+              className={`slot-reel ${slotStatus === 'spinning' ? 'spinning' : ''} ${isStopping && slotReelsDisplay[index] === slotReels[index] ? 'stopping' : ''} ${winningIndices.includes(index) ? 'winning' : ''}`}
               style={{
                 backgroundImage: meme && meme.image ? `url(${meme.image})` : 'none',
-                backgroundColor: !meme ? '#333' : 'transparent', // Colore di sfondo per slot vuote
+                backgroundColor: !meme ? '#333' : 'transparent',
               }}
             />
           ))}
         </div>
       </div>
-      <p className="text-center text-orange-700 mb-4 text-lg">{slotMessage}</p>
-      <button
-        onClick={spinSlots}
-        className="w-full casino-button"
-        disabled={slotStatus === 'spinning' || !!betError}
-      >
-        {slotStatus === 'spinning'
-          ? 'Spinning...'
-          : `Spin (Bet ${betAmount.toFixed(2)} SOL)`}
-      </button>
-      <button
-        onClick={() => setSelectedGame(null)}
-        className="w-full casino-button mt-4"
-      >
-        Back to Casino Floor
-      </button>
+      {/* Tabella dei pagamenti */}
+      <div className="payout-table bg-gray-800 rounded-lg p-4 text-orange-700">
+        <h3 className="text-xl font-bold mb-4">Payouts</h3>
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-gray-700 text-cyan-400">
+              <th className="p-2">Symbols</th>
+              <th className="p-2">Payout</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-t border-gray-600">
+              <td className="p-2">3 Symbols</td>
+              <td className="p-2">0.5x Bet</td>
+            </tr>
+            <tr className="border-t border-gray-600">
+              <td className="p-2">4 Symbols</td>
+              <td className="p-2">3x Bet</td>
+            </tr>
+            <tr className="border-t border-gray-600">
+              <td className="p-2">5 Symbols</td>
+              <td className="p-2">10x Bet</td>
+            </tr>
+            <tr className="border-t border-gray-600">
+              <td className="p-2">BONUS</td>
+              <td className="p-2">Doubles the Win</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
+    <p className="text-center text-orange-700 mb-4 text-lg">{slotMessage}</p>
+    <button
+      onClick={spinSlots}
+      className="w-full casino-button"
+      disabled={slotStatus === 'spinning' || !!betError}
+    >
+      {slotStatus === 'spinning'
+        ? 'Spinning...'
+        : `Spin (Bet ${betAmount.toFixed(2)} SOL)`}
+    </button>
+    <button
+      onClick={() => setSelectedGame(null)}
+      className="w-full casino-button mt-4"
+    >
+      Back to Casino Floor
+    </button>
   </div>
 )}
 
