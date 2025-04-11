@@ -777,15 +777,23 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   );
 };
 
-// Componente principale CasinoScene
 const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
   const [croupierAnimation, setCroupierAnimation] = useState('Idle');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <Canvas
-      className="w-full" // Usa classi invece di stili inline
+      className="w-full h-[50vh] md:h-[70vh]"
       gl={{
-        antialias: true,
-        shadowMap: { enabled: true, type: THREE.PCFSoftShadowMap },
+        antialias: !isMobile,
+        powerPreference: 'low-power',
+        shadowMap: { enabled: !isMobile, type: THREE.PCFSoftShadowMap },
       }}
       scene={{ background: new THREE.Color('#000000') }}
     >
@@ -794,6 +802,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
         croupierAnimation={croupierAnimation}
         setCroupierAnimation={setCroupierAnimation}
         triggerWinEffect={triggerWinEffect}
+        isMobile={isMobile}
       />
     </Canvas>
   );
