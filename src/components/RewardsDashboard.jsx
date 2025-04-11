@@ -2564,7 +2564,7 @@ useEffect(() => {
           src="/assets/footer-gif.gif"
           alt="Header Animation"
           className="object-contain m-0 p-0 -ml-4" // Sposta la GIF a sinistra di 16px
-          style={{ height: '64px', width: 'auto', marginLeft: '-75px' }} // Sposta di 20px a sinistra
+          style={{ height: '64px', width: 'auto', marginLeft: '-60px' }} // Sposta di 20px a sinistra
         />
       </footer>
 
