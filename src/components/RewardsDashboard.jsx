@@ -758,7 +758,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       <CasinoTable position={[-15, -1, -15]} />
       <BlackjackTable position={[0, -1, 3]} onSelectGame={handleSelectGame} />
       <RedCarpetModule position={[0, -1, 10]} />{/* Aggiunto qui sotto il tavolo da blackjack */}
-      <CasinoSignWithBulb position={[0, 20, 24]} />
+      <CasinoSignWithBulb position={[0, 19, 24]} />
         {/* Aggiungi le quattro colonne agli angoli */}
         <CasinoTwistedColumn position={[-23.5, -1, -23.5]} /> {/* Angolo in basso a sinistra */}
       <CasinoTwistedColumn position={[-23.5, -1, 23.5]} />  {/* Angolo in alto a sinistra */}
