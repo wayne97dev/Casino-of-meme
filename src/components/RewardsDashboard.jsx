@@ -888,7 +888,18 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
       {showParticles && <Particles position={[0, 2, 0]} />}
 
-      <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
+      <OrbitControls
+  enablePan={true}
+  enableZoom={true}
+  enableRotate={true}
+  enableDamping={true} // Aggiunge un effetto di smorzamento per un controllo più fluido
+  dampingFactor={0.05}
+  minDistance={20} // Imposta una distanza minima per lo zoom
+  maxDistance={100} // Imposta una distanza massima per lo zoom
+  // Impedisci il comportamento predefinito su touch
+  onStart={(e) => e.event.preventDefault()}
+/>
+
 
       <EffectComposer>
         <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={300} />
@@ -916,6 +927,14 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
         shadowMap: { enabled: !isMobile, type: THREE.PCFSoftShadowMap },
       }}
       scene={{ background: new THREE.Color('#000000') }}
+      // Aggiungi queste opzioni per migliorare le prestazioni su mobile
+      dpr={isMobile ? 1 : window.devicePixelRatio} // Riduci il device pixel ratio su mobile
+      performance={{
+        current: 1,
+        min: 0.5,
+        max: 1,
+        debounce: 200,
+      }}
     >
       <SceneContent
         onSelectGame={onSelectGame}

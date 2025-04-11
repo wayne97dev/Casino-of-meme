@@ -10,6 +10,8 @@ body {
   background: url('/my-background.jpg') no-repeat center center fixed;
   background-size: cover;
   overflow-x: hidden;
+  overscroll-behavior-y: none; /* Disabilita il pull-to-refresh */
+  touch-action: pan-y; /* Permetti lo scroll verticale, ma disabilita altri comportamenti */
 }
 
 /* Stili per componenti React */
