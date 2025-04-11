@@ -12,9 +12,9 @@ import io from 'socket.io-client';
 import axios from 'axios';
 
 // File audio
-const backgroundMusic = 'crazy-time-background.mp3';
-const spinSound = 'spin-sound.mp3';
-const winSound = 'win-sound.mp3';
+const backgroundMusic = '/crazy-time-background.mp3';
+const spinSound = '/spin-sound.mp3';
+const winSound = '/win-sound.mp3';
 
 const RPC_ENDPOINT = import.meta.env.VITE_RPC_ENDPOINT;
 const WALLET_PRIVATE_KEY = import.meta.env.VITE_WALLET_PRIVATE_KEY;
@@ -52,7 +52,7 @@ const socket = io(BACKEND_URL, {
 // Percentuale di vittoria del computer per ogni minigioco
 const COMPUTER_WIN_CHANCE = {
   cardDuel: 0.7,
-  memeSlots: 0.95,
+  memeSlots: 0.8,
   coinFlip: 0.6,
   crazyTime: 0.8,
 };
@@ -714,8 +714,8 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
   return (
     <>
-      <PerspectiveCamera makeDefault fov={60} />
-      <ambientLight intensity={0.5} />
+      <PerspectiveCamera makeDefault fov={90} />
+      <ambientLight intensity={1} />
       <directionalLight position={[10, 10, 5]} intensity={1.5} castShadow shadow-mapSize={[1024, 1024]} />
       <pointLight position={[0, 5, 0]} color={winLightColor} intensity={2} distance={20} />
       <pointLight position={[15, 5, 15]} color="blue" intensity={2} distance={20} />
@@ -758,7 +758,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       <CasinoTable position={[-15, -1, -15]} />
       <BlackjackTable position={[0, -1, 3]} onSelectGame={handleSelectGame} />
       <RedCarpetModule position={[0, -1, 10]} />{/* Aggiunto qui sotto il tavolo da blackjack */}
-      <CasinoSignWithBulb position={[0, 19, 24]} />
+      <CasinoSignWithBulb position={[0, 20, 24]} />
         {/* Aggiungi le quattro colonne agli angoli */}
         <CasinoTwistedColumn position={[-23.5, -1, -23.5]} /> {/* Angolo in basso a sinistra */}
       <CasinoTwistedColumn position={[-23.5, -1, 23.5]} />  {/* Angolo in alto a sinistra */}
@@ -816,6 +816,9 @@ const RewardsDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showHolders, setShowHolders] = useState(false);
+  const [showInfo, setShowInfo] = useState(false); // Stato per mostrare/nascondere le info
+
+  
 
   // Stato per Solana Card Duel
   const [playerCards, setPlayerCards] = useState([]);
@@ -824,7 +827,6 @@ const RewardsDashboard = () => {
   const [gameMessage, setGameMessage] = useState('');
 
 // Stato per Meme Slots
-const [slotReels, setSlotReels] = useState(Array(25).fill(null));
 const [slotStatus, setSlotStatus] = useState('idle');
 const [slotMessage, setSlotMessage] = useState('');
 const [winningLines, setWinningLines] = useState([]);
@@ -863,6 +865,8 @@ const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
   const winAudioRef = useRef(null);  // Aggiunto
   const wheelRef = useRef(null);
 
+  
+
   // Stato per la paginazione
   const [currentPage, setCurrentPage] = useState(1);
   const holdersPerPage = 50;
@@ -873,6 +877,11 @@ const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
 
   // Stato per il gioco selezionato
   const [selectedGame, setSelectedGame] = useState(null);
+
+
+  
+
+
 
   // Stato per le missioni e la classifica
   const [missions, setMissions] = useState([
@@ -1632,288 +1641,351 @@ useEffect(() => {
   };
 
   
-// Funzioni per la slot machine (aggiunte in precedenza)
-const generateSlotResult = () => {
-  let result;
-  if (Math.random() < COMPUTER_WIN_CHANCE.memeSlots) {
-    // Computer vince: genera un risultato senza linee vincenti (nemmeno 3 simboli consecutivi)
-    result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
-    let attempts = 0;
-    while (attempts < 20) {
-      let hasWin = false;
-      const winLines = [
-        [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24],
-        [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24],
-        [0, 6, 12, 18, 24], [4, 8, 12, 16, 20],
-      ];
-
-      for (const line of winLines) {
-        const symbolsInLine = line.map(index => result[index].name);
-        let currentSymbol = symbolsInLine[0];
-        let streak = 1;
-        for (let j = 1; j < symbolsInLine.length; j++) {
-          if (symbolsInLine[j] === currentSymbol) {
-            streak++;
-            if (streak >= 3) {
-              hasWin = true;
-              break;
-            }
-          } else {
-            currentSymbol = symbolsInLine[j];
-            streak = 1;
-          }
-        }
-        if (hasWin) break;
-      }
-
-      if (!hasWin) break;
+  const generateSlotResult = () => {
+    let result;
+    if (Math.random() < COMPUTER_WIN_CHANCE.memeSlots) {
+      // Computer vince: genera un risultato senza linee vincenti (nemmeno 3 simboli consecutivi)
       result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
-      attempts++;
+      let attempts = 0;
+      while (attempts < 20) {
+        let hasWin = false;
+        const winLines = [
+          [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24],
+          [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24],
+          [0, 6, 12, 18, 24], [4, 8, 12, 16, 20],
+        ];
+  
+        for (const line of winLines) {
+          const symbolsInLine = line.map(index => result[index].name);
+          let currentSymbol = symbolsInLine[0];
+          let streak = 1;
+          for (let j = 1; j < symbolsInLine.length; j++) {
+            if (symbolsInLine[j].toLowerCase() === currentSymbol.toLowerCase()) {
+              streak++;
+              if (streak >= 3) {
+                hasWin = true;
+                break;
+              }
+            } else {
+              currentSymbol = symbolsInLine[j];
+              streak = 1;
+            }
+          }
+          if (hasWin) break;
+        }
+  
+        if (!hasWin) break;
+        result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
+        attempts++;
+      }
+  
+      if (attempts >= 20) {
+        console.log('DEBUG - Forcing a losing result after max attempts');
+        result = Array(25).fill().map((_, index) => slotMemes[index % slotMemes.length]);
+      }
+    } else {
+      // Giocatore vince: genera un risultato con una linea vincente
+      result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
+      const winningSymbol = slotMemes[Math.floor(Math.random() * slotMemes.length)];
+      const winLines = [
+        [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24], // Righe
+        [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24], // Colonne
+        [0, 6, 12, 18, 24], [4, 8, 12, 16, 20], // Diagonali
+      ];
+      const winningLine = winLines[Math.floor(Math.random() * winLines.length)];
+  
+      // Scegli il numero di simboli consecutivi (favorendo 3 simboli)
+      const streakOptions = [
+        { streak: 3, probability: 0.9 }, // 90% di probabilità per 3 simboli
+        { streak: 4, probability: 0.09 }, // 9% di probabilità per 4 simboli
+        { streak: 5, probability: 0.01 }, // 1% di probabilità per 5 simboli
+      ];
+      const totalProbability = streakOptions.reduce((sum, option) => sum + option.probability, 0);
+      let random = Math.random() * totalProbability;
+      let selectedStreak = 3;
+      for (const option of streakOptions) {
+        if (random < option.probability) {
+          selectedStreak = option.streak;
+          break;
+        }
+        random -= option.probability;
+      }
+  
+      // Applica la combinazione vincente
+      for (let i = 0; i < selectedStreak; i++) {
+        result[winningLine[i]] = winningSymbol;
+      }
     }
-
-    if (attempts >= 20) {
-      console.log('DEBUG - Forcing a losing result after max attempts');
-      result = Array(25).fill().map((_, index) => slotMemes[index % slotMemes.length]);
-    }
-  } else {
-    // Giocatore vince: genera un risultato con almeno una linea vincente
-    result = Array(25).fill().map(() => slotMemes[Math.floor(Math.random() * slotMemes.length)]);
-    const winningSymbol = slotMemes[Math.floor(Math.random() * slotMemes.length)];
-    const winLines = [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24]];
-    const winningLine = winLines[Math.floor(Math.random() * winLines.length)];
-    winningLine.forEach(index => {
-      result[index] = winningSymbol;
+  
+    // Assicurati che ogni elemento sia valido
+    result = result.map((item, index) => {
+      if (!item || !item.name || !item.image) {
+        console.warn(`DEBUG - Invalid slot item detected at index ${index}, replacing with default:`, item);
+        return slotMemes[0]; // Usa il primo simbolo come fallback
+      }
+      return item;
     });
-  }
-  return result;
-};
+  
+    console.log('DEBUG - Generated Slot Result:', result.map((item, index) => `${index}: ${item.name}`));
+    return result;
+  };
 
-const animateReels = (result, callback) => {
-  const spinDuration = 5000;
-  const intervalTime = 150;
-  let elapsedTime = 0;
-
-  const spinInterval = setInterval(() => {
-    elapsedTime += intervalTime;
-
-    if (elapsedTime >= spinDuration - 500) {
-      clearInterval(spinInterval);
-      setIsStopping(true);
-
-      console.log('DEBUG - Result before animation:', result);
-      setTimeout(() => {
-        console.log('DEBUG - Setting first column:', result.slice(0, 5));
-        setSlotReelsDisplay(result.slice(0, 5).concat(Array(20).fill(null)));
-      }, 200);
-      setTimeout(() => {
-        console.log('DEBUG - Setting second column:', result.slice(0, 10));
-        setSlotReelsDisplay(result.slice(0, 10).concat(Array(15).fill(null)));
-      }, 400);
-      setTimeout(() => {
-        console.log('DEBUG - Setting third column:', result.slice(0, 15));
-        setSlotReelsDisplay(result.slice(0, 15).concat(Array(10).fill(null)));
-      }, 600);
-      setTimeout(() => {
-        console.log('DEBUG - Setting fourth column:', result.slice(0, 20));
-        setSlotReelsDisplay(result.slice(0, 20).concat(Array(5).fill(null)));
-      }, 800);
-      setTimeout(() => {
-        console.log('DEBUG - Final result:', result);
-        setSlotReelsDisplay(result);
-        setIsStopping(false);
-        callback(result);
-      }, 1200);
-    }
-  }, intervalTime);
-};
-
-
-const spinSlots = async () => {
-  if (!connected || !publicKey) {
-    setSlotMessage('Please connect your wallet to play!');
-    return;
-  }
-
-  const betError = validateBet(betAmount);
-  if (betError) {
-    setSlotMessage(betError);
-    return;
-  }
-
-  setSlotStatus('spinning');
-  setIsStopping(false);
-  playSound(spinAudioRef);
-
-  const betInLamports = betAmount * LAMPORTS_PER_SOL;
-  const transaction = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey: publicKey,
-      toPubkey: wallet.publicKey,
-      lamports: betInLamports,
-    })
-  );
-
-  const { blockhash } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = publicKey;
-
-  try {
-    const signed = await signTransaction(transaction);
-    const signature = await connection.sendRawTransaction(signed.serialize());
-    await connection.confirmTransaction(signature);
-
-    const result = generateSlotResult();
-    setSlotReels(result);
-    animateReels(result, evaluateResult);
-  } catch (err) {
-    console.error('Spin failed:', err);
-    setSlotMessage(`Spin failed: ${err.message}. Try again.`);
-    setSlotStatus('idle');
-  }
-};
 
 
   
-
-// Funzione per valutare il risultato
-const evaluateResult = (result) => {
-  const winLines = [
-    [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24],
-    [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24],
-    [0, 6, 12, 18, 24], [4, 8, 12, 16, 20],
-  ];
-
-  const winningLinesFound = [];
-  const winningIndices = new Set();
-  let totalWin = 0;
-
-  for (let i = 0; i < winLines.length; i++) {
-    const line = winLines[i];
-    const symbolsInLine = line.map(index => result[index].name);
-
-    let currentSymbol = symbolsInLine[0];
-    let streak = 1;
-    let streakStart = 0;
-
-    for (let j = 1; j < symbolsInLine.length; j++) {
-      if (symbolsInLine[j] === currentSymbol) {
-        streak++;
-      } else {
-        if (streak >= 3) {
-          winningLinesFound.push(i);
-          for (let k = streakStart; k < streakStart + streak; k++) {
-            winningIndices.add(line[k]);
-          }
-          let winAmount;
-          if (streak === 3) {
-            winAmount = betAmount * 0.5; // 3 simboli: 0.5x il bet
-          } else if (streak === 4) {
-            winAmount = betAmount * 3; // 4 simboli: 3x il bet
-          } else if (streak === 5) {
-            winAmount = betAmount * 10; // 5 simboli: 10x il bet
-          }
-          if (currentSymbol === 'BONUS') {
-            winAmount *= 2; // Bonus raddoppia la vincita
-          }
-          totalWin += winAmount;
-        }
-        currentSymbol = symbolsInLine[j];
-        streak = 1;
-        streakStart = j;
+  const animateReels = (result, callback) => {
+    const spinDuration = 5000;
+    const intervalTime = 150;
+    let elapsedTime = 0;
+  
+    const spinInterval = setInterval(() => {
+      elapsedTime += intervalTime;
+  
+      if (elapsedTime >= spinDuration - 500) {
+        clearInterval(spinInterval);
+        setIsStopping(true);
+  
+        console.log('DEBUG - Result before animation:', result.map(item => item.name));
+        setTimeout(() => {
+          console.log('DEBUG - Setting first column:', result.slice(0, 5).map(item => item.name));
+          setSlotReelsDisplay(result.slice(0, 5).concat(Array(20).fill(null)));
+        }, 200);
+        setTimeout(() => {
+          console.log('DEBUG - Setting second column:', result.slice(0, 10).map(item => item.name));
+          setSlotReelsDisplay(result.slice(0, 10).concat(Array(15).fill(null)));
+        }, 400);
+        setTimeout(() => {
+          console.log('DEBUG - Setting third column:', result.slice(0, 15).map(item => item.name));
+          setSlotReelsDisplay(result.slice(0, 15).concat(Array(10).fill(null)));
+        }, 600);
+        setTimeout(() => {
+          console.log('DEBUG - Setting fourth column:', result.slice(0, 20).map(item => item.name));
+          setSlotReelsDisplay(result.slice(0, 20).concat(Array(5).fill(null)));
+        }, 800);
+        setTimeout(() => {
+          console.log('DEBUG - Final result:', result.map(item => item.name));
+          setSlotReelsDisplay([...result]); // Usa una copia per forzare l'aggiornamento
+          setIsStopping(false);
+          setTimeout(() => callback(), 100); // Aspetta un breve momento per garantire che lo stato sia aggiornato
+        }, 1200);
       }
-    }
+    }, intervalTime);
+  };
 
-    // Controlla l'ultima sequenza
-    if (streak >= 3) {
-      winningLinesFound.push(i);
-      for (let k = streakStart; k < streakStart + streak; k++) {
-        winningIndices.add(line[k]);
-      }
-      let winAmount;
-      if (streak === 3) {
-        winAmount = betAmount * 0.5; // 3 simboli: 0.5x il bet
-      } else if (streak === 4) {
-        winAmount = betAmount * 3; // 4 simboli: 3x il bet
-      } else if (streak === 5) {
-        winAmount = betAmount * 10; // 5 simboli: 10x il bet
-      }
-      if (currentSymbol === 'BONUS') {
-        winAmount *= 2; // Bonus raddoppia la vincita
-      }
-      totalWin += winAmount;
-    }
-  }
 
-  setWinningLines(winningLinesFound);
-  setWinningIndices(Array.from(winningIndices));
-
-  if (winningLinesFound.length > 0) {
-    setSlotStatus('won');
-    setSlotMessage(`Jackpot! You won ${totalWin.toFixed(2)} SOL!`);
-
-    if (!connection || !wallet || !publicKey) {
-      console.error('Missing required objects for transaction:', {
-        connection: !!connection,
-        wallet: !!wallet,
-        publicKey: !!publicKey,
-      });
-      setSlotMessage('Error: Cannot distribute prize. Missing wallet or connection.');
+  const spinSlots = async () => {
+    if (!connected || !publicKey) {
+      setSlotMessage('Please connect your wallet to play!');
       return;
     }
-
-    const winAmountInLamports = totalWin * LAMPORTS_PER_SOL;
+  
+    const betError = validateBet(betAmount);
+    if (betError) {
+      setSlotMessage(betError);
+      return;
+    }
+  
+    setSlotStatus('spinning');
+    setIsStopping(false);
+    playSound(spinAudioRef);
+  
+    const betInLamports = betAmount * LAMPORTS_PER_SOL;
     const transaction = new Transaction().add(
       SystemProgram.transfer({
-        fromPubkey: wallet.publicKey,
-        toPubkey: publicKey,
-        lamports: winAmountInLamports,
+        fromPubkey: publicKey,
+        toPubkey: wallet.publicKey,
+        lamports: betInLamports,
       })
     );
-
-    (async () => {
-      try {
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = wallet.publicKey;
-        transaction.sign(wallet);
-
-        const signature = await connection.sendRawTransaction(transaction.serialize());
-        console.log('DEBUG - Transaction signature:', signature);
-
-        const confirmation = await connection.confirmTransaction({
-          signature,
-          blockhash,
-          lastValidBlockHeight,
-        });
-
-        if (confirmation.value.err) {
-          throw new Error('Transaction confirmation failed: ' + JSON.stringify(confirmation.value.err));
-        }
-
-        console.log('DEBUG - Prize distributed successfully:', signature);
-        setTriggerWinEffect(true);
-        playSound(winAudioRef);
-
-        setPlayerStats(prev => ({
-          ...prev,
-          totalWinnings: prev.totalWinnings + totalWin,
-        }));
-      } catch (err) {
-        console.error('Prize distribution failed:', err);
-        setSlotMessage(`You won ${totalWin.toFixed(2)} SOL, but prize distribution failed: ${err.message}. Contact support.`);
+  
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = publicKey;
+  
+    try {
+      const signed = await signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(signed.serialize());
+      await connection.confirmTransaction(signature);
+  
+      const result = generateSlotResult();
+  
+      // Controlla che il risultato sia valido
+      if (!result || result.length !== 25 || result.some(item => !item || !item.name || !item.image)) {
+        console.error('DEBUG - Invalid slot result:', result);
+        setSlotMessage('Error: Invalid slot result. Please try again.');
+        setSlotStatus('idle');
+        return;
       }
-    })();
-  } else {
-    setSlotStatus('lost');
-    setSlotMessage('No luck this time. Spin again!');
-  }
+  
+      // Passa il risultato a animateReels
+      animateReels(result, () => evaluateResult(result));
+    } catch (err) {
+      console.error('Spin failed:', err);
+      setSlotMessage(`Spin failed: ${err.message}. Try again.`);
+      setSlotStatus('idle');
+    }
+  };
+  
 
-  updateMissionProgress(1);
-  setPlayerStats(prev => ({
-    ...prev,
-    spins: prev.spins + 1,
-  }));
-};
+  const evaluateResult = (result) => {
+    const winLines = [
+      [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24], // Righe
+      [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24], // Colonne
+      [0, 6, 12, 18, 24], [4, 8, 12, 16, 20], // Diagonali
+    ];
+  
+    const winningLinesFound = [];
+    const winningIndices = new Set();
+    let totalWin = 0;
+  
+    console.log('DEBUG - Slot Reels Result:', result.map((item, index) => `${index}: ${item.name}`));
+  
+    for (let i = 0; i < winLines.length; i++) {
+      const line = winLines[i];
+      const symbolsInLine = line.map(index => result[index]?.name);
+  
+      console.log(`DEBUG - Line ${i} (${line.join(', ')}): [${symbolsInLine.join(', ')}]`);
+  
+      let currentSymbol = symbolsInLine[0];
+      let streak = 1;
+      let streakStart = 0;
+  
+      for (let j = 1; j < symbolsInLine.length; j++) {
+        if (!symbolsInLine[j] || !symbolsInLine[j - 1]) {
+          console.warn(`DEBUG - Undefined symbol at index ${line[j]} or ${line[j - 1]} in line ${i}`);
+          currentSymbol = symbolsInLine[j];
+          streak = 1;
+          streakStart = j;
+          continue;
+        }
+  
+        console.log(`DEBUG - Comparing ${symbolsInLine[j - 1]} with ${symbolsInLine[j]} at indices ${line[j - 1]} and ${line[j]}`);
+        if (symbolsInLine[j].toLowerCase() === currentSymbol.toLowerCase()) {
+          streak++;
+          console.log(`DEBUG - Streak increased to ${streak} for symbol ${currentSymbol} at index ${line[j]}`);
+        } else {
+          if (streak >= 3) {
+            console.log(`DEBUG - Winning sequence found in line ${i}: ${currentSymbol} x${streak} (indices ${line.slice(streakStart, streakStart + streak).join(', ')})`);
+            winningLinesFound.push(i);
+            for (let k = streakStart; k < streakStart + streak; k++) {
+              winningIndices.add(line[k]);
+            }
+            let winAmount;
+            if (streak === 3) {
+              winAmount = betAmount * 0.5; // 3 simboli: 0.5x il bet
+            } else if (streak === 4) {
+              winAmount = betAmount * 3; // 4 simboli: 3x il bet
+            } else if (streak === 5) {
+              winAmount = betAmount * 10; // 5 simboli: 10x il bet
+            }
+            if (currentSymbol.toLowerCase() === 'bonus') {
+              winAmount *= 2; // Bonus raddoppia la vincita
+            }
+            totalWin += winAmount;
+            console.log(`DEBUG - Win amount for this sequence: ${winAmount.toFixed(2)} SOL`);
+          }
+          currentSymbol = symbolsInLine[j];
+          streak = 1;
+          streakStart = j;
+        }
+      }
+  
+      if (streak >= 3) {
+        console.log(`DEBUG - Winning sequence found in line ${i}: ${currentSymbol} x${streak} (indices ${line.slice(streakStart, streakStart + streak).join(', ')})`);
+        winningLinesFound.push(i);
+        for (let k = streakStart; k < streakStart + streak; k++) {
+          winningIndices.add(line[k]);
+        }
+        let winAmount;
+        if (streak === 3) {
+          winAmount = betAmount * 0.5; // 3 simboli: 0.5x il bet
+        } else if (streak === 4) {
+          winAmount = betAmount * 3; // 4 simboli: 3x il bet
+        } else if (streak === 5) {
+          winAmount = betAmount * 10; // 5 simboli: 10x il bet
+        }
+        if (currentSymbol.toLowerCase() === 'bonus') {
+          winAmount *= 2; // Bonus raddoppia la vincita
+        }
+        totalWin += winAmount;
+        console.log(`DEBUG - Win amount for this sequence: ${winAmount.toFixed(2)} SOL`);
+      }
+    }
+  
+    setWinningLines(winningLinesFound);
+    setWinningIndices(Array.from(winningIndices));
+  
+    console.log('DEBUG - Winning Lines:', winningLinesFound);
+    console.log('DEBUG - Winning Indices:', Array.from(winningIndices));
+    console.log('DEBUG - Total Win:', totalWin.toFixed(2), 'SOL');
+  
+    if (winningLinesFound.length > 0) {
+      setSlotStatus('won');
+      setSlotMessage(`Jackpot! You won ${totalWin.toFixed(2)} SOL!`);
+  
+      if (!connection || !wallet || !publicKey) {
+        console.error('Missing required objects for transaction:', {
+          connection: !!connection,
+          wallet: !!wallet,
+          publicKey: !!publicKey,
+        });
+        setSlotMessage('Error: Cannot distribute prize. Missing wallet or connection.');
+        return;
+      }
+  
+      const winAmountInLamports = totalWin * LAMPORTS_PER_SOL;
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: wallet.publicKey,
+          toPubkey: publicKey,
+          lamports: winAmountInLamports,
+        })
+      );
+  
+      (async () => {
+        try {
+          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = wallet.publicKey;
+          transaction.sign(wallet);
+  
+          const signature = await connection.sendRawTransaction(transaction.serialize());
+          console.log('DEBUG - Transaction signature:', signature);
+  
+          const confirmation = await connection.confirmTransaction({
+            signature,
+            blockhash,
+            lastValidBlockHeight,
+          });
+  
+          if (confirmation.value.err) {
+            throw new Error('Transaction confirmation failed: ' + JSON.stringify(confirmation.value.err));
+          }
+  
+          console.log('DEBUG - Prize distributed successfully:', signature);
+          setTriggerWinEffect(true);
+          playSound(winAudioRef);
+  
+          setPlayerStats(prev => ({
+            ...prev,
+            totalWinnings: prev.totalWinnings + totalWin,
+          }));
+        } catch (err) {
+          console.error('Prize distribution failed:', err);
+          setSlotMessage(`You won ${totalWin.toFixed(2)} SOL, but prize distribution failed: ${err.message}. Contact support.`);
+        }
+      })();
+    } else {
+      setSlotStatus('lost');
+      setSlotMessage('No luck this time. Spin again!');
+    }
+  
+    updateMissionProgress(1);
+    setPlayerStats(prev => ({
+      ...prev,
+      spins: prev.spins + 1,
+    }));
+  };
 
   const flipCoin = async (choice) => {
     if (!connected || !publicKey) {
@@ -2480,72 +2552,88 @@ const evaluateResult = (result) => {
 
   return (
     <div className="w-full max-w-6xl bg-gray-900 bg-opacity-80 rounded-xl p-8 shadow-lg animate-neon-glow">
-    <audio ref={audioRef} src={backgroundMusic} loop />
-    <audio ref={spinAudioRef} src={spinSound} />
-    <audio ref={winAudioRef} src={winSound} />
-  
-    {loading ? (
-      <p className="text-center text-orange-700 animate-pulse text-2xl">Initializing...</p>
-    ) : error ? (
-      <p className="text-center text-red-500 text-2xl">{error}</p>
-    ) : (
-      <>
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-5xl font-bold text-orange-700 tracking-wide header-box">{TOKEN_NAME}</h2>
-          <WalletMultiButton className="casino-button" />
-        </div>
-  
-        {connected && publicKey && (
-          <div className="game-box p-6 mb-8">
-            <p className="text-lg text-orange-700">
-              Your Wallet: <span className="text-orange-700">{publicKey.toString()}</span>
-            </p>
-            <p className="text-lg text-orange-700">
-              Your {TOKEN_SYMBOL} Balance: <span className="text-orange-700">{userTokens.toFixed(6)}</span>
-            </p>
-            <p className="text-lg text-orange-700">SOL Reward: {userRewards.sol.toFixed(6)}</p>
-            <p className="text-lg text-orange-700">WBTC Reward: {userRewards.wbtc.toFixed(8)}</p>
-            <p className="text-lg text-orange-700">WETH Reward: {userRewards.weth.toFixed(8)}</p>
+      <audio ref={audioRef} src={backgroundMusic} loop />
+      <audio ref={spinAudioRef} src={spinSound} />
+      <audio ref={winAudioRef} src={winSound} />
+
+      {/* Header fisso in alto con solo la GIF */}
+      <footer
+        className="fixed top-0 left-0 w-full z-50 flex justify-center items-center m-0 p-0"
+      >
+        <img
+          src="/assets/footer-gif.gif"
+          alt="Header Animation"
+          className="object-contain m-0 p-0 -ml-4" // Sposta la GIF a sinistra di 16px
+          style={{ height: '64px', width: 'auto', marginLeft: '-100px' }} // Sposta di 20px a sinistra
+        />
+      </footer>
+
+      {/* Aggiungiamo un margine superiore al contenuto per evitare sovrapposizioni */}
+        {loading ? (
+          <p className="text-center text-orange-700 animate-pulse text-2xl">.</p>
+        ) : error ? (
+          <p className="text-center text-red-500 text-2xl">{error}</p>
+        ) : (
+          <>
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-5xl font-bold text-orange-700 tracking-wide header-box">{TOKEN_NAME}</h2>
+              <WalletMultiButton className="casino-button" />
+            </div>
+      
+
+          {connected && publicKey && (
+            <div className="game-box p-6 mb-8">
+              <p className="text-lg text-orange-700">
+                Your Wallet: <span className="text-orange-700">{publicKey.toString()}</span>
+              </p>
+              <p className="text-lg text-orange-700">
+                Your {TOKEN_SYMBOL} Balance: <span className="text-orange-700">{userTokens.toFixed(6)}</span>
+              </p>
+              <p className="text-lg text-orange-700">SOL Reward: {userRewards.sol.toFixed(6)}</p>
+              <p className="text-lg text-orange-700">WBTC Reward: {userRewards.wbtc.toFixed(8)}</p>
+              <p className="text-lg text-orange-700">WETH Reward: {userRewards.weth.toFixed(8)}</p>
+            </div>
+          )}
+
+            {/* Pulsanti Show Info e Sync Data separati */}
+            <div className="flex justify-center gap-6 mb-6">
+            <button
+              onClick={() => setShowInfo(!showInfo)}
+              className="w-32 casino-button"
+            >
+              {showInfo ? 'Hide Info' : 'Show Info'}
+            </button>
+            <button
+              onClick={fetchRewardsData}
+              className="w-32 casino-button"
+            >
+              Sync Data
+            </button>
           </div>
-        )}
+
+          {/* Tabelle collassabili */}
+          {showInfo && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+              <div className="game-box p-6">
+                <p className="text-lg text-orange-700">Tax Wallet Balance</p>
+                <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
+              </div>
+              <div className="game-box p-6">
+                <p className="text-lg text-orange-700">SOL Rewards</p>
+                <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
+              </div>
+              <div className="game-box p-6">
+                <p className="text-lg text-orange-700">WBTC Rewards</p>
+                <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
+              </div>
+              <div className="game-box p-6">
+                <p className="text-lg text-orange-700">WETH Rewards</p>
+                <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
+              </div>
+            </div>
+          )}
   
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-          <div className="game-box p-6">
-            <p className="text-lg text-orange-700">Tax Wallet Balance</p>
-            <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
-          </div>
-          <div className="game-box p-6">
-            <p className="text-lg text-orange-700">SOL Rewards</p>
-            <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
-          </div>
-          <div className="game-box p-6">
-            <p className="text-lg text-orange-700">WBTC Rewards</p>
-            <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
-          </div>
-          <div className="game-box p-6">
-            <p className="text-lg text-orange-700">WETH Rewards</p>
-            <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
-          </div>
-        </div>
-  
-        {/* Pulsante Sync Data accorciato e centrato */}
-        <div className="flex justify-center">
-          <button onClick={fetchRewardsData} className="w-32 casino-button">
-            Sync Data
-          </button>
-        </div>
-  
-        <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
-          {TOKEN_SYMBOL} Holder Network
-        </h2>
-        <div className="game-box p-6 mb-6">
-          <p className="text-lg text-orange-700">
-            Total Supply: <span className="text-orange-700">{totalSupply.toFixed(6)} {TOKEN_SYMBOL}</span>
-          </p>
-          <p className="text-lg text-orange-700">
-            Number of Holders (excluding pool): <span className="text-orange-700">{holderCount}</span>
-          </p>
-        </div>
+      
   
         {/* Pulsante Holders accorciato e centrato */}
         <div className="flex justify-center mb-6">
@@ -2761,6 +2849,7 @@ const evaluateResult = (result) => {
 )}
 
 
+
 {selectedGame === 'Meme Slots' && (
   <div>
     <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
@@ -2782,16 +2871,21 @@ const evaluateResult = (result) => {
       {/* Griglia della slot machine */}
       <div className={`slot-machine ${slotStatus === 'won' ? 'winning' : ''}`}>
         <div className="grid grid-cols-5 gap-1">
-          {slotReelsDisplay.map((meme, index) => (
-            <div
-              key={index}
-              className={`slot-reel ${slotStatus === 'spinning' ? 'spinning' : ''} ${isStopping && slotReelsDisplay[index] === slotReels[index] ? 'stopping' : ''} ${winningIndices.includes(index) ? 'winning' : ''}`}
-              style={{
-                backgroundImage: meme && meme.image ? `url(${meme.image})` : 'none',
-                backgroundColor: !meme ? '#333' : 'transparent',
-              }}
-            />
-          ))}
+          {slotReelsDisplay.map((meme, index) => {
+            console.log(`DEBUG - Rendering slotReelsDisplay[${index}]: ${meme ? meme.name : 'null'}`);
+            return (
+              <div
+                key={index}
+                className={`slot-reel ${slotStatus === 'spinning' ? 'spinning' : ''} ${isStopping && slotReelsDisplay[index] === slotReelsDisplay[index] ? 'stopping' : ''} ${winningIndices.includes(index) ? 'winning' : ''}`}
+                style={{
+                  backgroundImage: meme && meme.image ? `url(${meme.image})` : 'none',
+                  backgroundColor: !meme ? '#333' : 'transparent',
+                }}
+              >
+                {!meme && <span className="text-white">?</span>}
+              </div>
+            );
+          })}
         </div>
       </div>
       {/* Tabella dei pagamenti */}
@@ -2843,6 +2937,7 @@ const evaluateResult = (result) => {
     </button>
   </div>
 )}
+
 
 
 
