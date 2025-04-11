@@ -673,11 +673,122 @@ const CasinoTwistedColumn = ({ position }) => {
 };
 
 
+
+
+
+
+import { useGLTF } from '@react-three/drei';
+
+const DonaldTrump = ({ position, currentAnimation = 'Idle' }) => {
+  const group = useRef();
+  const { scene, animations } = useGLTF('/models/donald-trump-bd0dc9dd.glb'); // Usa il file GLB
+  const { actions, names } = useAnimations(animations, group);
+
+  useEffect(() => {
+    scene.traverse((child) => {
+      if (child.isMesh) {
+        const meshName = child.name.toLowerCase();
+        let material;
+
+        // Applichiamo colori base come fallback
+        if (meshName.includes('trump_body')) {
+          material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(0xffd1a3), // Tonalità di pelle chiara
+            side: THREE.DoubleSide,
+            metalness: 0.3,
+            roughness: 0.8,
+          });
+        } else if (meshName.includes('hair')) {
+          material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(0xffa500), // Capelli arancioni
+            side: THREE.DoubleSide,
+            metalness: 0.2,
+            roughness: 0.9,
+          });
+        } else if (meshName.includes('jacket') || meshName.includes('pants') || meshName.includes('shirt')) {
+          material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(0x0000ff), // Vestito blu
+            side: THREE.DoubleSide,
+            metalness: 0.6,
+            roughness: 0.5,
+          });
+        } else if (meshName.includes('tie')) {
+          material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(0xff0000), // Cravatta rossa
+            side: THREE.DoubleSide,
+            metalness: 0.5,
+            roughness: 0.5,
+          });
+        } else if (meshName.includes('shoes')) {
+          material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(0x000000), // Scarpe nere
+            side: THREE.DoubleSide,
+            metalness: 0.7,
+            roughness: 0.4,
+          });
+        } else if (meshName.includes('cap')) {
+          child.visible = false; // Nascondiamo il cappello per mostrare i capelli
+          return;
+        } else if (meshName.includes('eyes')) {
+          material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(0x0000ff), // Occhi blu
+            side: THREE.DoubleSide,
+            metalness: 0.1,
+            roughness: 0.9,
+            emissive: new THREE.Color(0x0000ff),
+            emissiveIntensity: 0.5,
+          });
+        } else {
+          material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(0x808080), // Grigio come default
+            side: THREE.DoubleSide,
+            metalness: 0.5,
+            roughness: 0.7,
+          });
+        }
+
+        // Applichiamo il materiale solo se non ci sono texture
+        if (!child.material || !child.material.map) {
+          child.material = material;
+          child.material.needsUpdate = true;
+        }
+
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+  }, [scene]);
+
+  useEffect(() => {
+    if (actions && Object.keys(actions).length > 0) {
+      Object.values(actions).forEach(action => action?.stop());
+    }
+    const animationName = names.find(name => name.toLowerCase().includes(currentAnimation.toLowerCase())) || names[0];
+    if (animationName && actions[animationName]) {
+      actions[animationName].reset().fadeIn(0.5).play();
+    }
+  }, [actions, names, currentAnimation]);
+
+  return (
+    <group ref={group} position={position}>
+      <primitive object={scene} scale={[4, 4, 4]} />
+      <Text position={[0, 1.5, 0]} fontSize={0.5} color="orange" anchorX="center" anchorY="middle">
+      </Text>
+    </group>
+  );
+};
+
+
+
+
+
 // Sottocomponente per la logica della scena
 const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, triggerWinEffect }) => {
   const { camera } = useThree();
   const [showParticles, setShowParticles] = useState(false);
   const [winLightColor, setWinLightColor] = useState(new THREE.Color('red'));
+  const [trumpAnimation, setTrumpAnimation] = useState('Idle'); // Stato per Trump
+
 
   const brickTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
   const brickNormalTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
@@ -698,16 +809,22 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
   const handleSelectGame = (game) => {
     setCroupierAnimation('Wave');
+    setTrumpAnimation('Wave'); // Trump saluta
     onSelectGame(game);
+    setTimeout(() => {
+      setTrumpAnimation('Idle');
+    }, 2000);
   };
 
   useEffect(() => {
     if (triggerWinEffect) {
       setShowParticles(true);
       setWinLightColor(new THREE.Color('yellow'));
+      setTrumpAnimation('Dance'); // Trump balla per la vincita
       setTimeout(() => {
         setShowParticles(false);
         setWinLightColor(new THREE.Color('red'));
+        setTrumpAnimation('Idle');
       }, 3000);
     }
   }, [triggerWinEffect]);
@@ -733,6 +850,8 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       </mesh>
 
       <Croupier position={[-14, -1, 10]} currentAnimation={croupierAnimation} />
+      <DonaldTrump position={[10, 3, 16]} currentAnimation={trumpAnimation} /> {/* Aggiunto il nuovo Trump */}
+     
 
       <PokerCard
         position={[-17, 2.5, -15]}
@@ -759,6 +878,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       <BlackjackTable position={[0, -1, 3]} onSelectGame={handleSelectGame} />
       <RedCarpetModule position={[0, -1, 10]} />{/* Aggiunto qui sotto il tavolo da blackjack */}
       <CasinoSignWithBulb position={[0, 19, 24]} />
+      
         {/* Aggiungi le quattro colonne agli angoli */}
         <CasinoTwistedColumn position={[-23.5, -1, -23.5]} /> {/* Angolo in basso a sinistra */}
       <CasinoTwistedColumn position={[-23.5, -1, 23.5]} />  {/* Angolo in alto a sinistra */}
