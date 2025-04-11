@@ -850,7 +850,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       </mesh>
 
       <Croupier position={[-14, -1, 10]} currentAnimation={croupierAnimation} />
-      <DonaldTrump position={[10, 3, 16]} currentAnimation={trumpAnimation} /> {/* Aggiunto il nuovo Trump */}
+      <DonaldTrump position={[10, -1, 16]} currentAnimation={trumpAnimation} /> {/* Aggiunto il nuovo Trump */}
      
 
       <PokerCard
@@ -888,17 +888,8 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
       {showParticles && <Particles position={[0, 2, 0]} />}
 
-      <OrbitControls
-  enablePan={true}
-  enableZoom={true}
-  enableRotate={true}
-  enableDamping={true} // Aggiunge un effetto di smorzamento per un controllo più fluido
-  dampingFactor={0.05}
-  minDistance={20} // Imposta una distanza minima per lo zoom
-  maxDistance={100} // Imposta una distanza massima per lo zoom
-  // Impedisci il comportamento predefinito su touch
-  onStart={(e) => e.event.preventDefault()}
-/>
+      <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
+
 
 
       <EffectComposer>
