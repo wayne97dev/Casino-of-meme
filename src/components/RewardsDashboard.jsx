@@ -2557,16 +2557,14 @@ useEffect(() => {
       <audio ref={winAudioRef} src={winSound} />
 
       {/* Header fisso in alto con solo la GIF */}
-      <footer
-        className="fixed top-0 left-0 w-full z-50 flex justify-center items-center m-0 p-0"
-      >
+      <header className="flex justify-center items-center m-0 p-0">
         <img
           src="/assets/footer-gif.gif"
           alt="Header Animation"
-          className="object-contain m-0 p-0 -ml-4" // Sposta la GIF a sinistra di 16px
-          style={{ height: '64px', width: 'auto', marginLeft: '-60px' }} // Sposta di 20px a sinistra
+          className="object-contain m-0 p-0 -ml-4" // Manteniamo lo spostamento a sinistra
+          style={{ height: '64px', width: 'auto', marginLeft: '-20px' }} // Sposta di 20px a sinistra
         />
-      </footer>
+      </header>
 
       {/* Aggiungiamo un margine superiore al contenuto per evitare sovrapposizioni */}
         {loading ? (
