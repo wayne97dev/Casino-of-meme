@@ -803,7 +803,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   }, [brickTexture, brickNormalTexture]);
 
   useEffect(() => {
-    camera.position.set(0, 10, 30);
+    camera.position.set(0, 20, 60);
     camera.lookAt(0, 0, 0);
   }, [camera]);
 
