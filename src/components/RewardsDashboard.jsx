@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Connection, PublicKey, Keypair, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { getAssociatedTokenAddress, getMint, TOKEN_PROGRAM_ID, AccountLayout } from '@solana/spl-token';
 import bs58 from 'bs58';
@@ -596,6 +596,83 @@ const RedCarpetModule = ({ position }) => {
   );
 };
 
+
+const CasinoSignWithBulb = ({ position }) => {
+  const group = useRef();
+  const fbx = useFBX('/models/casino-sign-with-bulb.fbx'); // Percorso del file FBX
+
+  useEffect(() => {
+    fbx.traverse((child) => {
+      if (child.isMesh) {
+        // Materiale personalizzato per simulare un’insegna con lampadine
+        child.material = new THREE.MeshStandardMaterial({
+          color: '##ffd700', // Colore base scuro per l’insegna (blu notte)
+          emissive: '##ffd700', // Arancione neon per simulare le lampadine
+          emissiveIntensity: 0.6, // Intensità della luce emessa
+          roughness: 0.4, // Per un aspetto leggermente lucido
+          metalness: 0.7, // Per un tocco metallico
+        });
+        child.material.needsUpdate = true;
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+  }, [fbx]);
+
+  return (
+    <group ref={group} position={position}>
+      <primitive object={fbx} scale={[0.035, 0.035, 0.035]} /> {/* Scala regolabile */}
+      {/* Luci per simulare le lampadine */}
+      <pointLight color="#ffff00" intensity={3} distance={15} position={[0, 1, 0.5]} />
+      <pointLight color="##ffff00" intensity={2} distance={10} position={[-2, 0, 0.5]} />
+      <pointLight color="##ffff00" intensity={2} distance={10} position={[2, 0, 0.5]} />
+    </group>
+  );
+};
+
+
+
+
+const CasinoTwistedColumn = ({ position }) => {
+  const group = useRef();
+
+  // Carica il modello e le texture una sola volta
+  const fbx = useFBX('/models/casino-twisted-column.fbx');
+  const baseColorTexture = useLoader(THREE.TextureLoader, '/models/textures/Concrete_Mat_baseColor.png');
+  const metallicTexture = useLoader(THREE.TextureLoader, '/models/textures/Concrete_Mat_metallic.png');
+  const normalTexture = useLoader(THREE.TextureLoader, '/models/textures/Concrete_Mat_normal.png');
+  const roughnessTexture = useLoader(THREE.TextureLoader, '/models/textures/Concrete_Mat_roughness.png');
+
+  // Clona il modello per evitare problemi di riutilizzo
+  const clonedFbx = useMemo(() => fbx.clone(), [fbx]);
+
+  useEffect(() => {
+    clonedFbx.traverse((child) => {
+      if (child.isMesh) {
+        child.material = new THREE.MeshStandardMaterial({
+          map: baseColorTexture,
+          metalnessMap: metallicTexture,
+          normalMap: normalTexture,
+          roughnessMap: roughnessTexture,
+          metalness: 1.0,
+          roughness: 1.0,
+        });
+        child.material.needsUpdate = true;
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    console.log(`Rendering column at position: ${position}`); // Debug per verificare che ogni colonna venga renderizzata
+  }, [clonedFbx, baseColorTexture, metallicTexture, normalTexture, roughnessTexture, position]);
+
+  return (
+    <group ref={group} position={position}>
+      <primitive object={clonedFbx} scale={[0.05, 0.05, 0.05]} />
+    </group>
+  );
+};
+
+
 // Sottocomponente per la logica della scena
 const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, triggerWinEffect }) => {
   const { camera } = useThree();
@@ -615,7 +692,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   }, [brickTexture, brickNormalTexture]);
 
   useEffect(() => {
-    camera.position.set(0, 5, 10);
+    camera.position.set(0, 10, 30);
     camera.lookAt(0, 0, 0);
   }, [camera]);
 
@@ -679,8 +756,15 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       />
 
       <CasinoTable position={[-15, -1, -15]} />
-      <BlackjackTable position={[0, -1, 2]} onSelectGame={handleSelectGame} />
+      <BlackjackTable position={[0, -1, 3]} onSelectGame={handleSelectGame} />
       <RedCarpetModule position={[0, -1, 10]} />{/* Aggiunto qui sotto il tavolo da blackjack */}
+      <CasinoSignWithBulb position={[0, 19, 24]} />
+        {/* Aggiungi le quattro colonne agli angoli */}
+        <CasinoTwistedColumn position={[-23.5, -1, -23.5]} /> {/* Angolo in basso a sinistra */}
+      <CasinoTwistedColumn position={[-23.5, -1, 23.5]} />  {/* Angolo in alto a sinistra */}
+      <CasinoTwistedColumn position={[23.5, -1, -23.5]} />  {/* Angolo in basso a destra */}
+      <CasinoTwistedColumn position={[23.5, -1, 23.5]} />   {/* Angolo in alto a destra */}
+
 
       {showParticles && <Particles position={[0, 2, 0]} />}
 
