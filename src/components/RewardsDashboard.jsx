@@ -736,7 +736,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
       <PokerCard
         position={[-17, 2.5, -15]}
-        gameName="Solana Card Duel"
+        gameName="BlackJack"
         onClick={() => handleSelectGame('Solana Card Duel')}
       />
       <SlotMachine
