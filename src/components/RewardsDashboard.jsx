@@ -1297,6 +1297,29 @@ useEffect(() => {
     console.log(`Emissione evento makeMove: gameId=${gameId}, move=${move}, amount=${amount}`);
     socket.emit('makeMove', { gameId, move, amount });
   };
+
+  const [accumulatedRewards, setAccumulatedRewards] = useState({
+    sol: 0,
+    wbtc: 0,
+    weth: 0,
+  });
+  
+  // Funzione per caricare le ricompense accumulate da localStorage
+  const loadAccumulatedRewards = () => {
+    const saved = localStorage.getItem('accumulatedRewards');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return { sol: 0, wbtc: 0, weth: 0 }; // Valori iniziali se non ci sono dati salvati
+  };
+  
+  // Carica i dati salvati all'avvio
+  useEffect(() => {
+    const saved = loadAccumulatedRewards();
+    setAccumulatedRewards(saved);
+  }, []);
+
+
    
   // Fetch dei dati di reward
   useEffect(() => {
@@ -1320,50 +1343,67 @@ useEffect(() => {
     }
   }, [playerStats, connected, publicKey]);
 
+
+
+  const [lastBalance, setLastBalance] = useState(null);
+
   const fetchRewardsData = async () => {
     try {
       setLoading(true);
-
+  
       const balance = await connection.getBalance(wallet.publicKey);
       const usableBalance = balance * 0.5;
       setTaxWalletBalance(balance / 1e9);
-
+  
       const solPerToken = Math.floor(usableBalance * 0.95);
       const solPerPortion = Math.floor(solPerToken / 3);
-      setRewardSol(solPerPortion / 1e9);
-
+      const dailySolReward = solPerPortion / 1e9;
+  
       const wbtcATA = await getAssociatedTokenAddress(WBTC_MINT, wallet.publicKey);
       const wethATA = await getAssociatedTokenAddress(WETH_MINT, wallet.publicKey);
-
       const wbtcBalance = await connection.getTokenAccountBalance(wbtcATA).catch(() => ({ value: { amount: '0' } }));
       const wethBalance = await connection.getTokenAccountBalance(wethATA).catch(() => ({ value: { amount: '0' } }));
-
-      setRewardWbtc(Number(wbtcBalance.value.amount) / 1e8);
-      setRewardWeth(Number(wethBalance.value.amount) / 1e8);
-
+      const dailyWbtcReward = Number(wbtcBalance.value.amount) / 1e8;
+      const dailyWethReward = Number(wethBalance.value.amount) / 1e8;
+  
+      const prevAccumulated = loadAccumulatedRewards();
+      const newAccumulated = {
+        sol: prevAccumulated.sol + dailySolReward,
+        wbtc: prevAccumulated.wbtc + dailyWbtcReward,
+        weth: prevAccumulated.weth + dailyWethReward,
+      };
+  
+      setAccumulatedRewards(newAccumulated);
+      setRewardSol(dailySolReward);
+      setRewardWbtc(dailyWbtcReward);
+      setRewardWeth(dailyWethReward);
+  
+      localStorage.setItem('accumulatedRewards', JSON.stringify(newAccumulated));
+  
       const holderList = await getHolders(MINT_ADDRESS);
       const mintInfo = await getMint(connection, MINT_ADDRESS);
       const supply = Number(mintInfo.supply) / 1e6;
       setTotalSupply(supply);
-
+  
       const updatedHolders = holderList.map(holder => ({
         ...holder,
-        solReward: (holder.amount / supply) * rewardSol,
-        wbtcReward: (holder.amount / supply) * rewardWbtc,
-        wethReward: (holder.amount / supply) * rewardWeth,
+        solReward: (holder.amount / supply) * dailySolReward, // Usa daily per gli holders
+        wbtcReward: (holder.amount / supply) * dailyWbtcReward,
+        wethReward: (holder.amount / supply) * dailyWethReward,
       }));
       setHolders(updatedHolders);
       setHolderCount(updatedHolders.length);
-
+  
       if (connected && publicKey) {
         const userATA = await getAssociatedTokenAddress(MINT_ADDRESS, publicKey);
         const userBalance = await connection.getTokenAccountBalance(userATA).catch(() => ({ value: { uiAmount: 0 } }));
         const userAmount = userBalance.value.uiAmount || 0;
         setUserTokens(userAmount);
+        // Usa le ricompense accumulate per l'utente
         setUserRewards({
-          sol: (userAmount / supply) * rewardSol,
-          wbtc: (userAmount / supply) * rewardWbtc,
-          weth: (userAmount / supply) * rewardWeth,
+          sol: (userAmount / supply) * newAccumulated.sol,
+          wbtc: (userAmount / supply) * newAccumulated.wbtc,
+          weth: (userAmount / supply) * newAccumulated.weth,
         });
       }
     } catch (error) {
@@ -2620,26 +2660,28 @@ useEffect(() => {
 
           {/* Tabelle collassabili */}
           {showInfo && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-              <div className="game-box p-6">
-                <p className="text-lg text-orange-700">Tax Wallet Balance</p>
-                <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
-              </div>
-              <div className="game-box p-6">
-                <p className="text-lg text-orange-700">SOL Rewards</p>
-                <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
-              </div>
-              <div className="game-box p-6">
-                <p className="text-lg text-orange-700">WBTC Rewards</p>
-                <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
-              </div>
-              <div className="game-box p-6">
-                <p className="text-lg text-orange-700">WETH Rewards</p>
-                <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
-              </div>
-            </div>
-          )}
-  
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+    <div className="game-box p-6">
+      <p className="text-lg text-orange-700">Tax Wallet Balance</p>
+      <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
+    </div>
+    <div className="game-box p-6">
+      <p className="text-lg text-orange-700">SOL Rewards (Latest)</p>
+      <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
+      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.sol.toFixed(4)} SOL</p>
+    </div>
+    <div className="game-box p-6">
+      <p className="text-lg text-orange-700">WBTC Rewards (Latest)</p>
+      <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
+      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.wbtc.toFixed(8)} WBTC</p>
+    </div>
+    <div className="game-box p-6">
+      <p className="text-lg text-orange-700">WETH Rewards (Latest)</p>
+      <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
+      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.weth.toFixed(8)} WETH</p>
+    </div>
+  </div>
+)}
       
   
         {/* Pulsante Holders accorciato e centrato */}
