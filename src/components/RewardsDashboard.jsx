@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Connection, PublicKey, Keypair, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { getAssociatedTokenAddress, getMint, TOKEN_PROGRAM_ID, AccountLayout } from '@solana/spl-token';
+import {
+  getAssociatedTokenAddress,
+  getMint,
+  TOKEN_PROGRAM_ID,
+  AccountLayout,
+  createTransferInstruction,
+  createAssociatedTokenAccountInstruction, // Aggiungi questa importazione
+  getAccount, // Aggiungi per verificare l'esistenza degli account
+} from '@solana/spl-token';
 import bs58 from 'bs58';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
@@ -41,6 +49,9 @@ const connection = RPC_ENDPOINT ? new Connection(RPC_ENDPOINT, 'confirmed') : nu
 const wallet = WALLET_PRIVATE_KEY ? Keypair.fromSecretKey(bs58.decode(WALLET_PRIVATE_KEY)) : null;
 
 const CARD_BACK_IMAGE = '/card-back.png';
+
+// Minimum bet fisso in COM
+const MIN_BET = 1000; // 1000 COM
 
 const BACKEND_URL = 'https://casino-of-meme-backend-production.up.railway.app/';
 const socket = io(BACKEND_URL, {
@@ -972,6 +983,13 @@ const RewardsDashboard = () => {
   const [error, setError] = useState(null);
   const [showHolders, setShowHolders] = useState(false);
   const [showInfo, setShowInfo] = useState(false); // Stato per mostrare/nascondere le info
+  const [minBet, setMinBet] = useState(MIN_BET); // Valore fisso di 1000 COM
+  const [betAmount, setBetAmount] = useState(minBet); // Imposta betAmount al minBet iniziale
+  const [betError, setBetError] = useState(null);
+
+
+
+
 
   
 
@@ -1020,21 +1038,66 @@ const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
   const winAudioRef = useRef(null);  // Aggiunto
   const wheelRef = useRef(null);
 
+
+
+
   
 
   // Stato per la paginazione
   const [currentPage, setCurrentPage] = useState(1);
   const holdersPerPage = 50;
 
-  // Stato per il bet
-  const [betAmount, setBetAmount] = useState(0.01);
-  const [betError, setBetError] = useState(null);
+  
+  
 
   // Stato per il gioco selezionato
   const [selectedGame, setSelectedGame] = useState(null);
 
 
-  
+    // Aggiungi lo stato comBalance
+    const [comBalance, setComBalance] = useState(0); // Valore iniziale di fallback
+
+
+
+
+// Funzione per recuperare il saldo COM
+const fetchComBalance = async () => {
+  if (!connected || !publicKey) {
+    setComBalance(0);
+    return;
+  }
+
+  try {
+    const userATA = await getAssociatedTokenAddress(
+      new PublicKey(MINT_ADDRESS_RAW), // Assicurati che MINT_ADDRESS_RAW sia definito
+      publicKey
+    );
+    const balance = await connection.getTokenAccountBalance(userATA);
+    const comBalance = balance.value.uiAmount || 0;
+    setComBalance(comBalance);
+    console.log(`Fetched COM balance: ${comBalance} COM`);
+  } catch (err) {
+    console.error('Error fetching COM balance:', err);
+    setComBalance(0); // Fallback in caso di errore
+  }
+};
+
+// Aggiorna betAmount al minBet iniziale
+useEffect(() => {
+  setBetAmount(minBet); // Imposta betAmount al minBet iniziale
+  setBetError(validateBet(minBet)); // Rivalida betAmount
+}, []);
+
+// useEffect per recuperare il saldo COM quando il wallet cambia
+useEffect(() => {
+  fetchComBalance();
+}, [connected, publicKey]);
+
+const validateBet = (amount) => {
+  if (isNaN(amount) || amount <= 0) return 'Bet must be a positive number.';
+  if (amount < minBet) return `Bet must be at least ${minBet.toFixed(2)} COM.`;
+  return null;
+};
 
 
 
@@ -1075,6 +1138,7 @@ const [timeLeft, setTimeLeft] = useState(30); // Stato per il tempo rimanente
 
 
 // Configurazione Socket.IO per Poker PvP
+// Configurazione Socket.IO per Poker PvP
 useEffect(() => {
   const handleGameState = (game) => {
     console.log('Game state received:', game);
@@ -1104,24 +1168,27 @@ useEffect(() => {
   const handleDistributeWinnings = async ({ winnerAddress, amount }) => {
     console.log('Distribute winnings:', { winnerAddress, amount });
     if (winnerAddress === publicKey?.toString()) {
-      const winAmountInLamports = amount * LAMPORTS_PER_SOL;
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: wallet.publicKey, // Tax wallet
-          toPubkey: publicKey, // Wallet del giocatore vincitore
-          lamports: winAmountInLamports,
-        })
-      );
-
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = wallet.publicKey;
-      transaction.partialSign(wallet);
-
       try {
+        const casinoATA = await getAssociatedTokenAddress(MINT_ADDRESS, wallet.publicKey);
+        const winnerATA = await getAssociatedTokenAddress(MINT_ADDRESS, publicKey);
+
+        const transaction = new Transaction().add(
+          createTransferInstruction(
+            casinoATA,
+            winnerATA,
+            wallet.publicKey,
+            amount * 1e6
+          )
+        );
+
+        const { blockhash } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = wallet.publicKey;
+        transaction.partialSign(wallet);
+
         const signature = await connection.sendRawTransaction(transaction.serialize());
         await connection.confirmTransaction(signature);
-        console.log(`Transferred ${amount} SOL from tax wallet to ${publicKey.toString()}`);
+        console.log(`Sent ${amount} COM to the Winner ${publicKey.toString()}`);
         setTriggerWinEffect(true);
         playSound(winAudioRef);
         setPlayerStats(prev => ({
@@ -1129,14 +1196,63 @@ useEffect(() => {
           wins: prev.wins + 1,
           totalWinnings: prev.totalWinnings + amount,
         }));
-        setPokerMessage(`You won ${amount.toFixed(2)} SOL!`);
+        setPokerMessage(`You Won ${amount.toFixed(2)} COM!`);
+        fetchComBalance(); // Aggiorna il saldo COM
       } catch (err) {
         console.error('Error distributing winnings:', err);
-        setPokerMessage('Winnings not distributed. Contact support.');
+        setPokerMessage('Contact support.');
       }
     } else {
-      setPokerMessage(`${winnerAddress.slice(0, 8)}... won ${amount.toFixed(2)} SOL!`);
+      setPokerMessage(`${winnerAddress.slice(0, 8)}... ha vinto ${amount.toFixed(2)} COM!`);
     }
+  };
+
+  const handleRefund = async ({ message, amount }) => {
+    console.log('Refund received:', { message, amount });
+    setPokerMessage(message);
+
+    if (connected && publicKey && amount > 0) {
+      try {
+        const casinoATA = await getAssociatedTokenAddress(MINT_ADDRESS, wallet.publicKey);
+        const playerATA = await getAssociatedTokenAddress(MINT_ADDRESS, publicKey);
+
+        // Verifica se l'ATA del giocatore esiste
+        try {
+          await getAccount(connection, playerATA);
+        } catch (err) {
+          console.error('Player ATA does not exist:', err);
+          setPokerMessage('Refund failed: Token account not found. Contact support.');
+          return;
+        }
+
+        const transaction = new Transaction().add(
+          createTransferInstruction(
+            casinoATA,
+            playerATA,
+            wallet.publicKey,
+            amount * 1e6 // Converti in unità base (6 decimali)
+          )
+        );
+
+        const { blockhash } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = wallet.publicKey;
+        transaction.partialSign(wallet);
+
+        const signature = await connection.sendRawTransaction(transaction.serialize());
+        await connection.confirmTransaction(signature);
+        console.log(`Refunded ${amount} COM to ${publicKey.toString()}`);
+        setPokerMessage(`Refund of ${amount.toFixed(2)} COM received!`);
+        fetchComBalance(); // Aggiorna il saldo COM
+      } catch (err) {
+        console.error('Error processing refund transaction:', err);
+        setPokerMessage('Refund failed: Transaction error. Contact support.');
+      }
+    } else {
+      setPokerMessage('Refund failed: Wallet not connected or invalid amount.');
+    }
+
+    setWaitingPlayersList(prev => prev.filter(p => p.address !== publicKey?.toString()));
   };
 
   socket.on('connect', () => {
@@ -1165,10 +1281,13 @@ useEffect(() => {
     setWaitingPlayersList(data.players || []);
   });
 
-  // Aggiungi un listener separato per il debug
-  socket.on('gameState', (game) => {
-    console.log('DEBUG - Evento gameState ricevuto:', game);
-    console.log('DEBUG - Valore del pot ricevuto:', game.pot);
+  socket.on('refund', handleRefund);
+
+  socket.on('leftWaitingList', ({ message }) => {
+    console.log('Left waiting list:', message);
+    setPokerMessage(message);
+    setWaitingPlayersList(prev => prev.filter(p => p.address !== publicKey?.toString()));
+    setBetAmount(minBet); // Ripristina la scommessa al minimo
   });
 
   socket.on('gameState', handleGameState);
@@ -1188,6 +1307,8 @@ useEffect(() => {
     socket.off('connect_error');
     socket.off('waiting');
     socket.off('waitingPlayers');
+    socket.off('refund', handleRefund);
+    socket.off('leftWaitingList');
     socket.off('gameState', handleGameState);
     socket.off('distributeWinnings', handleDistributeWinnings);
     socket.off('error');
@@ -1254,12 +1375,6 @@ useEffect(() => {
     }
   };
 
-  const validateBet = (amount) => {
-    if (isNaN(amount) || amount <= 0) return 'Bet must be a positive number.';
-    if (amount < 0.01) return 'Bet must be at least 0.01 SOL.';
-    if (amount > 1) return 'Bet cannot exceed 1 SOL.';
-    return null;
-  };
 
   const handleBetChange = (e) => {
     const value = parseFloat(e.target.value);
@@ -1327,51 +1442,124 @@ useEffect(() => {
   const joinPokerGame = async () => {
     if (!connected || !publicKey) {
       setPokerMessage('Connetti il tuo portafoglio per giocare!');
+      console.log('Join failed: Wallet not connected', { connected, publicKey });
       return;
     }
   
     const betError = validateBet(betAmount);
     if (betError) {
       setPokerMessage(betError);
+      console.log('Join failed: Bet validation error', { betAmount, betError });
       return;
     }
   
-    const betInLamports = betAmount * LAMPORTS_PER_SOL;
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: wallet.publicKey, // Tax wallet
-        lamports: betInLamports,
-      })
-    );
-  
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = publicKey;
-  
     try {
+      console.log('Fetching token accounts...');
+      const userATA = await getAssociatedTokenAddress(
+        new PublicKey(MINT_ADDRESS_RAW),
+        publicKey
+      );
+      const casinoATA = await getAssociatedTokenAddress(
+        new PublicKey(MINT_ADDRESS_RAW),
+        wallet.publicKey
+      );
+      console.log('Token accounts:', { userATA: userATA.toString(), casinoATA: casinoATA.toString() });
+  
+      // Crea una transazione
+      const transaction = new Transaction();
+  
+      // Verifica se l'ATA dell'utente esiste, altrimenti crealo
+      console.log('Checking user ATA...');
+      let userAccountExists = false;
+      try {
+        await getAccount(connection, userATA);
+        userAccountExists = true;
+        console.log('User ATA exists');
+      } catch (err) {
+        console.log('User ATA does not exist, creating...');
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            publicKey, // Payer (l'utente paga per la creazione)
+            userATA, // Indirizzo dell'ATA
+            publicKey, // Owner (l'utente)
+            new PublicKey(MINT_ADDRESS_RAW) // Mint del token
+          )
+        );
+      }
+  
+      // Verifica se l'ATA del casinò esiste, altrimenti crealo
+      console.log('Checking casino ATA...');
+      let casinoAccountExists = false;
+      try {
+        await getAccount(connection, casinoATA);
+        casinoAccountExists = true;
+        console.log('Casino ATA exists');
+      } catch (err) {
+        console.log('Casino ATA does not exist, creating...');
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            publicKey, // Payer (l'utente paga per la creazione)
+            casinoATA, // Indirizzo dell'ATA
+            wallet.publicKey, // Owner (il casinò)
+            new PublicKey(MINT_ADDRESS_RAW) // Mint del token
+          )
+        );
+      }
+  
+      // Verifica il saldo COM dell'utente (dopo aver creato l'ATA, se necessario)
+      console.log('Fetching user COM balance...');
+      if (userAccountExists || transaction.instructions.length > 0) {
+        const userBalance = await connection.getTokenAccountBalance(userATA);
+        if (userBalance.value.uiAmount < betAmount) {
+          setPokerMessage('Saldo COM insufficiente.');
+          console.log('Join failed: Insufficient COM balance', {
+            userBalance: userBalance.value.uiAmount,
+            betAmount,
+          });
+          return;
+        }
+        console.log('User COM balance:', userBalance.value.uiAmount);
+      }
+  
+      // Aggiungi l'istruzione di trasferimento
+      console.log('Creating transfer instruction...');
+      transaction.add(
+        createTransferInstruction(
+          userATA,
+          casinoATA,
+          publicKey,
+          betAmount * 1e6 // Converti in unità base (6 decimali)
+        )
+      );
+  
+      console.log('Fetching latest blockhash...');
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+  
+      console.log('Sending COM transaction...');
       const signed = await signTransaction(transaction);
       const signature = await connection.sendRawTransaction(signed.serialize());
       await connection.confirmTransaction(signature);
-      console.log(`Trasferiti ${betAmount} SOL da ${publicKey.toString()} al tax wallet`);
+      console.log('COM transaction confirmed:', signature);
   
+      console.log('Emitting joinGame:', { playerAddress: publicKey.toString(), betAmount });
       socket.emit('joinGame', {
         playerAddress: publicKey.toString(),
         betAmount,
       });
       setPokerMessage('Ti sei unito al gioco! In attesa di un altro giocatore...');
     } catch (err) {
-      console.error('Errore nell\'unione al gioco:', err);
-      if (err.message.includes('insufficient funds')) {
-        setPokerMessage('Fondi insufficienti nel tuo portafoglio. Aggiungi SOL e riprova.');
-      } else if (err.message.includes('Transaction simulation failed')) {
-        setPokerMessage('Simulazione della transazione fallita. Controlla il tuo portafoglio e riprova.');
+      console.error('Errore in joinPokerGame:', err);
+      if (err.name === 'SendTransactionError') {
+        const logs = err.logs || [];
+        console.error('Transaction logs:', logs);
+        setPokerMessage('Errore nella transazione: ' + (logs.join('\n') || err.message));
       } else {
         setPokerMessage('Impossibile unirsi al gioco. Riprova.');
       }
     }
   };
-
 
   const makePokerMove = async (move, amount = 0) => {
     if (!connected || !publicKey || pokerStatus !== 'playing') {
@@ -1395,7 +1583,6 @@ useEffect(() => {
       return;
     }
   
-    // Gestisci il trasferimento SOL per "Call", "Bet" e "Raise"
     if (move === 'call' || move === 'bet' || move === 'raise') {
       let additionalBet;
       if (move === 'call') {
@@ -1405,36 +1592,35 @@ useEffect(() => {
       }
   
       if (additionalBet > 0) {
-        const betInLamports = additionalBet * LAMPORTS_PER_SOL;
-        const transaction = new Transaction().add(
-          SystemProgram.transfer({
-            fromPubkey: publicKey,
-            toPubkey: wallet.publicKey, // Tax wallet
-            lamports: betInLamports,
-          })
-        );
-  
-        const { blockhash } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = publicKey;
-  
         try {
+          const userATA = await getAssociatedTokenAddress(MINT_ADDRESS, publicKey);
+          const casinoATA = await getAssociatedTokenAddress(MINT_ADDRESS, wallet.publicKey);
+          const userBalance = await connection.getTokenAccountBalance(userATA);
+          if (userBalance.value.uiAmount < additionalBet) {
+            setPokerMessage('Saldo COM insufficiente. Aggiungi fondi e riprova.');
+            return;
+          }
+  
+          const transaction = new Transaction().add(
+            createTransferInstruction(
+              userATA,
+              casinoATA,
+              publicKey,
+              additionalBet * 1e6
+            )
+          );
+  
+          const { blockhash } = await connection.getLatestBlockhash();
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = publicKey;
+  
           const signed = await signTransaction(transaction);
           const signature = await connection.sendRawTransaction(signed.serialize());
           await connection.confirmTransaction(signature);
-          console.log(`Trasferiti ${additionalBet} SOL da ${publicKey.toString()} al tax wallet per ${move}`);
-          if (move === 'bet' || move === 'raise') {
-            setPokerMessage(`Hai ${move === 'bet' ? 'scommesso' : 'rilanciato'} ${additionalBet.toFixed(2)} SOL. Clicca "Check" per passare il turno al tuo avversario.`);
-          }
+          console.log(`Trasferiti ${additionalBet} COM per ${move}`);
         } catch (err) {
           console.error('Errore nella scommessa:', err);
-          if (err.message.includes('insufficient funds')) {
-            setPokerMessage('Fondi insufficienti nel tuo portafoglio. Aggiungi SOL e riprova.');
-          } else if (err.message.includes('Transaction simulation failed')) {
-            setPokerMessage('Simulazione della transazione fallita. Controlla il tuo portafoglio e riprova.');
-          } else {
-            setPokerMessage('Scommessa fallita. Riprova.');
-          }
+          setPokerMessage('Scommessa fallita. Riprova.');
           return;
         }
       }
@@ -2925,7 +3111,7 @@ useEffect(() => {
                       <tr className="bg-gray-700 text-cyan-400">
                         <th className="p-4 text-lg">Rank</th>
                         <th className="p-4 text-lg">Address</th>
-                        <th className="p-4 text-lg">Total Winnings (SOL)</th>
+                        <th className="p-4 text-lg">Total Winnings (COM)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2933,7 +3119,7 @@ useEffect(() => {
                         <tr key={index} className="border-t border-gray-600 hover:bg-gray-600 transition-all">
                           <td className="p-4 text-gray-200">{index + 1}</td>
                           <td className="p-4 text-gray-200 font-mono">{player.address.slice(0, 8)}...</td>
-                          <td className="p-4 text-green-400">{player.totalWinnings.toFixed(2)}</td>
+                          <td className="p-4 text-green-400">{player.totalWinnings.toFixed(2)} COM </td>
                         </tr>
                       ))}
                     </tbody>
@@ -3219,179 +3405,289 @@ useEffect(() => {
                   </div>
                 </div>
               )}
-              
-              {selectedGame === 'Poker PvP' && (
+
+
+
+{selectedGame === 'Poker PvP' && (
   <div>
     <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
       Poker PvP
     </h2>
-    <div className="mb-6 text-center">
-      <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
-      <input
-        type="number"
-        step="0.01"
-        value={betAmount}
-        onChange={handleBetChange}
-        className="bet-input"
-        placeholder="Enter bet (0.01 - 1 SOL)"
-      />
-      {betError && <p className="bet-error">{betError}</p>}
-    </div>
     <div className="game-box p-6 mb-10">
-      {waitingPlayersList.length > 0 && pokerStatus === 'waiting' && (
+      {/* Log per debug */}
+      {console.log({
+        waitingPlayersList,
+        pokerStatus,
+        pokerPlayers,
+        publicKey: publicKey?.toString(),
+        socketId: socket.id,
+        minBet,
+      })}
+
+        {/* Pulsante Leave Table */}
+        {pokerStatus === 'waiting' && waitingPlayersList.some(p => p.address === publicKey?.toString()) && (
+        <button
+          onClick={() => socket.emit('leaveWaitingList', { playerAddress: publicKey.toString() })}
+          className="w-full casino-button mb-2"
+        >
+          Leave Table
+        </button>
+      )}
+
+      {/* Input per la puntata (visibile sempre in stato 'waiting') */}
+      {pokerStatus === 'waiting' && (
+  <div className="text-center mb-6">
+    <label className="text-lg text-orange-700 mr-2">Bet Amount (COM):</label>
+    <input
+      type="number"
+      step="1000"
+      value={betAmount}
+      onChange={handleBetChange}
+      className="bet-input"
+      placeholder={`Enter bet (min ${minBet.toFixed(2)} COM)`}
+      min={minBet} // Imposta il valore minimo dell'input
+      disabled={pokerStatus !== 'waiting'}
+    />
+    <p className="text-sm text-orange-700 mt-2">
+      Minimum Bet: {minBet.toFixed(2)} COM
+    </p>
+    {betError && <p className="bet-error">{betError}</p>}
+    <p className="text-sm text-orange-700 mt-2">
+      Your COM Balance: {comBalance.toFixed(2)} COM {console.log(`COM Balance: ${comBalance} COM`)}
+    </p>
+  </div>
+)}
+
+      {/* Lista dei giocatori in attesa */}
+      {waitingPlayersList.length > 0 && pokerStatus === 'waiting' ? (
         <div className="mb-6">
           <p className="text-lg text-orange-700 mb-2 text-center">Players Waiting:</p>
           <ul className="text-center">
             {waitingPlayersList.map((player, index) => (
               <li key={index} className="text-orange-700">
-                {player.address.slice(0, 8)}... (Bet: {player.bet.toFixed(2)} SOL)
+                {player.address.slice(0, 8)}... (Bet: {player.bet.toFixed(2)} COM)
               </li>
             ))}
           </ul>
         </div>
-      )}
-      {pokerPlayers.length > 0 && (
-        <div className="mb-6">
-          <p className="text-lg text-orange-700 mb-2 text-center">Players at Table:</p>
-          <ul className="text-center">
-            {pokerPlayers.map((player, index) => (
-              <li key={index} className="text-orange-700">
-                {player.address.slice(0, 8)}... (Bet: {player.bet.toFixed(2)} SOL)
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <p className="text-lg text-orange-700 mb-2 text-center">Pot: {pokerPot.toFixed(2)} SOL</p>
-      <p className="text-lg text-orange-700 mb-2 text-center">Current Bet: {currentBet.toFixed(2)} SOL</p>
-      <p className="text-lg text-orange-700 mb-2 text-center">Community Cards:</p>
-      <div className="flex gap-4 justify-center">
-        {pokerTableCards.map((card, index) => (
-          <div
-            key={index}
-            className="card"
-            style={{
-              backgroundImage: `url(${card.image})`,
-              backgroundSize: 'cover',
-              width: '100px',
-              height: '140px',
-            }}
-          />
-        ))}
-      </div>
-      <p className="text-lg text-orange-700 mb-2 text-center">Your Cards:</p>
-      <div className="flex gap-4 justify-center">
-        {pokerPlayerCards[publicKey?.toString()]?.map((card, index) => (
-          <div
-            key={index}
-            className="card"
-            style={{
-              backgroundImage: `url(${card.image})`,
-              backgroundSize: 'cover',
-              width: '100px',
-              height: '140px',
-            }}
-          />
-        ))}
-      </div>
-      <p className="text-lg text-orange-700 mb-2 text-center">Opponent's Cards:</p>
-      <div className="flex gap-4 justify-center">
-        {pokerPlayerCards[pokerPlayers.find(p => p.address !== publicKey?.toString())?.address]?.map((card, index) => (
-          <div
-            key={index}
-            className="card"
-            style={{
-              backgroundImage: opponentCardsVisible ? `url(${card.image})` : `url(${CARD_BACK_IMAGE})`,
-              backgroundSize: 'cover',
-              width: '100px',
-              height: '140px',
-            }}
-          />
-        ))}
-      </div>
-      <p className="text-center text-orange-700 mb-4 text-lg">{pokerMessage}</p>
-      {dealerMessage && (
-        <p className="text-center text-orange-700 mb-4 text-lg font-bold">{dealerMessage}</p>
-      )}
-      {pokerStatus === 'playing' && (
-        <p className="text-center text-orange-700 mb-4 text-lg font-bold">
-          Time Left: {timeLeft} seconds
+      ) : (
+        <p className="text-center text-orange-700 mb-4">
+          {pokerStatus === 'waiting' ? 'No players waiting yet...' : 'Game status: ' + pokerStatus}
         </p>
       )}
-      {pokerStatus === 'waiting' ? (
-        <button onClick={joinPokerGame} className="w-full casino-button" disabled={!!betError}>
-          Join Game (Bet {betAmount.toFixed(2)} SOL)
-        </button>
-      ) : pokerStatus === 'playing' ? (
-        currentTurn === socket.id ? (
-          <div className="flex flex-col gap-4">
-            {/* Aggiungi il messaggio qui */}
-            {(currentBet > (playerBets[publicKey?.toString()] || 0)) && (
-              <p className="text-center text-orange-700 mb-4 text-lg font-bold">
-                You placed a bet. Click "Check" to pass the turn to your opponent.
-              </p>
-            )}
-            <div className="flex gap-4">
-              {currentBet > (playerBets[publicKey?.toString()] || 0) ? (
-                <button onClick={() => makePokerMove('call')} className="flex-1 casino-button">
-                  Call ({(currentBet - (playerBets[publicKey?.toString()] || 0)).toFixed(2)} SOL)
-                </button>
-              ) : (
-                <button onClick={() => makePokerMove('check')} className="flex-1 casino-button">
-                  Check
-                </button>
-              )}
-              <button onClick={() => makePokerMove('fold')} className="flex-1 casino-button">
-                Fold
-              </button>
-            </div>
-            <div className="flex gap-4">
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                max="1"
-                value={raiseAmount}
-                onChange={(e) => setRaiseAmount(parseFloat(e.target.value))}
-                className="bet-input flex-1"
-                placeholder="Bet/Raise Amount"
-              />
-              <button onClick={() => makePokerMove('bet', raiseAmount)} className="flex-1 casino-button">
-                Bet
-              </button>
-              <button onClick={() => makePokerMove('raise', raiseAmount)} className="flex-1 casino-button">
-                Raise
-              </button>
-            </div>
+
+      {/* Dettagli del gioco (visibile solo quando ci sono giocatori al tavolo) */}
+      {pokerPlayers.length > 0 && publicKey ? (
+        <>
+          {/* Informazioni sui giocatori al tavolo */}
+          <div className="mb-6">
+            <p className="text-lg text-orange-700 mb-2 text-center">Players at Table:</p>
+            <ul className="text-center">
+              {pokerPlayers.map((player, index) => (
+                <li key={index} className="text-orange-700">
+                  {player.address.slice(0, 8)}... (Bet: {player.bet.toFixed(2)} COM)
+                </li>
+              ))}
+            </ul>
           </div>
-        ) : (
-          <p className="text-center text-orange-700">
-            Opponent's turn... (Time Left: {timeLeft} seconds)
+
+          {/* Pot e puntata corrente */}
+          <p className="text-lg text-orange-700 mb-2 text-center">
+            Pot: {pokerPot ? pokerPot.toFixed(2) : '0.00'} COM
           </p>
-        )
-      ) : pokerStatus === 'finished' ? (
+          <p className="text-lg text-orange-700 mb-2 text-center">
+            Current Bet: {currentBet ? currentBet.toFixed(2) : '0.00'} COM
+          </p>
+
+          {/* Carte comuni */}
+          <p className="text-lg text-orange-700 mb-2 text-center">Community Cards:</p>
+          <div className="flex gap-4 justify-center">
+            {pokerTableCards && pokerTableCards.length > 0 ? (
+              pokerTableCards.map((card, index) => (
+                <div
+                  key={index}
+                  className="card"
+                  style={{
+                    backgroundImage: card.image ? `url(${card.image})` : 'none',
+                    backgroundSize: 'cover',
+                    width: '100px',
+                    height: '140px',
+                    backgroundColor: !card.image ? '#333' : 'transparent',
+                  }}
+                />
+              ))
+            ) : (
+              <p className="text-orange-700">No community cards yet</p>
+            )}
+          </div>
+
+          {/* Carte del giocatore */}
+          <p className="text-lg text-orange-700 mb-2 text-center">Your Cards:</p>
+          <div className="flex gap-4 justify-center">
+            {pokerPlayerCards[publicKey.toString()] &&
+            pokerPlayerCards[publicKey.toString()].length > 0 ? (
+              pokerPlayerCards[publicKey.toString()].map((card, index) => (
+                <div
+                  key={index}
+                  className="card"
+                  style={{
+                    backgroundImage: card.image ? `url(${card.image})` : 'none',
+                    backgroundSize: 'cover',
+                    width: '100px',
+                    height: '140px',
+                    backgroundColor: !card.image ? '#333' : 'transparent',
+                  }}
+                />
+              ))
+            ) : (
+              <p className="text-orange-700">No cards assigned yet</p>
+            )}
+          </div>
+
+          {/* Carte dell'avversario */}
+          <p className="text-lg text-orange-700 mb-2 text-center">Opponent's Cards:</p>
+          <div className="flex gap-4 justify-center">
+            {(() => {
+              const opponent = pokerPlayers.find(p => p.address !== publicKey.toString());
+              if (!opponent || !pokerPlayerCards[opponent?.address]) {
+                return <p className="text-orange-700">No opponent cards available</p>;
+              }
+              return pokerPlayerCards[opponent.address].map((card, index) => (
+                <div
+                  key={index}
+                  className="card"
+                  style={{
+                    backgroundImage: opponentCardsVisible && card.image
+                      ? `url(${card.image})`
+                      : `url(${CARD_BACK_IMAGE})`,
+                    backgroundSize: 'cover',
+                    width: '100px',
+                    height: '140px',
+                  }}
+                />
+              ));
+            })()}
+          </div>
+
+          {/* Messaggi di stato */}
+          <p className="text-center text-orange-700 mb-4 text-lg">
+            {pokerMessage || 'Waiting for game state...'}
+          </p>
+          {dealerMessage && (
+            <p className="text-center text-orange-700 mb-4 text-lg font-bold">{dealerMessage}</p>
+          )}
+          {pokerStatus === 'playing' && (
+            <p className="text-center text-orange-700 mb-4 text-lg font-bold">
+              Time Left: {timeLeft} seconds
+            </p>
+          )}
+
+          {/* Controlli di gioco */}
+          {pokerStatus === 'playing' && currentTurn === socket.id && (
+            <div className="flex flex-col gap-4">
+              {currentBet > (playerBets[publicKey.toString()] || 0) && (
+                <p className="text-center text-orange-700 mb-4 text-lg font-bold">
+                  You placed a bet. Click "Check" to pass the turn to your opponent.
+                </p>
+              )}
+              <div className="flex gap-4">
+                {currentBet > (playerBets[publicKey.toString()] || 0) ? (
+                  <button
+                    onClick={() => makePokerMove('call')}
+                    className="flex-1 casino-button"
+                    disabled={comBalance < currentBet - (playerBets[publicKey.toString()] || 0)}
+                  >
+                    Call ({(currentBet - (playerBets[publicKey.toString()] || 0)).toFixed(2)} COM)
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => makePokerMove('check')}
+                    className="flex-1 casino-button"
+                  >
+                    Check
+                  </button>
+                )}
+                <button
+                  onClick={() => makePokerMove('fold')}
+                  className="flex-1 casino-button"
+                >
+                  Fold
+                </button>
+              </div>
+              <div className="flex gap-4">
+                <input
+                  type="number"
+                  step="0.01"
+                  min={minBet}
+                  max="1000"
+                  value={raiseAmount}
+                  onChange={(e) => setRaiseAmount(parseFloat(e.target.value) || 0)}
+                  className="bet-input flex-1"
+                  placeholder="Bet/Raise Amount (COM)"
+                />
+                <button
+                  onClick={() => makePokerMove('bet', raiseAmount)}
+                  className="flex-1 casino-button"
+                  disabled={raiseAmount < minBet || comBalance < raiseAmount}
+                >
+                  Bet
+                </button>
+                <button
+                  onClick={() => makePokerMove('raise', raiseAmount)}
+                  className="flex-1 casino-button"
+                  disabled={raiseAmount < minBet || comBalance < raiseAmount}
+                >
+                  Raise
+                </button>
+              </div>
+            </div>
+          )}
+          {pokerStatus === 'playing' && currentTurn !== socket.id && (
+            <p className="text-center text-orange-700">
+              Opponent's turn... (Time Left: {timeLeft} seconds)
+            </p>
+          )}
+          {pokerStatus === 'finished' && (
+            <button
+              onClick={() => {
+                setPokerStatus('waiting');
+                setPokerPlayers([]);
+                setPokerTableCards([]);
+                setPokerPlayerCards({});
+                setPokerMessage('Waiting for another player...');
+                setPokerPot(0);
+                setCurrentBet(0);
+                setPlayerBets({});
+                setGamePhase('pre-flop');
+                setOpponentCardsVisible(false);
+                setDealerMessage('');
+                setTimeLeft(30);
+                localStorage.removeItem('currentGameId');
+              }}
+              className="w-full casino-button"
+              disabled={!!betError}
+            >
+              Play Again (Bet {betAmount.toFixed(2)} COM)
+            </button>
+          )}
+        </>
+      ) : (
+        <p className="text-center text-orange-700 mb-4">
+          {publicKey ? 'No players in game yet...' : 'Please connect your wallet to play!'}
+        </p>
+      )}
+
+      {/* Pulsante "Join Game" visibile in stato 'waiting' */}
+      {pokerStatus === 'waiting' && (
         <button
-          onClick={() => {
-            setPokerStatus('waiting');
-            setPokerPlayers([]);
-            setPokerTableCards([]);
-            setPokerPlayerCards({});
-            setPokerMessage('Waiting for another player...');
-            setPokerPot(0);
-            setCurrentBet(0);
-            setPlayerBets({});
-            setGamePhase('pre-flop');
-            setOpponentCardsVisible(false);
-            setDealerMessage('');
-            setTimeLeft(30);
-            localStorage.removeItem('currentGameId');
-          }}
-          className="w-full casino-button"
-          disabled={!!betError}
+          onClick={joinPokerGame}
+          className="w-full casino-button mb-4"
+          disabled={!!betError || !publicKey || comBalance < betAmount}
         >
-          Play Again (Bet {betAmount.toFixed(2)} SOL)
+          Join Game (Bet {betAmount.toFixed(2)} COM)
         </button>
-      ) : null}
+      )}
+
       <button
         onClick={() => setSelectedGame(null)}
         className="w-full casino-button mt-4"
@@ -3401,6 +3697,7 @@ useEffect(() => {
     </div>
   </div>
 )}
+         
 
              
 {selectedGame === 'Crazy Time' && (
