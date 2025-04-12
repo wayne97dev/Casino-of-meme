@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import io from 'socket.io-client';
 import axios from 'axios';
+import { VersionedTransaction, TransactionMessage } from '@solana/web3.js';
 
 // File audio
 const backgroundMusic = '/crazy-time-background.mp3';
@@ -2279,7 +2280,8 @@ useEffect(() => {
     setChatMessages(prev => [...prev, message].slice(-5));
   };
 
-  const handleBetSelection = (segment) => {
+  const handleBetSelection = (segment, event) => {
+    event.preventDefault(); // Impedisce il refresh
     setBets(prevBets => {
       const currentBet = prevBets[segment] || 0;
       const newBet = currentBet > 0 ? 0 : betAmount;
@@ -2295,20 +2297,23 @@ useEffect(() => {
     });
   };
 
-  const spinWheel = async () => {
+
+
+  
+
+  const spinWheel = async (event) => {
+    event.preventDefault(); // Impedisce il refresh
     if (!connected || !publicKey) {
       setWheelMessage('Please connect your wallet to play!');
       addChatMessage('Please connect your wallet to play!');
       return;
     }
-  
     const totalBet = Object.values(bets).reduce((sum, bet) => sum + bet, 0);
     if (totalBet === 0) {
       setWheelMessage('Please place a bet on at least one segment!');
       addChatMessage('Please place a bet on at least one segment!');
       return;
     }
-  
     const betError = validateBet(totalBet);
     if (betError) {
       setWheelMessage(betError);
@@ -2316,27 +2321,45 @@ useEffect(() => {
       return;
     }
   
-    setWheelStatus('spinning');
-    addChatMessage('The wheel is spinning... Are you ready?');
+    setWheelStatus('preparing'); // Nuovo stato per feedback
+    setWheelMessage('Preparing transaction...');
     playSound(spinAudioRef);
   
     const betInLamports = totalBet * LAMPORTS_PER_SOL;
-    const transaction = new Transaction().add(
+    const instructions = [
       SystemProgram.transfer({
         fromPubkey: publicKey,
         toPubkey: wallet.publicKey,
         lamports: betInLamports,
-      })
-    );
-  
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = publicKey;
+      }),
+    ];
   
     try {
+      const { blockhash } = await connection.getLatestBlockhash();
+      const messageV0 = new TransactionMessage({
+        payerKey: publicKey,
+        recentBlockhash: blockhash,
+        instructions,
+      }).compileToV0Message();
+      const transaction = new VersionedTransaction(messageV0);
+  
+      setWheelMessage('Awaiting wallet approval...');
       const signed = await signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(signature);
+  
+      setWheelMessage('Sending transaction...');
+      const signature = await connection.sendTransaction(signed, {
+        maxRetries: 3,
+        skipPreflight: true, // Accelera l'invio su mobile
+      });
+  
+      setWheelMessage('Confirming transaction...');
+      await connection.confirmTransaction(signature, 'confirmed');
+  
+      setWheelStatus('spinning');
+      addChatMessage('The wheel is spinning... Are you ready?');
+
+
+
   
       // Seleziona un segmento per il Top Slot tra quelli su cui il giocatore ha scommesso
       const betSegments = Object.keys(bets).filter(segment => bets[segment] > 0);
@@ -3380,284 +3403,286 @@ useEffect(() => {
 )}
 
              
+{selectedGame === 'Crazy Time' && (
+  <div>
+    <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
+      Crazy Time
+    </h2>
+    <div className="mb-6 text-center">
+      <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
+      <input
+        type="number"
+        step="0.01"
+        value={betAmount}
+        onChange={handleBetChange}
+        className="bet-input"
+        placeholder="Enter bet (0.01 - 1 SOL)"
+      />
+      {betError && <p className="bet-error">{betError}</p>}
+    </div>
+    <div className="game-box p-6 mb-10">
+      <div className="mb-6 text-center">
+        <button onClick={toggleMusic} className="casino-button">
+          {isMusicPlaying ? 'Mute Music' : 'Play Music'}
+        </button>
+      </div>
 
-              {selectedGame === 'Crazy Time' && (
-                <div>
-                  <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
-                    Crazy Time
-                  </h2>
-                  <div className="mb-6 text-center">
-                    <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={betAmount}
-                      onChange={handleBetChange}
-                      className="bet-input"
-                      placeholder="Enter bet (0.01 - 1 SOL)"
-                    />
-                    {betError && <p className="bet-error">{betError}</p>}
-                  </div>
-                  <div className="game-box p-6 mb-10">
-                    <div className="mb-6 text-center">
-                      <button onClick={toggleMusic} className="casino-button">
-                        {isMusicPlaying ? 'Mute Music' : 'Play Music'}
-                      </button>
-                    </div>
+      <div className="mb-6 text-center">
+        <div className="presenter">
+          <img
+            src="/assets/images/presenter.png"
+            alt="Presenter"
+            className="presenter-image"
+          />
+        </div>
+      </div>
 
-                    <div className="mb-6 text-center">
-                      <div className="presenter">
-                        <img
-                          src="/assets/images/presenter.png"
-                          alt="Presenter"
-                          className="presenter-image"
-                        />
-                      </div>
-                    </div>
+      <div className="mb-6 text-center">
+        <p className="text-lg text-orange-700 mb-2">Top Slot:</p>
+        <div className="flex justify-center gap-4">
+          <div className="bg-gray-700 text-cyan-400 p-2 rounded">
+            Segment: {topSlot.segment || 'N/A'}
+          </div>
+          <div className="bg-gray-700 text-cyan-400 p-2 rounded">
+            Multiplier: {topSlot.multiplier}x
+          </div>
+        </div>
+      </div>
 
-                    <div className="mb-6 text-center">
-                      <p className="text-lg text-orange-700 mb-2">Top Slot:</p>
-                      <div className="flex justify-center gap-4">
-                        <div className="bg-gray-700 text-cyan-400 p-2 rounded">
-                          Segment: {topSlot.segment || 'N/A'}
-                        </div>
-                        <div className="bg-gray-700 text-cyan-400 p-2 rounded">
-                          Multiplier: {topSlot.multiplier}x
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mb-6 text-center">
-                      <p className="text-lg text-orange-700 mb-2">Wheel Result:</p>
-                      <div className="wheel-wrapper">
-                      <div className="wheel-container">
-  <svg
-    className="wheel"
-    style={{
-      transform: `rotate(${rotationAngle}deg)`,
-      transition: wheelStatus === 'spinning' ? 'transform 5s ease-out' : 'none',
-    }}
-    viewBox="0 0 500 500" // Mantieni il viewBox per proporzioni
-  >
-  
-                            <g transform="translate(250, 250)">
-                              <circle cx="0" cy="0" r="100" fill="#ff3333" stroke="#d4af37" strokeWidth="5" />
-                              <text
-                                x="0"
-                                y="-10"
-                                textAnchor="middle"
-                                fill="#fff"
-                                fontSize="40"
-                                fontWeight="bold"
-                                fontFamily="'Arial', sans-serif"
-                              >
-                                CRAZY
-                              </text>
-                              <text
-                                x="0"
-                                y="20"
-                                textAnchor="middle"
-                                fill="#fff"
-                                fontSize="40"
-                                fontWeight="bold"
-                                fontFamily="'Arial', sans-serif"
-                              >
-                                TIME
-                              </text>
-
-                              {crazyTimeWheel.map((segment, index) => {
-                                const angle = (index * 360) / crazyTimeWheel.length;
-                                const rad = (angle * Math.PI) / 180;
-                                const nextAngle = ((index + 1) * 360) / crazyTimeWheel.length;
-                                const nextRad = (nextAngle * Math.PI) / 180;
-                                const r = 225;
-                                const innerR = 100;
-                                const x1 = innerR * Math.cos(rad);
-                                const y1 = innerR * Math.sin(rad);
-                                const x2 = r * Math.cos(rad);
-                                const y2 = r * Math.sin(rad);
-                                const x3 = r * Math.cos(nextRad);
-                                const y3 = r * Math.sin(nextRad);
-                                const x4 = innerR * Math.cos(nextRad);
-                                const y4 = innerR * Math.sin(nextRad);
-                                const textAngle = angle + (360 / crazyTimeWheel.length) / 2;
-                                const textRad = (textAngle * Math.PI) / 180;
-                                const textX = (innerR + (r - innerR) / 2) * Math.cos(textRad);
-                                const textY = (innerR + (r - innerR) / 2) * Math.sin(textRad);
-                                return (
-                                  <g key={index}>
-                                    <path
-                                      d={`M ${x1} ${y1} L ${x2} ${y2} A ${r} ${r} 0 0 1 ${x3} ${y3} L ${x4} ${y4} A ${innerR} ${innerR} 0 0 0 ${x1} ${y1} Z`}
-                                      fill={segment.color}
-                                      stroke="#d4af37"
-                                      strokeWidth="3"
-                                    />
-                                    <text
-                                      x={textX}
-                                      y={textY}
-                                      fill="#fff"
-                                      fontSize="14"
-                                      fontWeight="bold"
-                                      textAnchor="middle"
-                                      transform={`rotate(${textAngle + 90}, ${textX}, ${textY})`}
-                                    >
-                                      {segment.value}
-                                    </text>
-                                  </g>
-                                );
-                              })}
-                            </g>
-                            <circle cx="250" cy="250" r="235" fill="none" stroke="#d4af37" strokeWidth="10" />
-                          </svg>
-                          <div className="wheel-indicator">
-                            <svg width="60" height="40" viewBox="0 0 60 40">
-                              <polygon points="30,0 60,40 0,40" fill="#ff3333" stroke="#d4af37" strokeWidth="2" />
-                            </svg>
-                          </div>
-                        </div>
-                        {wheelResult && (
-                          <div className="wheel-result" style={{ color: wheelResult.color }}>
-                            Result: {wheelResult.value} ({wheelResult.colorName})
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {wheelStatus === 'bonus' && bonusResult && (
-                      <div className="mb-6 text-center">
-                        <p className="text-lg text-orange-700 mb-2">Bonus Round: {bonusResult.type}</p>
-                        {bonusResult.type === 'Coin Flip' ? (
-                          <div className="coin-flip">
-                            <div className={`coin ${bonusResult.side === 'red' ? 'red flipping' : ''}`}>
-                              Red: {bonusResult.redMultiplier}x
-                            </div>
-                            <div className={`coin ${bonusResult.side === 'blue' ? 'blue flipping' : ''}`}>
-                              Blue: {bonusResult.blueMultiplier}x
-                            </div>
-                          </div>
-                        ) : bonusResult.type === 'Pachinko' ? (
-                          <div className="pachinko-board">
-                            <div className="disc"></div>
-                            <div className="slots">
-                              {[2, 3, 5, 10, 20].map((multiplier, index) => (
-                                <div
-                                  key={index}
-                                  className={`slot ${bonusResult.slotIndex === index ? 'highlight' : ''}`}
-                                  style={{
-                                    background: bonusResult.slotIndex === index ? '#ffcc00' : '#333',
-                                    color: bonusResult.slotIndex === index ? '#1a1a2e' : '#fff',
-                                  }}
-                                >
-                                  {multiplier}x
-                                </div>
-                              ))}
-                            </div>
-                            <p>Multiplier: {bonusResult.multiplier}x</p>
-                          </div>
-                        ) : bonusResult.type === 'Cash Hunt' ? (
-                          <div className="cash-hunt-board">
-                            <p>Multipliers: {bonusResult.multipliers.join(', ')}</p>
-                            <p>Chosen: {bonusResult.chosenMultiplier}x</p>
-                            <p>Final Multiplier: {bonusResult.multiplier}x</p>
-                          </div>
-                        ) : bonusResult.type === 'Crazy Time' ? (
-                          <div className="crazy-time-board">
-                            <p>Multiplier: {bonusResult.multiplier}x</p>
-                          </div>
-                        ) : null}
-                      </div>
-                    )}
-
-                    <div className="mb-6">
-                      <p className="text-lg text-orange-700 mb-2 text-center">Place Your Bets:</p>
-                      <div className="flex gap-4 justify-center flex-wrap">
-                        {['1', '2', '5', '10', 'Coin Flip', 'Pachinko', 'Cash Hunt', 'Crazy Time'].map(segment => (
-                          <button
-                            key={segment}
-                            onClick={() => handleBetSelection(segment)}
-                            className="casino-button"
-                            style={{
-                              background: bets[segment] > 0 ? 'linear-gradient(135deg, #00ff00, #008000)' : '',
-                            }}
-                          >
-                            {segment} (Bet: {bets[segment].toFixed(2)} SOL)
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="mb-6 text-center">
-                      <p className="text-lg text-orange-700 mb-2">Last Results:</p>
-                      <div className="flex gap-2 justify-center flex-wrap">
-                        {lastResults.map((result, index) => (
-                          <div key={index} className="bg-gray-700 text-cyan-400 p-1 rounded">
-                            {result}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="chat-box">
-                      {chatMessages.map((message, index) => (
-                        <p key={index} className="chat-message">
-                          Presenter: {message}
-                        </p>
-                      ))}
-                    </div>
-
-                    <p className="text-center text-orange-700 mb-4 text-lg">{wheelMessage}</p>
-                    {wheelStatus === 'idle' ? (
-                      <button
-                        onClick={spinWheel}
-                        className="w-full casino-button"
-                        disabled={!!betError}
+      <div className="mb-6 text-center">
+        <p className="text-lg text-orange-700 mb-2">Wheel Result:</p>
+        <div className="wheel-wrapper">
+          <div className="wheel-container" style={{ width: isMobile ? '300px' : '500px', height: isMobile ? '300px' : '500px' }}>
+            <svg
+              className="wheel"
+              style={{
+                transform: `rotate(${rotationAngle}deg)`,
+                transition: wheelStatus === 'spinning' ? `transform ${isMobile ? '3s' : '5s'} ease-out` : 'none',
+              }}
+              viewBox={`0 0 ${wheelRadius * 2} ${wheelRadius * 2}`}
+            >
+              <g transform={`translate(${wheelRadius}, ${wheelRadius})`}>
+                <circle cx="0" cy="0" r={wheelRadius * 0.4} fill="#ff3333" stroke="#d4af37" strokeWidth={isMobile ? 3 : 5} />
+                <text
+                  x="0"
+                  y="-10"
+                  textAnchor="middle"
+                  fill="#fff"
+                  fontSize={isMobile ? "24" : "40"}
+                  fontWeight="bold"
+                  fontFamily="'Arial', sans-serif"
+                >
+                  CRAZY
+                </text>
+                <text
+                  x="0"
+                  y="20"
+                  textAnchor="middle"
+                  fill="#fff"
+                  fontSize={isMobile ? "24" : "40"}
+                  fontWeight="bold"
+                  fontFamily="'Arial', sans-serif"
+                >
+                  TIME
+                </text>
+                {crazyTimeWheel.map((segment, index) => {
+                  const angle = (index * 360) / crazyTimeWheel.length;
+                  const rad = (angle * Math.PI) / 180;
+                  const nextAngle = ((index + 1) * 360) / crazyTimeWheel.length;
+                  const nextRad = (nextAngle * Math.PI) / 180;
+                  const r = wheelRadius * 0.9;
+                  const innerR = wheelRadius * 0.4;
+                  const x1 = innerR * Math.cos(rad);
+                  const y1 = innerR * Math.sin(rad);
+                  const x2 = r * Math.cos(rad);
+                  const y2 = r * Math.sin(rad);
+                  const x3 = r * Math.cos(nextRad);
+                  const y3 = r * Math.sin(nextRad);
+                  const x4 = innerR * Math.cos(nextRad);
+                  const y4 = innerR * Math.sin(nextRad);
+                  const textAngle = angle + (360 / crazyTimeWheel.length) / 2;
+                  const textRad = (textAngle * Math.PI) / 180;
+                  const textX = (innerR + (r - innerR) / 2) * Math.cos(textRad);
+                  const textY = (innerR + (r - innerR) / 2) * Math.sin(textRad);
+                  return (
+                    <g key={index}>
+                      <path
+                        d={`M ${x1} ${y1} L ${x2} ${y2} A ${r} ${r} 0 0 1 ${x3} ${y3} L ${x4} ${y4} A ${innerR} ${innerR} 0 0 0 ${x1} ${y1} Z`}
+                        fill={segment.color}
+                        stroke="#d4af37"
+                        strokeWidth={isMobile ? 2 : 3}
+                      />
+                      <text
+                        x={textX}
+                        y={textY}
+                        fill="#fff"
+                        fontSize={isMobile ? "10" : "14"}
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        transform={`rotate(${textAngle + 90}, ${textX}, ${textY})`}
                       >
-                        Spin Wheel (Total Bet:{' '}
-                        {Object.values(bets)
-                          .reduce((sum, bet) => sum + bet, 0)
-                          .toFixed(2)}{' '}
-                        SOL)
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setWheelStatus('idle');
-                          setWheelResult(null);
-                          setBonusResult(null);
-                          setTopSlot({ segment: null, multiplier: 1 });
-                          setBets({
-                            1: 0,
-                            2: 0,
-                            5: 0,
-                            10: 0,
-                            'Coin Flip': 0,
-                            'Pachinko': 0,
-                            'Cash Hunt': 0,
-                            'Crazy Time': 0,
-                          });
-                          setWheelMessage('');
-                          setChatMessages([]);
-                          setRotationAngle(0);
-                        }}
-                        className="w-full casino-button"
-                        disabled={!!betError}
-                      >
-                        Play Again (Total Bet:{' '}
-                        {Object.values(bets)
-                          .reduce((sum, bet) => sum + bet, 0)
-                          .toFixed(2)}{' '}
-                        SOL)
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setSelectedGame(null)}
-                      className="w-full casino-button mt-4"
-                    >
-                      Back to Casino Floor
-                    </button>
+                        {segment.value}
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
+              <circle cx={wheelRadius} cy={wheelRadius} r={wheelRadius * 0.94} fill="none" stroke="#d4af37" strokeWidth={isMobile ? 6 : 10} />
+            </svg>
+            <div className="wheel-indicator">
+              <svg width={isMobile ? "40" : "60"} height={isMobile ? "30" : "40"} viewBox="0 0 60 40">
+                <polygon points="30,0 60,40 0,40" fill="#ff3333" stroke="#d4af37" strokeWidth="2" />
+              </svg>
+            </div>
+          </div>
+          {wheelResult && (
+            <div className="wheel-result" style={{ color: wheelResult.color }}>
+              Result: {wheelResult.value} ({wheelResult.colorName})
+            </div>
+          )}
+        </div>
+      </div>
+
+      {wheelStatus === 'bonus' && bonusResult && (
+        <div className="mb-6 text-center">
+          <p className="text-lg text-orange-700 mb-2">Bonus Round: {bonusResult.type}</p>
+          {bonusResult.type === 'Coin Flip' ? (
+            <div className="coin-flip">
+              <div className={`coin ${bonusResult.side === 'red' ? 'red flipping' : ''}`}>
+                Red: {bonusResult.redMultiplier}x
+              </div>
+              <div className={`coin ${bonusResult.side === 'blue' ? 'blue flipping' : ''}`}>
+                Blue: {bonusResult.blueMultiplier}x
+              </div>
+            </div>
+          ) : bonusResult.type === 'Pachinko' ? (
+            <div className="pachinko-board">
+              <div className="disc"></div>
+              <div className="slots">
+                {[2, 3, 5, 10, 20].map((multiplier, index) => (
+                  <div
+                    key={index}
+                    className={`slot ${bonusResult.slotIndex === index ? 'highlight' : ''}`}
+                    style={{
+                      background: bonusResult.slotIndex === index ? '#ffcc00' : '#333',
+                      color: bonusResult.slotIndex === index ? '#1a1a2e' : '#fff',
+                    }}
+                  >
+                    {multiplier}x
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
+              <p>Multiplier: {bonusResult.multiplier}x</p>
+            </div>
+          ) : bonusResult.type === 'Cash Hunt' ? (
+            <div className="cash-hunt-board">
+              <p>Multipliers: {bonusResult.multipliers.join(', ')}</p>
+              <p>Chosen: {bonusResult.chosenMultiplier}x</p>
+              <p>Final Multiplier: {bonusResult.multiplier}x</p>
+            </div>
+          ) : bonusResult.type === 'Crazy Time' ? (
+            <div className="crazy-time-board">
+              <p>Multiplier: {bonusResult.multiplier}x</p>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      <div className="mb-6">
+        <p className="text-lg text-orange-700 mb-2 text-center">Place Your Bets:</p>
+        <div className="flex gap-4 justify-center flex-wrap">
+          {['1', '2', '5', '10', 'Coin Flip', 'Pachinko', 'Cash Hunt', 'Crazy Time'].map(segment => (
+            <button
+              key={segment}
+              type="button"
+              onClick={(e) => handleBetSelection(segment, e)}
+              onTouchStart={(e) => e.preventDefault()}
+              className="casino-button"
+              style={{
+                background: bets[segment] > 0 ? 'linear-gradient(135deg, #00ff00, #008000)' : '',
+              }}
+            >
+              {segment} (Bet: {bets[segment].toFixed(2)} SOL)
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-6 text-center">
+        <p className="text-lg text-orange-700 mb-2">Last Results:</p>
+        <div className="flex gap-2 justify-center flex-wrap">
+          {lastResults.map((result, index) => (
+            <div key={index} className="bg-gray-700 text-cyan-400 p-1 rounded">
+              {result}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="chat-box">
+        {chatMessages.map((message, index) => (
+          <p key={index} className="chat-message">
+            Presenter: {message}
+          </p>
+        ))}
+      </div>
+
+      <p className="text-center text-orange-700 mb-4 text-lg">{wheelMessage}</p>
+      <div className="mb-6 text-center">
+        {wheelStatus === 'preparing' ? (
+          <div className="flex justify-center items-center my-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-4 border-orange-700"></div>
+            <p className="text-orange-700 ml-2">{wheelMessage}</p>
+          </div>
+        ) : wheelStatus === 'idle' ? (
+          <button
+            type="button"
+            onClick={spinWheel}
+            onTouchStart={(e) => e.preventDefault()}
+            className="w-full casino-button"
+            disabled={!!betError}
+          >
+            Spin Wheel (Total Bet: {Object.values(bets).reduce((sum, bet) => sum + bet, 0).toFixed(2)} SOL)
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setWheelStatus('idle');
+              setWheelResult(null);
+              setBonusResult(null);
+              setTopSlot({ segment: null, multiplier: 1 });
+              setBets({
+                1: 0,
+                2: 0,
+                5: 0,
+                10: 0,
+                'Coin Flip': 0,
+                'Pachinko': 0,
+                'Cash Hunt': 0,
+                'Crazy Time': 0,
+              });
+              setWheelMessage('');
+              setChatMessages([]);
+              setRotationAngle(0);
+            }}
+            className="w-full casino-button"
+            disabled={!!betError}
+          >
+            Play Again (Total Bet: {Object.values(bets).reduce((sum, bet) => sum + bet, 0).toFixed(2)} SOL)
+          </button>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => setSelectedGame(null)}
+        className="w-full casino-button mt-4"
+      >
+        Back to Casino Floor
+      </button>
+    </div>
+  </div>
+)}
             </>
           )}
         </>

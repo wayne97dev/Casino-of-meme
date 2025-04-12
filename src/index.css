@@ -10,8 +10,8 @@ body {
   background: url('/my-background.jpg') no-repeat center center fixed;
   background-size: cover;
   overflow-x: hidden;
-  overscroll-behavior-y: none; /* Disabilita il pull-to-refresh */
-  touch-action: pan-y; /* Permetti lo scroll verticale, ma disabilita altri comportamenti */
+  overscroll-behavior-y: none;
+  /* Rimuovi touch-action: pan-y */
 }
 
 /* Stili per componenti React */
@@ -56,7 +56,10 @@ canvas {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-}
+    touch-action: manipulation; /* Ottimizza per tocchi rapidi */
+    -webkit-tap-highlight-color: transparent; /* Rimuove il feedback visivo di default su mobile */
+  }
+
 
 .casino-button:hover {
   background: linear-gradient(135deg, #ff8c00, #ff4500);
