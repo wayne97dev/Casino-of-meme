@@ -789,6 +789,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   const [winLightColor, setWinLightColor] = useState(new THREE.Color('red'));
   const [trumpAnimation, setTrumpAnimation] = useState('Idle');
   const [isFloorReady, setIsFloorReady] = useState(false); // Stato per controllare se il pavimento è pronto
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768); // Aggiungi isMobile
 
   const brickTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
   const brickNormalTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
@@ -796,6 +797,13 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     roughness: 0.3,
     metalness: 0.1,
   }));
+
+    // Aggiungi gestione di isMobile
+    useEffect(() => {
+      const handleResize = () => setIsMobile(window.innerWidth < 768);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
   useEffect(() => {
     if (brickTexture && brickNormalTexture) {
@@ -850,7 +858,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       <pointLight position={[0, 5, 0]} color={winLightColor} intensity={2} distance={20} />
       <pointLight position={[15, 5, 15]} color="blue" intensity={2} distance={20} />
 
-      <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade />
+      <Stars radius={100} depth={50} count={isMobile ? 2000 : 5000} factor={4} saturation={0} fade />
 
       {/* Mostra il pavimento solo quando la texture è pronta */}
       {isFloorReady && (
@@ -899,7 +907,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
 
       <EffectComposer>
-        <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={300} />
+        <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9}  height={isMobile ? 150 : 300} />
       </EffectComposer>
     </>
   );
