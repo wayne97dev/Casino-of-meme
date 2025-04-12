@@ -51,7 +51,8 @@ const wallet = WALLET_PRIVATE_KEY ? Keypair.fromSecretKey(bs58.decode(WALLET_PRI
 const CARD_BACK_IMAGE = '/card-back.png';
 
 // Minimum bet fisso in COM
-const MIN_BET = 1000; // 1000 COM
+const MIN_BET_POKER = 1000; // 1000 COM per Poker PvP
+const MIN_BET_OTHER = 0.01; // 0.01 SOL per gli altri minigiochi
 
 const BACKEND_URL = 'https://casino-of-meme-backend-production.up.railway.app/';
 const socket = io(BACKEND_URL, {
@@ -983,8 +984,8 @@ const RewardsDashboard = () => {
   const [error, setError] = useState(null);
   const [showHolders, setShowHolders] = useState(false);
   const [showInfo, setShowInfo] = useState(false); // Stato per mostrare/nascondere le info
-  const [minBet, setMinBet] = useState(MIN_BET); // Valore fisso di 1000 COM
-  const [betAmount, setBetAmount] = useState(minBet); // Imposta betAmount al minBet iniziale
+  const [minBet, setMinBet] = useState(MIN_BET_OTHER); // Default a 0.01 SOL
+  const [betAmount, setBetAmount] = useState(MIN_BET_OTHER); // Default a 0.01 SOL
   const [betError, setBetError] = useState(null);
 
 
@@ -1084,21 +1085,31 @@ const fetchComBalance = async () => {
 
 // Aggiorna betAmount al minBet iniziale
 useEffect(() => {
-  setBetAmount(minBet); // Imposta betAmount al minBet iniziale
-  setBetError(validateBet(minBet)); // Rivalida betAmount
-}, []);
+  if (selectedGame === 'Poker PvP') {
+    setMinBet(MIN_BET_POKER);
+    setBetAmount(MIN_BET_POKER);
+    setBetError(validateBet(MIN_BET_POKER, 'Poker PvP'));
+  } else {
+    setMinBet(MIN_BET_OTHER);
+    setBetAmount(MIN_BET_OTHER);
+    setBetError(validateBet(MIN_BET_OTHER));
+  }
+}, [selectedGame]);
 
 // useEffect per recuperare il saldo COM quando il wallet cambia
 useEffect(() => {
   fetchComBalance();
 }, [connected, publicKey]);
 
-const validateBet = (amount) => {
+const validateBet = (amount, game = selectedGame) => {
   if (isNaN(amount) || amount <= 0) return 'Bet must be a positive number.';
-  if (amount < minBet) return `Bet must be at least ${minBet.toFixed(2)} COM.`;
+  if (game === 'Poker PvP') {
+    if (amount < MIN_BET_POKER) return `Bet must be at least ${MIN_BET_POKER.toFixed(2)} COM.`;
+  } else {
+    if (amount < MIN_BET_OTHER) return `Bet must be at least ${MIN_BET_OTHER.toFixed(2)} SOL.`;
+  }
   return null;
 };
-
 
 
   // Stato per le missioni e la classifica
@@ -1446,7 +1457,7 @@ useEffect(() => {
       return;
     }
   
-    const betError = validateBet(betAmount);
+    const betError = validateBet(betAmount, 'Poker PvP');
     if (betError) {
       setPokerMessage(betError);
       console.log('Join failed: Bet validation error', { betAmount, betError });
@@ -1578,8 +1589,8 @@ useEffect(() => {
       return;
     }
   
-    if ((move === 'bet' || move === 'raise') && validateBet(amount)) {
-      setPokerMessage(validateBet(amount));
+    if ((move === 'bet' || move === 'raise') && validateBet(amount, 'Poker PvP')) {
+      setPokerMessage(validateBet(amount, 'Poker PvP'));
       return;
     }
   
@@ -1822,12 +1833,11 @@ useEffect(() => {
       return;
     }
   
-    const betError = validateBet(betAmount);
+    const betError = validateBet(betAmount, 'Solana Card Duel');
     if (betError) {
       setGameMessage(betError);
       return;
     }
-  
     setGameStatus('betting');
     // Resettiamo le carte subito per non mostrarle durante la transazione
     setPlayerCards([]);
