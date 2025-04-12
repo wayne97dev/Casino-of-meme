@@ -787,18 +787,31 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   const { camera } = useThree();
   const [showParticles, setShowParticles] = useState(false);
   const [winLightColor, setWinLightColor] = useState(new THREE.Color('red'));
-  const [trumpAnimation, setTrumpAnimation] = useState('Idle'); // Stato per Trump
-
+  const [trumpAnimation, setTrumpAnimation] = useState('Idle');
+  const [isFloorReady, setIsFloorReady] = useState(false); // Stato per controllare se il pavimento è pronto
 
   const brickTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
   const brickNormalTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
+  const floorMaterialRef = useRef(new THREE.MeshStandardMaterial({
+    roughness: 0.3,
+    metalness: 0.1,
+  }));
 
   useEffect(() => {
-    brickTexture.wrapS = brickTexture.wrapT = THREE.RepeatWrapping;
-    brickTexture.repeat.set(10, 10);
-    if (brickNormalTexture) {
+    if (brickTexture && brickNormalTexture) {
+      // Configura le texture
+      brickTexture.wrapS = brickTexture.wrapT = THREE.RepeatWrapping;
+      brickTexture.repeat.set(10, 10);
       brickNormalTexture.wrapS = brickNormalTexture.wrapT = THREE.RepeatWrapping;
       brickNormalTexture.repeat.set(10, 10);
+
+      // Aggiorna il materiale con le texture
+      floorMaterialRef.current.map = brickTexture;
+      floorMaterialRef.current.normalMap = brickNormalTexture;
+      floorMaterialRef.current.needsUpdate = true;
+
+      // Segnala che il pavimento è pronto
+      setIsFloorReady(true);
     }
   }, [brickTexture, brickNormalTexture]);
 
@@ -809,7 +822,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
   const handleSelectGame = (game) => {
     setCroupierAnimation('Wave');
-    setTrumpAnimation('Wave'); // Trump saluta
+    setTrumpAnimation('Wave');
     onSelectGame(game);
     setTimeout(() => {
       setTrumpAnimation('Idle');
@@ -820,7 +833,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     if (triggerWinEffect) {
       setShowParticles(true);
       setWinLightColor(new THREE.Color('yellow'));
-      setTrumpAnimation('Dance'); // Trump balla per la vincita
+      setTrumpAnimation('Dance');
       setTimeout(() => {
         setShowParticles(false);
         setWinLightColor(new THREE.Color('red'));
@@ -832,26 +845,23 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   return (
     <>
       <PerspectiveCamera makeDefault fov={90} />
-      <ambientLight intensity={1} />
+      <ambientLight intensity={0.6} />
       <directionalLight position={[10, 10, 5]} intensity={1.5} castShadow shadow-mapSize={[1024, 1024]} />
       <pointLight position={[0, 5, 0]} color={winLightColor} intensity={2} distance={20} />
       <pointLight position={[15, 5, 15]} color="blue" intensity={2} distance={20} />
 
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade />
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
-        <planeGeometry args={[50, 50]} />
-        <meshStandardMaterial
-          map={brickTexture}
-          normalMap={brickNormalTexture}
-          roughness={0.7}
-          metalness={0.1}
-        />
-      </mesh>
+      {/* Mostra il pavimento solo quando la texture è pronta */}
+      {isFloorReady && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
+          <planeGeometry args={[50, 50]} />
+          <primitive object={floorMaterialRef.current} />
+        </mesh>
+      )}
 
       <Croupier position={[-14, -1, 10]} currentAnimation={croupierAnimation} />
-      <DonaldTrump position={[10, -1, 16]} currentAnimation={trumpAnimation} /> {/* Aggiunto il nuovo Trump */}
-     
+      <DonaldTrump position={[10, -1, 16]} currentAnimation={trumpAnimation} />
 
       <PokerCard
         position={[-17, 2.5, -15]}
@@ -876,21 +886,17 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
       <CasinoTable position={[-15, -1, -15]} />
       <BlackjackTable position={[0, -1, 3]} onSelectGame={handleSelectGame} />
-      <RedCarpetModule position={[0, -1, 10]} />{/* Aggiunto qui sotto il tavolo da blackjack */}
+      <RedCarpetModule position={[0, -1, 10]} />
       <CasinoSignWithBulb position={[0, 19, 24]} />
       
-        {/* Aggiungi le quattro colonne agli angoli */}
-        <CasinoTwistedColumn position={[-23.5, -1, -23.5]} /> {/* Angolo in basso a sinistra */}
-      <CasinoTwistedColumn position={[-23.5, -1, 23.5]} />  {/* Angolo in alto a sinistra */}
-      <CasinoTwistedColumn position={[23.5, -1, -23.5]} />  {/* Angolo in basso a destra */}
-      <CasinoTwistedColumn position={[23.5, -1, 23.5]} />   {/* Angolo in alto a destra */}
-
+      <CasinoTwistedColumn position={[-23.5, -1, -23.5]} />
+      <CasinoTwistedColumn position={[-23.5, -1, 23.5]} />
+      <CasinoTwistedColumn position={[23.5, -1, -23.5]} />
+      <CasinoTwistedColumn position={[23.5, -1, 23.5]} />
 
       {showParticles && <Particles position={[0, 2, 0]} />}
 
       <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
-
-
 
       <EffectComposer>
         <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={300} />
@@ -898,6 +904,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     </>
   );
 };
+
 
 const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
   const [croupierAnimation, setCroupierAnimation] = useState('Idle');
