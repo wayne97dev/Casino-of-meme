@@ -4055,14 +4055,3 @@ const evaluateResult = (result) => {
 };
 
 export default RewardsDashboard; 
-
-
-
-
-
-
-
-
-
-
-
