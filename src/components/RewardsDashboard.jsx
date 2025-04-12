@@ -65,7 +65,7 @@ const socket = io(BACKEND_URL, {
 // Percentuale di vittoria del computer per ogni minigioco
 const COMPUTER_WIN_CHANCE = {
   cardDuel: 0.7,
-  memeSlots: 0.8,
+  memeSlots: 0.92,
   coinFlip: 0.6,
   crazyTime: 0.8,
 };
@@ -2124,45 +2124,62 @@ useEffect(() => {
 
 
   
-  const animateReels = (result, callback) => {
-    const spinDuration = 5000;
-    const intervalTime = 150;
-    let elapsedTime = 0;
-  
-    const spinInterval = setInterval(() => {
-      elapsedTime += intervalTime;
-  
-      if (elapsedTime >= spinDuration - 500) {
-        clearInterval(spinInterval);
-        setIsStopping(true);
-  
-        console.log('DEBUG - Result before animation:', result.map(item => item.name));
-        setTimeout(() => {
-          console.log('DEBUG - Setting first column:', result.slice(0, 5).map(item => item.name));
-          setSlotReelsDisplay(result.slice(0, 5).concat(Array(20).fill(null)));
-        }, 200);
-        setTimeout(() => {
-          console.log('DEBUG - Setting second column:', result.slice(0, 10).map(item => item.name));
-          setSlotReelsDisplay(result.slice(0, 10).concat(Array(15).fill(null)));
-        }, 400);
-        setTimeout(() => {
-          console.log('DEBUG - Setting third column:', result.slice(0, 15).map(item => item.name));
-          setSlotReelsDisplay(result.slice(0, 15).concat(Array(10).fill(null)));
-        }, 600);
-        setTimeout(() => {
-          console.log('DEBUG - Setting fourth column:', result.slice(0, 20).map(item => item.name));
-          setSlotReelsDisplay(result.slice(0, 20).concat(Array(5).fill(null)));
-        }, 800);
-        setTimeout(() => {
-          console.log('DEBUG - Final result:', result.map(item => item.name));
-          setSlotReelsDisplay([...result]); // Usa una copia per forzare l'aggiornamento
-          setIsStopping(false);
-          setTimeout(() => callback(), 100); // Aspetta un breve momento per garantire che lo stato sia aggiornato
-        }, 1200);
-      }
-    }, intervalTime);
-  };
+  // Aggiorna animateReels per sincronizzare correttamente
+const animateReels = (result, callback) => {
+  const spinDuration = 5000;
+  const intervalTime = 150;
+  let elapsedTime = 0;
 
+  console.log('DEBUG - animateReels started with result:', result.map(item => item ? item.name : 'null'));
+
+  const spinInterval = setInterval(() => {
+    elapsedTime += intervalTime;
+
+    if (elapsedTime >= spinDuration - 500) {
+      clearInterval(spinInterval);
+      setIsStopping(true);
+
+      console.log('DEBUG - Result before animation:', result.map(item => item ? item.name : 'null'));
+      setTimeout(() => {
+        console.log('DEBUG - Setting first column:', result.slice(0, 5).map(item => item ? item.name : 'null'));
+        setSlotReelsDisplay([...result.slice(0, 5), ...Array(20).fill(null)]);
+      }, 200);
+      setTimeout(() => {
+        console.log('DEBUG - Setting second column:', result.slice(0, 10).map(item => item ? item.name : 'null'));
+        setSlotReelsDisplay([...result.slice(0, 10), ...Array(15).fill(null)]);
+      }, 400);
+      setTimeout(() => {
+        console.log('DEBUG - Setting third column:', result.slice(0, 15).map(item => item ? item.name : 'null'));
+        setSlotReelsDisplay([...result.slice(0, 15), ...Array(10).fill(null)]);
+        // Debug specifico per [10, 11, 12]
+        console.log('DEBUG - Symbols at [10, 11, 12] after third column:', [
+          result[10]?.name || 'null',
+          result[11]?.name || 'null',
+          result[12]?.name || 'null'
+        ]);
+      }, 600);
+      setTimeout(() => {
+        console.log('DEBUG - Setting fourth column:', result.slice(0, 20).map(item => item ? item.name : 'null'));
+        setSlotReelsDisplay([...result.slice(0, 20), ...Array(5).fill(null)]);
+      }, 800);
+      setTimeout(() => {
+        console.log('DEBUG - Final result set:', result.map(item => item ? item.name : 'null'));
+        console.log('DEBUG - Symbols at [10, 11, 12] final:', [
+          result[10]?.name || 'null',
+          result[11]?.name || 'null',
+          result[12]?.name || 'null'
+        ]);
+        setSlotReelsDisplay([...result]); // Usa una copia per forzare l'aggiornamento
+        setIsStopping(false);
+        // Aspetta che lo stato sia aggiornato prima di chiamare evaluateResult
+        setTimeout(() => {
+          console.log('DEBUG - Calling evaluateResult with:', result.map(item => item ? item.name : 'null'));
+          callback();
+        }, 200); // Aumentato il ritardo per garantire sincronizzazione
+      }, 1200);
+    }
+  }, intervalTime);
+};
 
   const spinSlots = async () => {
     if (!connected || !publicKey) {
@@ -2218,165 +2235,205 @@ useEffect(() => {
   };
   
 
-  const evaluateResult = (result) => {
-    const winLines = [
-      [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24], // Righe
-      [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24], // Colonne
-      [0, 6, 12, 18, 24], [4, 8, 12, 16, 20], // Diagonali
-    ];
-  
-    const winningLinesFound = [];
-    const winningIndices = new Set();
-    let totalWin = 0;
-  
-    console.log('DEBUG - Slot Reels Result:', result.map((item, index) => `${index}: ${item.name}`));
-  
-    for (let i = 0; i < winLines.length; i++) {
-      const line = winLines[i];
-      const symbolsInLine = line.map(index => result[index]?.name);
-  
-      console.log(`DEBUG - Line ${i} (${line.join(', ')}): [${symbolsInLine.join(', ')}]`);
-  
-      let currentSymbol = symbolsInLine[0];
-      let streak = 1;
-      let streakStart = 0;
-  
-      for (let j = 1; j < symbolsInLine.length; j++) {
-        if (!symbolsInLine[j] || !symbolsInLine[j - 1]) {
-          console.warn(`DEBUG - Undefined symbol at index ${line[j]} or ${line[j - 1]} in line ${i}`);
-          currentSymbol = symbolsInLine[j];
-          streak = 1;
-          streakStart = j;
-          continue;
-        }
-  
-        console.log(`DEBUG - Comparing ${symbolsInLine[j - 1]} with ${symbolsInLine[j]} at indices ${line[j - 1]} and ${line[j]}`);
-        if (symbolsInLine[j].toLowerCase() === currentSymbol.toLowerCase()) {
-          streak++;
-          console.log(`DEBUG - Streak increased to ${streak} for symbol ${currentSymbol} at index ${line[j]}`);
-        } else {
-          if (streak >= 3) {
-            console.log(`DEBUG - Winning sequence found in line ${i}: ${currentSymbol} x${streak} (indices ${line.slice(streakStart, streakStart + streak).join(', ')})`);
-            winningLinesFound.push(i);
-            for (let k = streakStart; k < streakStart + streak; k++) {
-              winningIndices.add(line[k]);
-            }
-            let winAmount;
-            if (streak === 3) {
-              winAmount = betAmount * 0.5; // 3 simboli: 0.5x il bet
-            } else if (streak === 4) {
-              winAmount = betAmount * 3; // 4 simboli: 3x il bet
-            } else if (streak === 5) {
-              winAmount = betAmount * 10; // 5 simboli: 10x il bet
-            }
-            if (currentSymbol.toLowerCase() === 'bonus') {
-              winAmount *= 2; // Bonus raddoppia la vincita
-            }
-            totalWin += winAmount;
-            console.log(`DEBUG - Win amount for this sequence: ${winAmount.toFixed(2)} SOL`);
-          }
-          currentSymbol = symbolsInLine[j];
-          streak = 1;
-          streakStart = j;
-        }
+  // Aggiorna evaluateResult per un confronto più robusto e log dettagliati
+const evaluateResult = (result) => {
+  // Linee vincenti che iniziano da indici nella prima riga [0, 1, 2, 3, 4] o prima colonna [0, 5, 10, 15, 20]
+  const winLines = [
+    [0, 1, 2, 3, 4],
+    [5, 6, 7, 8, 9],
+    [10, 11, 12, 13, 14],
+    [15, 16, 17, 18, 19],
+    [20, 21, 22, 23, 24],
+    [0, 5, 10, 15, 20],
+    [1, 6, 11, 16, 21],
+    [2, 7, 12, 17, 22],
+    [3, 8, 13, 18, 23],
+    [4, 9, 14, 19, 24],
+    [0, 6, 12, 18, 24],
+    [4, 8, 12, 16, 20],
+    [5, 11, 17],
+    [5, 11, 17, 23],
+    [10, 16, 22],
+    [15, 21, 23],
+  ];
+
+  const winningLinesFound = [];
+  const winningIndices = new Set();
+  let totalWin = 0;
+  const winDetails = [];
+
+  console.log('DEBUG - Slot Reels Result:', result.map((item, index) => `${index}: ${item ? item.name : 'null'}`));
+
+  for (let i = 0; i < winLines.length; i++) {
+    const line = winLines[i];
+    const symbolsInLine = line.map(index => {
+      if (!result[index] || !result[index].name) {
+        console.warn(`DEBUG - Invalid or null symbol at index ${index} in line ${i}`);
+        return null;
       }
-  
-      if (streak >= 3) {
-        console.log(`DEBUG - Winning sequence found in line ${i}: ${currentSymbol} x${streak} (indices ${line.slice(streakStart, streakStart + streak).join(', ')})`);
-        winningLinesFound.push(i);
-        for (let k = streakStart; k < streakStart + streak; k++) {
-          winningIndices.add(line[k]);
+      return result[index].name; // Mantieni il case originale per il confronto
+    });
+
+    console.log(`DEBUG - Line ${i} (${line.join(', ')}): [${symbolsInLine.join(', ')}]`);
+
+    // Verifica che tutti i simboli siano definiti
+    if (symbolsInLine.some(symbol => symbol === null)) {
+      console.warn(`DEBUG - Skipping line ${i} due to null symbols:`, symbolsInLine);
+      continue;
+    }
+
+    // Debug specifico per la linea [10, 11, 12, 13, 14]
+    if (line.join(',') === '10,11,12,13,14') {
+      console.log(`DEBUG - Detailed check for line [10, 11, 12, 13, 14]:`, symbolsInLine);
+      console.log(`DEBUG - Symbols at [10, 11, 12]:`, symbolsInLine.slice(0, 3));
+    }
+
+    // Controlla sequenze di simboli consecutivi
+    let currentSymbol = symbolsInLine[0];
+    let streak = 1;
+    let streakStart = 0;
+
+    for (let j = 1; j < symbolsInLine.length; j++) {
+      console.log(`DEBUG - Comparing ${symbolsInLine[j - 1]} with ${symbolsInLine[j]} at indices ${line[j - 1]} and ${line[j]}`);
+      if (symbolsInLine[j] === currentSymbol) {
+        streak++;
+        console.log(`DEBUG - Streak increased to ${streak} for symbol ${currentSymbol} at index ${line[j]}`);
+      } else {
+        // Registra la sequenza vincente se >= 3
+        if (streak >= 3) {
+          console.log(`DEBUG - Winning sequence found in line ${i}: ${currentSymbol} x${streak} (indices ${line.slice(streakStart, streakStart + streak).join(', ')})`);
+          winningLinesFound.push(i);
+          for (let k = streakStart; k < streakStart + streak; k++) {
+            winningIndices.add(line[k]);
+          }
+          let winAmount;
+          if (streak === 3) {
+            winAmount = betAmount * 0.5; // 3 simboli: 0.5x il bet
+          } else if (streak === 4) {
+            winAmount = betAmount * 3; // 4 simboli: 3x il bet
+          } else if (streak === 5) {
+            winAmount = betAmount * 10; // 5 simboli: 10x il bet
+          }
+          if (currentSymbol.toLowerCase() === 'bonus') {
+            winAmount *= 2; // Bonus raddoppia la vincita
+          }
+          totalWin += winAmount;
+          winDetails.push(`${streak} ${currentSymbol} = ${winAmount.toFixed(3)} SOL`);
+          console.log(`DEBUG - Win amount for this sequence: ${winAmount.toFixed(3)} SOL`);
         }
-        let winAmount;
-        if (streak === 3) {
-          winAmount = betAmount * 0.5; // 3 simboli: 0.5x il bet
-        } else if (streak === 4) {
-          winAmount = betAmount * 3; // 4 simboli: 3x il bet
-        } else if (streak === 5) {
-          winAmount = betAmount * 10; // 5 simboli: 10x il bet
-        }
-        if (currentSymbol.toLowerCase() === 'bonus') {
-          winAmount *= 2; // Bonus raddoppia la vincita
-        }
-        totalWin += winAmount;
-        console.log(`DEBUG - Win amount for this sequence: ${winAmount.toFixed(2)} SOL`);
+        currentSymbol = symbolsInLine[j];
+        streak = 1;
+        streakStart = j;
       }
     }
-  
-    setWinningLines(winningLinesFound);
-    setWinningIndices(Array.from(winningIndices));
-  
-    console.log('DEBUG - Winning Lines:', winningLinesFound);
-    console.log('DEBUG - Winning Indices:', Array.from(winningIndices));
-    console.log('DEBUG - Total Win:', totalWin.toFixed(2), 'SOL');
-  
-    if (winningLinesFound.length > 0) {
-      setSlotStatus('won');
-      setSlotMessage(`Jackpot! You won ${totalWin.toFixed(2)} SOL!`);
-  
-      if (!connection || !wallet || !publicKey) {
-        console.error('Missing required objects for transaction:', {
-          connection: !!connection,
-          wallet: !!wallet,
-          publicKey: !!publicKey,
+
+    // Controlla l'ultima sequenza della linea
+    if (streak >= 3) {
+      console.log(`DEBUG - Winning sequence found in line ${i}: ${currentSymbol} x${streak} (indices ${line.slice(streakStart, streakStart + streak).join(', ')})`);
+      winningLinesFound.push(i);
+      for (let k = streakStart; k < streakStart + streak; k++) {
+        winningIndices.add(line[k]);
+      }
+      let winAmount;
+      if (streak === 3) {
+        winAmount = betAmount * 0.5; // 3 simboli: 0.5x il bet
+      } else if (streak === 4) {
+        winAmount = betAmount * 3; // 4 simboli: 3x il bet
+      } else if (streak === 5) {
+        winAmount = betAmount * 10; // 5 simboli: 10x il bet
+      }
+      if (currentSymbol.toLowerCase() === 'bonus') {
+        winAmount *= 2; // Bonus raddoppia la vincita
+      }
+      totalWin += winAmount;
+      winDetails.push(`${streak} ${currentSymbol} = ${winAmount.toFixed(3)} SOL`);
+      console.log(`DEBUG - Win amount for this sequence: ${winAmount.toFixed(3)} SOL`);
+    }
+  }
+
+  setWinningLines(winningLinesFound);
+  setWinningIndices(Array.from(winningIndices));
+
+  console.log('DEBUG - Winning Lines:', winningLinesFound);
+  console.log('DEBUG - Winning Indices:', Array.from(winningIndices));
+  console.log('DEBUG - Total Win:', totalWin.toFixed(3), 'SOL');
+  console.log('DEBUG - Win Details:', winDetails);
+
+  if (winningLinesFound.length > 0) {
+    setSlotStatus('won');
+    let message = `Jackpot! You won ${totalWin.toFixed(3)} SOL!`;
+    if (winDetails.length > 1) {
+      message += ` (Details: ${winDetails.join(' + ')})`;
+    } else if (winDetails.length === 1) {
+      message += ` (Details: ${winDetails[0]})`;
+    }
+    setSlotMessage(message);
+
+    if (!connection || !wallet || !publicKey) {
+      console.error('Missing required objects for transaction:', {
+        connection: !!connection,
+        wallet: !!wallet,
+        publicKey: !!publicKey,
+      });
+      setSlotMessage('Error: Cannot distribute prize. Missing wallet or connection.');
+      return;
+    }
+
+    const winAmountInLamports = totalWin * LAMPORTS_PER_SOL;
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: wallet.publicKey,
+        toPubkey: publicKey,
+        lamports: winAmountInLamports,
+      })
+    );
+
+    (async () => {
+      try {
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = wallet.publicKey;
+        transaction.sign(wallet);
+
+        const signature = await connection.sendRawTransaction(transaction.serialize());
+        console.log('DEBUG - Transaction signature:', signature);
+
+        const confirmation = await connection.confirmTransaction({
+          signature,
+          blockhash,
+          lastValidBlockHeight,
         });
-        setSlotMessage('Error: Cannot distribute prize. Missing wallet or connection.');
-        return;
-      }
-  
-      const winAmountInLamports = totalWin * LAMPORTS_PER_SOL;
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: wallet.publicKey,
-          toPubkey: publicKey,
-          lamports: winAmountInLamports,
-        })
-      );
-  
-      (async () => {
-        try {
-          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-          transaction.recentBlockhash = blockhash;
-          transaction.feePayer = wallet.publicKey;
-          transaction.sign(wallet);
-  
-          const signature = await connection.sendRawTransaction(transaction.serialize());
-          console.log('DEBUG - Transaction signature:', signature);
-  
-          const confirmation = await connection.confirmTransaction({
-            signature,
-            blockhash,
-            lastValidBlockHeight,
-          });
-  
-          if (confirmation.value.err) {
-            throw new Error('Transaction confirmation failed: ' + JSON.stringify(confirmation.value.err));
-          }
-  
-          console.log('DEBUG - Prize distributed successfully:', signature);
-          setTriggerWinEffect(true);
-          playSound(winAudioRef);
-  
-          setPlayerStats(prev => ({
-            ...prev,
-            totalWinnings: prev.totalWinnings + totalWin,
-          }));
-        } catch (err) {
-          console.error('Prize distribution failed:', err);
-          setSlotMessage(`You won ${totalWin.toFixed(2)} SOL, but prize distribution failed: ${err.message}. Contact support.`);
+
+        if (confirmation.value.err) {
+          throw new Error('Transaction confirmation failed: ' + JSON.stringify(confirmation.value.err));
         }
-      })();
-    } else {
-      setSlotStatus('lost');
-      setSlotMessage('No luck this time. Spin again!');
-    }
-  
-    updateMissionProgress(1);
-    setPlayerStats(prev => ({
-      ...prev,
-      spins: prev.spins + 1,
-    }));
-  };
+
+        console.log('DEBUG - Prize distributed successfully:', signature);
+        setTriggerWinEffect(true);
+        playSound(winAudioRef);
+
+        setPlayerStats(prev => ({
+          ...prev,
+          totalWinnings: prev.totalWinnings + totalWin,
+        }));
+      } catch (err) {
+        console.error('Prize distribution failed:', err);
+        setSlotMessage(`You won ${totalWin.toFixed(3)} SOL, but prize distribution failed: ${err.message}. Contact support.`);
+      }
+    })();
+  } else {
+    setSlotStatus('lost');
+    setSlotMessage('No luck this time. Spin again!');
+  }
+
+  updateMissionProgress(1);
+  setPlayerStats(prev => ({
+    ...prev,
+    spins: prev.spins + 1,
+  }));
+};
+
+
 
   const flipCoin = async (choice) => {
     if (!connected || !publicKey) {
