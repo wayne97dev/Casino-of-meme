@@ -61,7 +61,7 @@ body {
   margin: 0;
   padding: 40px;
   color: #f7f2f2;
-  background: url('/my-background.png') no-repeat center center fixed; 
+  background: url('/my-background.webp') no-repeat center center fixed, linear-gradient(135deg, #1a1a2e, #2a2a4e); /* Immagine con fallback */
   background-size: cover;
   overflow-x: hidden;
 }
@@ -680,7 +680,8 @@ table {
 @media (max-width: 768px) {
   body {
     padding: 20px;
-    background: linear-gradient(135deg, #1a1a2e, #2a2a4e); /* Fallback per performance */
+    background: url('/my-background.webp') no-repeat center center fixed, linear-gradient(135deg, #1a1a2e, #2a2a4e); /* Ripristina immagine */
+    background-size: cover;
   }
 
   canvas {
