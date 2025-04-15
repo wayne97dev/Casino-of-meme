@@ -1338,6 +1338,10 @@ useEffect(() => {
 
 
 
+
+
+
+
 // Recupera la classifica
 useEffect(() => {
   const fetchLeaderboard = async () => {
@@ -3207,8 +3211,53 @@ const evaluateResult = (result) => {
                 onSelectGame={setSelectedGame}
                 triggerWinEffect={triggerWinEffect}
               />
-            </>
-          ) : (
+{/* Nuova sezione per Contract e Social Links */}
+{/* Nuova sezione per Contract e Social Links */}
+<div className="game-box p-6 mt-10 mb-10 max-w-lg mx-auto">
+      <div className="flex justify-center mb-4">
+        <p className="text-lg text-orange-700">
+          Contract: <span className="text-cyan-400">TBA (To Be Announced)</span>
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-20 justify-center">
+        <a
+          href="https://t.me/Casinofmeme" // Sostituisci con il tuo link
+          target="_blank"
+          rel="noopener noreferrer"
+          className="casino-button w-24 mx-6 text-center"
+        >
+          Telegram
+        </a>
+        <a
+          href="https://x.com/CasinofmemeSOL" // Sostituisci con il tuo link
+          target="_blank"
+          rel="noopener noreferrer"
+          className="casino-button w-24 mx-6 text-center"
+        >
+          Twitter
+        </a>
+        <a
+          href="https://www.dextools.io/app/your-pair" // Sostituisci con il tuo link
+          target="_blank"
+          rel="noopener noreferrer"
+          className="casino-button w-24 mx-6 text-center"
+        >
+          Dextools
+        </a>
+        <a
+          href="https://casinoofmemes-organization.gitbook.io/thesolanacasino" // Sostituisci con il tuo link
+          target="_blank"
+          rel="noopener noreferrer"
+          className="casino-button w-24 mx-6 text-center"
+        >
+          Gitbook
+        </a>
+      </div>
+    </div>
+  </>
+) : (
+
+          
             <>
           {selectedGame === 'Solana Card Duel' && (
   <div>

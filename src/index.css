@@ -2,22 +2,153 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Definizione delle varianti di Aleo */
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-BoldItalic.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-BlackItalic.ttf') format('truetype');
+  font-weight: 900;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-ExtraBoldItalic.ttf') format('truetype');
+  font-weight: 800;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-SemiBoldItalic.ttf') format('truetype');
+  font-weight: 600;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-MediumItalic.ttf') format('truetype');
+  font-weight: 500;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-LightItalic.ttf') format('truetype');
+  font-weight: 300;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-ExtraLight.ttf') format('truetype');
+  font-weight: 200;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-ExtraLightItalic.ttf') format('truetype');
+  font-weight: 200;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-Thin.ttf') format('truetype');
+  font-weight: 100;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Aleo';
+  src: url('/fonts/Aleo-ThinItalic.ttf') format('truetype');
+  font-weight: 100;
+  font-style: italic;
+}
+
+/* Applica Aleo globalmente */
 body {
-  font-family: 'Comic Neue', cursive;
+  font-family: 'Aleo', sans-serif;
   margin: 0;
-  padding: 40px; /* Default per desktop */
+  padding: 40px;
   color: #e0e0e0;
   background: url('/my-background.jpg') no-repeat center center fixed;
   background-size: cover;
   overflow-x: hidden;
   overscroll-behavior-y: none;
-  /* Rimuovi touch-action: pan-y */
+}
+
+* {
+  font-family: 'Aleo', sans-serif !important;
 }
 
 /* Stili per componenti React */
 canvas {
-  width: 100% !important; /* Forza la larghezza al 100% */
-  height: 600px; /* Default per desktop */
+  width: 100% !important;
+  height: 600px;
 }
 
 @keyframes casinoBackground {
@@ -28,11 +159,11 @@ canvas {
 
 @keyframes neon-glow {
   0% { box-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc; }
-  50% { box-shadow: 0 0 20px #00ffcc, 0 0 30px #00ffcc; } /* Default per desktop */
+  50% { box-shadow: 0 0 20px #00ffcc, 0 0 30px #00ffcc; }
   100% { box-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc; }
 }
 
-/* Stile per le intestazioni - Default per desktop */
+/* Stile per le intestazioni */
 .header-box {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 2px solid #ffcc00;
@@ -40,26 +171,28 @@ canvas {
   padding: 10px 20px;
   display: inline-block;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  font-family: 'Aleo', sans-serif !important;
+  font-weight: 700; /* Aleo Bold */
 }
 
-/* Stile per i pulsanti a tema casinò - Default per desktop */
+/* Stile per i pulsanti a tema casinò */
 .casino-button {
   background: linear-gradient(135deg, #ff4500, #ff8c00);
   border: 2px solid #ffcc00;
   border-radius: 12px;
   padding: 12px 24px;
   color: #ffffff;
+  font-family: 'Aleo', sans-serif !important;
   font-size: 1.25rem;
-  font-weight: bold;
+  font-weight: 700; /* Aleo Bold */
   text-transform: uppercase;
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.3);
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-    touch-action: manipulation; /* Ottimizza per tocchi rapidi */
-    -webkit-tap-highlight-color: transparent; /* Rimuove il feedback visivo di default su mobile */
-  }
-
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
 
 .casino-button:hover {
   background: linear-gradient(135deg, #ff8c00, #ff4500);
@@ -89,7 +222,7 @@ canvas {
   left: 100%;
 }
 
-/* Stile per le carte - Default per desktop */
+/* Stile per le carte */
 .card {
   width: 100px;
   height: 150px;
@@ -119,7 +252,7 @@ canvas {
   box-shadow: 0 12px 24px rgba(255, 204, 0, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.5);
 }
 
-/* Stile per la slot machine - Default per desktop */
+/* Stile per la slot machine */
 .slot-machine {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 4px solid #ffcc00;
@@ -147,7 +280,7 @@ canvas {
   z-index: 1;
 }
 
-/* Stile per ogni rullo - Default per desktop */
+/* Stile per ogni rullo */
 .slot-reel {
   width: 90px;
   height: 90px;
@@ -199,7 +332,7 @@ canvas {
   100% { transform: scale(1.05); box-shadow: 0 0 20px #ffcc00; }
 }
 
-/* Stile per la tabella dei pagamenti - Default per desktop */
+/* Stile per la tabella dei pagamenti */
 .payout-table {
   min-width: 200px;
   max-width: 300px;
@@ -231,6 +364,8 @@ canvas {
 }
 
 .payout-table h3 {
+  font-family: 'Aleo', sans-serif !important;
+  font-weight: 700;
   color: #ffcc00;
   text-align: center;
   margin-bottom: 15px;
@@ -254,13 +389,13 @@ canvas {
 .payout-table th {
   background: #2a2a4e;
   color: #00f7ff;
-  font-weight: bold;
+  font-weight: 700; /* Aleo Bold */
   text-transform: uppercase;
 }
 
 .payout-table td {
   color: #ff9500;
-  font-weight: 500;
+  font-weight: 500; /* Aleo Medium */
 }
 
 .payout-table tr:last-child th,
@@ -272,7 +407,7 @@ canvas {
   background: rgba(255, 204, 0, 0.1);
 }
 
-/* Stile per la moneta di Coin Flip - Default per desktop */
+/* Stile per la moneta di Coin Flip */
 .coin {
   width: 120px;
   height: 120px;
@@ -302,7 +437,7 @@ canvas {
   100% { transform: rotateY(2160deg) translateZ(0px); }
 }
 
-/* Stile per i box dei giochi - Default per desktop */
+/* Stile per i box dei giochi */
 .game-box {
   background: linear-gradient(135deg, #2a4066, #1e1e2f);
   border: 4px solid #ffcc00;
@@ -331,15 +466,16 @@ canvas {
   box-shadow: 0 15px 30px rgba(255, 204, 0, 0.8);
 }
 
-/* Stile per l'input del bet - Default per desktop */
+/* Stile per l'input del bet */
 .bet-input {
   background: linear-gradient(135deg, #ff4500, #ff8c00);
   border: 2px solid #ffcc00;
   border-radius: 8px;
   padding: 8px 12px;
   color: #ffffff;
+  font-family: 'Aleo', sans-serif !important;
   font-size: 1rem;
-  font-weight: bold;
+  font-weight: 500; /* Aleo Medium */
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.3);
   transition: all 0.3s ease;
   width: 150px;
@@ -365,7 +501,7 @@ canvas {
   text-align: center;
 }
 
-/* Stile per la ruota di Crazy Time - Default per desktop */
+/* Stile per la ruota di Crazy Time */
 .wheel-container {
   position: relative;
   display: inline-block;
@@ -401,16 +537,17 @@ canvas {
 }
 
 .wheel text {
-  font-family: 'Arial', sans-serif;
-  font-weight: bold;
+  font-family: 'Aleo', sans-serif !important;
+  font-weight: 700; /* Aleo Bold */
   fill: #fff;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .wheel .multiplier-text {
+  font-family: 'Aleo', sans-serif !important;
+  font-weight: 700;
   font-size: 14px;
   fill: #fff;
-  font-weight: bold;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
@@ -437,13 +574,13 @@ canvas {
   color: #ffcc00;
   padding: 5px 10px;
   border-radius: 5px;
-  font-weight: bold;
+  font-weight: 700; /* Aleo Bold */
   font-size: 1.2rem;
   border: 2px solid #ffcc00;
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
 }
 
-/* Stile per il round bonus Coin Flip - Default per desktop */
+/* Stile per il round bonus Coin Flip */
 .coin-flip {
   display: flex;
   justify-content: center;
@@ -458,7 +595,7 @@ canvas {
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-weight: bold;
+  font-weight: 700; /* Aleo Bold */
   font-size: 1.2rem;
   border: 3px solid #ffcc00;
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
@@ -476,7 +613,7 @@ canvas {
   animation: flipCoin 2s ease-in-out forwards;
 }
 
-/* Stile per il round bonus Pachinko - Default per desktop */
+/* Stile per il round bonus Pachinko */
 .pachinko-board {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 4px solid #ffcc00;
@@ -518,7 +655,7 @@ canvas {
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-weight: bold;
+  font-weight: 700; /* Aleo Bold */
 }
 
 .pachinko-board .slot.highlight {
@@ -537,7 +674,7 @@ canvas {
   100% { box-shadow: 0 0 15px #ffcc00; }
 }
 
-/* Stile per il round bonus Cash Hunt - Default per desktop */
+/* Stile per il round bonus Cash Hunt */
 .cash-hunt-board {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 4px solid #ffcc00;
@@ -552,7 +689,7 @@ canvas {
   font-size: 1.1rem;
 }
 
-/* Stile per il round bonus Crazy Time - Default per desktop */
+/* Stile per il round bonus Crazy Time */
 .crazy-time-board {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 4px solid #ffcc00;
@@ -567,7 +704,7 @@ canvas {
   font-size: 1.1rem;
 }
 
-/* Stile per la chat simulata - Default per desktop */
+/* Stile per la chat simulata */
 .chat-box {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 2px solid #ffcc00;
@@ -584,7 +721,7 @@ canvas {
   font-size: 0.9rem;
 }
 
-/* Stile per il presentatore - Default per desktop */
+/* Stile per il presentatore */
 .presenter {
   position: relative;
   width: 100px;
@@ -613,16 +750,16 @@ table {
 /* Media Queries per Mobile */
 @media (max-width: 768px) {
   body {
-    padding: 20px; /* Ridotto per mobile */
+    padding: 20px;
   }
 
   canvas {
-    height: 400px; /* Ridotto per mobile */
+    height: 400px;
   }
 
   @keyframes neon-glow {
     0% { box-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc; }
-    50% { box-shadow: 0 0 15px #00ffcc, 0 0 20px #00ffcc; } /* Ridotto per mobile */
+    50% { box-shadow: 0 0 15px #00ffcc, 0 0 20px #00ffcc; }
     100% { box-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc; }
   }
 
