@@ -2,12 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definizione delle varianti di Aleo */
+/* Definizione delle varianti di Aleo (ridotte per performance) */
 @font-face {
   font-family: 'Aleo';
   src: url('/fonts/Aleo-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -15,6 +16,7 @@
   src: url('/fonts/Aleo-Italic.ttf') format('truetype');
   font-weight: 400;
   font-style: italic;
+  font-display: swap;
 }
 
 @font-face {
@@ -22,6 +24,7 @@
   src: url('/fonts/Aleo-Bold.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -29,48 +32,7 @@
   src: url('/fonts/Aleo-BoldItalic.ttf') format('truetype');
   font-weight: 700;
   font-style: italic;
-}
-
-@font-face {
-  font-family: 'Aleo';
-  src: url('/fonts/Aleo-Black.ttf') format('truetype');
-  font-weight: 900;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Aleo';
-  src: url('/fonts/Aleo-BlackItalic.ttf') format('truetype');
-  font-weight: 900;
-  font-style: italic;
-}
-
-@font-face {
-  font-family: 'Aleo';
-  src: url('/fonts/Aleo-ExtraBold.ttf') format('truetype');
-  font-weight: 800;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Aleo';
-  src: url('/fonts/Aleo-ExtraBoldItalic.ttf') format('truetype');
-  font-weight: 800;
-  font-style: italic;
-}
-
-@font-face {
-  font-family: 'Aleo';
-  src: url('/fonts/Aleo-SemiBold.ttf') format('truetype');
-  font-weight: 600;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Aleo';
-  src: url('/fonts/Aleo-SemiBoldItalic.ttf') format('truetype');
-  font-weight: 600;
-  font-style: italic;
+  font-display: swap;
 }
 
 @font-face {
@@ -78,13 +40,7 @@
   src: url('/fonts/Aleo-Medium.ttf') format('truetype');
   font-weight: 500;
   font-style: normal;
-}
-
-@font-face {
-  font-family: 'Aleo';
-  src: url('/fonts/Aleo-MediumItalic.ttf') format('truetype');
-  font-weight: 500;
-  font-style: italic;
+  font-display: swap;
 }
 
 @font-face {
@@ -92,53 +48,22 @@
   src: url('/fonts/Aleo-Light.ttf') format('truetype');
   font-weight: 300;
   font-style: normal;
-}
-
-@font-face {
-  font-family: 'Aleo';
-  src: url('/fonts/Aleo-LightItalic.ttf') format('truetype');
-  font-weight: 300;
-  font-style: italic;
-}
-
-@font-face {
-  font-family: 'Aleo';
-  src: url('/fonts/Aleo-ExtraLight.ttf') format('truetype');
-  font-weight: 200;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Aleo';
-  src: url('/fonts/Aleo-ExtraLightItalic.ttf') format('truetype');
-  font-weight: 200;
-  font-style: italic;
-}
-
-@font-face {
-  font-family: 'Aleo';
-  src: url('/fonts/Aleo-Thin.ttf') format('truetype');
-  font-weight: 100;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Aleo';
-  src: url('/fonts/Aleo-ThinItalic.ttf') format('truetype');
-  font-weight: 100;
-  font-style: italic;
+  font-display: swap;
 }
 
 /* Applica Aleo globalmente */
+html, body, .game-box, .slot-machine, .wheel-container {
+  overscroll-behavior-y: none; /* Previene pull-to-refresh */
+}
+
 body {
   font-family: 'Aleo', sans-serif;
   margin: 0;
   padding: 40px;
   color: #f7f2f2;
-  background: url('/my-background.jpg') no-repeat center center fixed;
+  background: url('/my-background.webp') no-repeat center center fixed; /* Usa WebP per performance */
   background-size: cover;
   overflow-x: hidden;
-  overscroll-behavior-y: none;
 }
 
 * {
@@ -148,7 +73,8 @@ body {
 /* Stili per componenti React */
 canvas {
   width: 100% !important;
-  height: 600px;
+  height: 60vh; /* Altezza dinamica */
+  max-height: 500px;
 }
 
 @keyframes casinoBackground {
@@ -158,33 +84,31 @@ canvas {
 }
 
 @keyframes neon-glow {
-  0% { box-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc; }
-  50% { box-shadow: 0 0 20px #00ffcc, 0 0 30px #00ffcc; }
-  100% { box-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc; }
+  0% { box-shadow: 0 0 5px #00ffcc; }
+  50% { box-shadow: 0 0 10px #00ffcc; }
+  100% { box-shadow: 0 0 5px #00ffcc; }
 }
 
 /* Stile per le intestazioni */
 .header-box {
   background: linear-gradient(135deg, #4d0101, #850000);
-  border: 2px solid #ffcc00; /* Ridotto da 4px a 2px */
+  border: 2px solid #ffcc00;
   border-radius: 12px;
   padding: 10px 20px;
   display: inline-block;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-  font-family: 'Aleo', sans-serif !important;
-  font-weight: 700; /* Aleo Bold */
+  font-weight: 700;
 }
 
 /* Stile per i pulsanti a tema casinò */
 .casino-button {
   background: linear-gradient(135deg, #ff4500, #ff8c00);
-  border: 2px solid #ffcc00; /* Ridotto da 4px a 2px */
+  border: 2px solid #ffcc00;
   border-radius: 12px;
   padding: 12px 24px;
   color: #ffffff;
-  font-family: 'Aleo', sans-serif !important;
   font-size: 1.25rem;
-  font-weight: 700; /* Aleo Bold */
+  font-weight: 700;
   text-transform: uppercase;
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.3);
   transition: all 0.3s ease;
@@ -192,12 +116,18 @@ canvas {
   overflow: hidden;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  will-change: transform, box-shadow; /* Ottimizza animazioni */
 }
 
 .casino-button:hover {
   background: linear-gradient(135deg, #ff8c00, #ff4500);
   box-shadow: 0 0 20px rgba(255, 204, 0, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.5);
   transform: scale(1.05);
+}
+
+.casino-button:active {
+  transform: scale(0.95); /* Feedback per tocco */
+  box-shadow: 0 0 15px rgba(255, 204, 0, 0.8);
 }
 
 .casino-button:disabled {
@@ -230,10 +160,11 @@ canvas {
   border-radius: 8px;
   transform-style: preserve-3d;
   transition: transform 0.5s ease, box-shadow 0.3s ease;
-  border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
+  border: 2px solid #ffcc00;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.3);
   position: relative;
   overflow: hidden;
+  will-change: transform, box-shadow;
 }
 
 .card::before {
@@ -255,7 +186,7 @@ canvas {
 /* Stile per la slot machine */
 .slot-machine {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
-  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
+  border: 3px solid #ffcc00;
   border-radius: 16px;
   padding: 15px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 204, 0, 0.3);
@@ -287,12 +218,13 @@ canvas {
   background-size: cover;
   background-position: center;
   border-radius: 8px;
-  border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
+  border: 1px solid #ffcc00;
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
   position: relative;
   overflow: hidden;
   transition: background-image 0.05s ease-out, transform 0.1s ease-out;
   z-index: 2;
+  will-change: transform, box-shadow;
 }
 
 .slot-reel.spinning {
@@ -300,8 +232,8 @@ canvas {
 }
 
 @keyframes spinReel {
-  0% { transform: translateY(-100%); filter: blur(4px); }
-  100% { transform: translateY(0); filter: blur(4px); }
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(0); }
 }
 
 .slot-reel.stopping {
@@ -309,8 +241,8 @@ canvas {
 }
 
 @keyframes stopReel {
-  0% { transform: translateY(-50%); filter: blur(4px); }
-  100% { transform: translateY(0); filter: blur(0); }
+  0% { transform: translateY(-50%); }
+  100% { transform: translateY(0); }
 }
 
 .slot-machine.winning .slot-reel {
@@ -323,7 +255,7 @@ canvas {
 }
 
 .slot-reel.winning {
-  border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
+  border: 2px solid #ffcc00;
   animation: winningPulse 0.5s infinite alternate;
 }
 
@@ -337,7 +269,7 @@ canvas {
   min-width: 200px;
   max-width: 300px;
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
-  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
+  border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 15px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 204, 0, 0.3);
@@ -364,7 +296,6 @@ canvas {
 }
 
 .payout-table h3 {
-  font-family: 'Aleo', sans-serif !important;
   font-weight: 700;
   color: #ffcc00;
   text-align: center;
@@ -389,13 +320,13 @@ canvas {
 .payout-table th {
   background: #2a2a4e;
   color: #00f7ff;
-  font-weight: 700; /* Aleo Bold */
+  font-weight: 700;
   text-transform: uppercase;
 }
 
 .payout-table td {
   color: #ff9500;
-  font-weight: 500; /* Aleo Medium */
+  font-weight: 500;
 }
 
 .payout-table tr:last-child th,
@@ -415,8 +346,9 @@ canvas {
   transform-style: preserve-3d;
   transition: transform 0.5s ease, box-shadow 0.3s ease;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 255, 255, 0.2);
-  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
+  border: 3px solid #ffcc00;
   position: relative;
+  will-change: transform, box-shadow;
 }
 
 .coin.blue {
@@ -440,7 +372,7 @@ canvas {
 /* Stile per i box dei giochi */
 .game-box {
   background: linear-gradient(135deg, #2a4066, #1e1e2f);
-  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
+  border: 3px solid #ffcc00;
   border-radius: 16px;
   transform: perspective(1000px) rotateX(5deg);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -469,13 +401,12 @@ canvas {
 /* Stile per l'input del bet */
 .bet-input {
   background: linear-gradient(135deg, #ff4500, #ff8c00);
-  border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
+  border: 1px solid #ffcc00;
   border-radius: 8px;
   padding: 8px 12px;
   color: #ffffff;
-  font-family: 'Aleo', sans-serif !important;
   font-size: 1rem;
-  font-weight: 500; /* Aleo Medium */
+  font-weight: 500;
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.3);
   transition: all 0.3s ease;
   width: 150px;
@@ -537,14 +468,12 @@ canvas {
 }
 
 .wheel text {
-  font-family: 'Aleo', sans-serif !important;
-  font-weight: 700; /* Aleo Bold */
+  font-weight: 700;
   fill: #fff;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .wheel .multiplier-text {
-  font-family: 'Aleo', sans-serif !important;
   font-weight: 700;
   font-size: 14px;
   fill: #fff;
@@ -574,9 +503,9 @@ canvas {
   color: #ffcc00;
   padding: 5px 10px;
   border-radius: 5px;
-  font-weight: 700; /* Aleo Bold */
+  font-weight: 700;
   font-size: 1.2rem;
-  border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
+  border: 1px solid #ffcc00;
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
 }
 
@@ -595,9 +524,9 @@ canvas {
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-weight: 700; /* Aleo Bold */
+  font-weight: 700;
   font-size: 1.2rem;
-  border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
+  border: 2px solid #ffcc00;
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
 }
 
@@ -616,7 +545,7 @@ canvas {
 /* Stile per il round bonus Pachinko */
 .pachinko-board {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
-  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
+  border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 20px;
   color: #e0e0e0;
@@ -650,12 +579,12 @@ canvas {
   width: 60px;
   height: 40px;
   background: #333;
-  border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
+  border: 1px solid #ffcc00;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-weight: 700; /* Aleo Bold */
+  font-weight: 700;
 }
 
 .pachinko-board .slot.highlight {
@@ -677,7 +606,7 @@ canvas {
 /* Stile per il round bonus Cash Hunt */
 .cash-hunt-board {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
-  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
+  border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 20px;
   color: #e0e0e0;
@@ -692,7 +621,7 @@ canvas {
 /* Stile per il round bonus Crazy Time */
 .crazy-time-board {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
-  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
+  border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 20px;
   color: #e0e0e0;
@@ -707,7 +636,7 @@ canvas {
 /* Stile per la chat simulata */
 .chat-box {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
-  border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
+  border: 1px solid #ffcc00;
   border-radius: 8px;
   padding: 10px;
   margin-top: 20px;
@@ -751,16 +680,18 @@ table {
 @media (max-width: 768px) {
   body {
     padding: 20px;
+    background: linear-gradient(135deg, #1a1a2e, #2a2a4e); /* Fallback per performance */
   }
 
   canvas {
-    height: 400px;
+    height: 50vh;
+    max-height: 400px;
   }
 
   @keyframes neon-glow {
-    0% { box-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc; }
-    50% { box-shadow: 0 0 15px #00ffcc, 0 0 20px #00ffcc; }
-    100% { box-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc; }
+    0% { box-shadow: 0 0 3px #00ffcc; }
+    50% { box-shadow: 0 0 8px #00ffcc; }
+    100% { box-shadow: 0 0 3px #00ffcc; }
   }
 
   .header-box {
@@ -786,7 +717,7 @@ table {
   .card {
     width: 70px;
     height: 100px;
-    border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
+    border: 1px solid #ffcc00;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6), inset 0 0 5px rgba(255, 255, 255, 0.3);
   }
 
@@ -796,7 +727,7 @@ table {
   }
 
   .slot-machine {
-    border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
+    border: 2px solid #ffcc00;
     padding: 10px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
     max-width: 320px;
@@ -806,7 +737,7 @@ table {
     width: 50px;
     height: 50px;
     border-radius: 6px;
-    border: 1px solid #ffcc00; /* Già 1px */
+    border: 1px solid #ffcc00;
     box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
   }
 
@@ -815,8 +746,8 @@ table {
   }
 
   @keyframes spinReelMobile {
-    0% { transform: translateY(-100%); filter: blur(2px); }
-    100% { transform: translateY(0); filter: blur(2px); }
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(0); }
   }
 
   .slot-reel.stopping {
@@ -824,8 +755,8 @@ table {
   }
 
   @keyframes stopReelMobile {
-    0% { transform: translateY(-50%); filter: blur(2px); }
-    100% { transform: translateY(0); filter: blur(0); }
+    0% { transform: translateY(-50%); }
+    100% { transform: translateY(0); }
   }
 
   .slot-machine.winning .slot-reel {
@@ -838,7 +769,7 @@ table {
   }
 
   .slot-reel.winning {
-    border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
+    border: 1px solid #ffcc00;
     animation: winningPulseMobile 0.5s infinite alternate;
   }
 
@@ -850,7 +781,7 @@ table {
   .payout-table {
     width: 100%;
     max-width: 280px;
-    border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
+    border: 2px solid #ffcc00;
     padding: 10px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
     transform: none;
@@ -874,7 +805,7 @@ table {
     width: 80px;
     height: 80px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
-    border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
+    border: 2px solid #ffcc00;
   }
 
   .coin.flipping {
@@ -888,7 +819,7 @@ table {
   }
 
   .game-box {
-    border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
+    border: 2px solid #ffcc00;
     padding: 1rem;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
     transform: none;
@@ -938,7 +869,7 @@ table {
     width: 100%;
     max-width: 300px;
     height: 200px;
-    border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
+    border: 2px solid #ffcc00;
     padding: 15px;
   }
 
