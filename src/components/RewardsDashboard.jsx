@@ -3061,15 +3061,15 @@ const evaluateResult = (result) => {
         />
       </header>
 
-          {/* Pulsante per controllare la musica (più piccolo) */}
-    <div className="flex justify-center mt-4 mb-4">
-      <button
-        onClick={toggleMusic}
-        className="casino-button text-xs py-0.5 px-1" // Pulsante più piccolo
-      >
-        {isMusicPlaying ? 'Mute Music' : 'Play Music'}
-      </button>
-    </div>
+         {/* Pulsante per controllare la musica (più piccolo) */}
+         <div className="flex justify-end mt-4 mb-4">
+  <button
+    onClick={toggleMusic}
+    className="casino-button text-xs py-0.5 px-1"
+  >
+    {isMusicPlaying ? 'Mute Music' : 'Play Music'}
+  </button>
+</div>
 
       {/* Aggiungiamo un margine superiore al contenuto per evitare sovrapposizioni */}
         {loading ? (
