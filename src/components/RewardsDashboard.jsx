@@ -21,7 +21,7 @@ import axios from 'axios';
 import { VersionedTransaction, TransactionMessage } from '@solana/web3.js';
 
 // File audio
-const backgroundMusic = '/crazy-time-background.mp3';
+const backgroundMusic = '/audio.mp3';
 const spinSound = '/spin-sound.mp3';
 const winSound = '/win-sound.mp3';
 
@@ -1041,6 +1041,33 @@ const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
 
 
 
+  // Avvia la musica automaticamente al caricamento della dApp
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.play().then(() => {
+        setIsMusicPlaying(true);
+      }).catch((err) => {
+        console.error("Autoplay bloccato:", err);
+        // Fallback: l'utente dovrà avviare manualmente la musica
+        setIsMusicPlaying(false);
+      });
+    }
+  }, []);
+
+  // Funzione per controllare la musica
+  const toggleMusic = () => {
+    if (audioRef.current) {
+      if (isMusicPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play().catch((err) => console.error("Errore durante la riproduzione:", err));
+      }
+      setIsMusicPlaying(!isMusicPlaying);
+    }
+  };
+
+
+
 
   
 
@@ -1390,6 +1417,7 @@ useEffect(() => {
     }
   };
 
+ 
 
   const handleBetChange = (e) => {
     const value = parseFloat(e.target.value);
@@ -1397,14 +1425,7 @@ useEffect(() => {
     setBetError(validateBet(value));
   };
 
-  const toggleMusic = () => {
-    if (isMusicPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
-    setIsMusicPlaying(!isMusicPlaying);
-  };
+
 
   const updateMissionProgress = (missionId, increment = 1) => {
     setMissions(prev => {
@@ -3039,6 +3060,16 @@ const evaluateResult = (result) => {
           style={{ height: '64px', width: 'auto', marginLeft: '-20px' }} // Sposta di 20px a sinistra
         />
       </header>
+
+          {/* Pulsante per controllare la musica (più piccolo) */}
+    <div className="flex justify-center mt-4 mb-4">
+      <button
+        onClick={toggleMusic}
+        className="casino-button text-xs py-0.5 px-1" // Pulsante più piccolo
+      >
+        {isMusicPlaying ? 'Mute Music' : 'Play Music'}
+      </button>
+    </div>
 
       {/* Aggiungiamo un margine superiore al contenuto per evitare sovrapposizioni */}
         {loading ? (
