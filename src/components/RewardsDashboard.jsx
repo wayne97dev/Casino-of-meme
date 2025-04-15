@@ -3254,7 +3254,7 @@ const evaluateResult = (result) => {
       </div>
       <div className="flex flex-wrap gap-20 justify-center">
         <a
-          href="https://t.me/your-telegram-link" // Sostituisci con il tuo link
+          href="https://t.me/Casinofmeme" // Sostituisci con il tuo link
           target="_blank"
           rel="noopener noreferrer"
           className="casino-button w-24 mx-6 text-center"
@@ -3262,7 +3262,7 @@ const evaluateResult = (result) => {
           Telegram
         </a>
         <a
-          href="https://x.com/your-twitter-handle" // Sostituisci con il tuo link
+          href="https://x.com/CasinofmemeSOL" // Sostituisci con il tuo link
           target="_blank"
           rel="noopener noreferrer"
           className="casino-button w-24 mx-6 text-center"
@@ -3278,7 +3278,7 @@ const evaluateResult = (result) => {
           Dextools
         </a>
         <a
-          href="https://your-gitbook-link.gitbook.io" // Sostituisci con il tuo link
+          href="https://casinoofmemes-organization.gitbook.io/thesolanacasino" // Sostituisci con il tuo link
           target="_blank"
           rel="noopener noreferrer"
           className="casino-button w-24 mx-6 text-center"
