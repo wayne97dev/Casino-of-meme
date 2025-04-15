@@ -426,6 +426,7 @@ const CrazyTimeWheel = ({ position, gameName, onClick }) => {
   );
 };
 
+
 // Componente per il Coin Flip
 const CoinFlip = ({ position, gameName, onClick }) => {
   const group = useRef();
@@ -987,6 +988,7 @@ const RewardsDashboard = () => {
   const [minBet, setMinBet] = useState(MIN_BET_OTHER); // Default a 0.01 SOL
   const [betAmount, setBetAmount] = useState(MIN_BET_OTHER); // Default a 0.01 SOL
   const [betError, setBetError] = useState(null);
+  const [showWinImage, setShowWinImage] = useState(false);
 
 
 
@@ -1038,6 +1040,10 @@ const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
   const spinAudioRef = useRef(null); // Aggiunto
   const winAudioRef = useRef(null);  // Aggiunto
   const wheelRef = useRef(null);
+
+
+
+
 
 
 
@@ -1137,6 +1143,8 @@ const validateBet = (amount, game = selectedGame) => {
   }
   return null;
 };
+
+
 
 
   // Stato per le missioni e la classifica
@@ -1364,6 +1372,17 @@ useEffect(() => {
 
 
 
+useEffect(() => {
+  if (triggerWinEffect) {
+    setShowWinImage(true);
+    const timer = setTimeout(() => {
+      setShowWinImage(false);
+      setTriggerWinEffect(false); // Resetta triggerWinEffect
+    }, 3000);
+    return () => clearTimeout(timer);
+  }
+}, [triggerWinEffect]);
+
 
 
 
@@ -1380,6 +1399,10 @@ useEffect(() => {
       console.error('Error fetching leaderboard:', err);
     }
   };
+
+
+
+    
 
   // Carica la leaderboard all'avvio
   fetchLeaderboard();
@@ -3050,6 +3073,19 @@ const evaluateResult = (result) => {
       <audio ref={audioRef} src={backgroundMusic} loop />
       <audio ref={spinAudioRef} src={spinSound} />
       <audio ref={winAudioRef} src={winSound} />
+
+      {showWinImage && (
+  <div className="win-image-container">
+    {console.log('DEBUG - Rendering win image')}
+    <img
+      src="/assets/win-image.png"
+      alt="You Win!"
+      className="win-image"
+      onError={(e) => console.error('DEBUG - Win image failed to load:', e)}
+      onLoad={() => console.log('DEBUG - Win image loaded successfully')}
+    />
+  </div>
+)}
 
       {/* Header fisso in alto con solo la GIF */}
       <header className="flex justify-center items-center m-0 p-0">

@@ -671,6 +671,45 @@ canvas {
   100% { transform: translateY(0); }
 }
 
+
+/* Stile per il contenitore dell'immagine di vincita */
+.win-image-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000; /* Sopra tutti gli altri elementi */
+  pointer-events: none; /* Non interferisce con i click */
+}
+
+/* Stile per l'immagine di vincita */
+.win-image {
+  width: 300px; /* Regola la dimensione come preferisci */
+  height: auto;
+  opacity: 0;
+  animation: winAnimation 3s ease-in-out;
+}
+
+/* Animazione per l'apparizione e scomparsa */
+@keyframes winAnimation {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
 /* Mantieni il colore bianco per i testi dentro le tabelle */
 table {
   color: #e0e0e0;
@@ -956,4 +995,6 @@ table {
     0% { top: 0; }
     100% { top: 140px; }
   }
+
+  
 }
