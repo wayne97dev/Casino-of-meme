@@ -61,7 +61,7 @@ body {
   margin: 0;
   padding: 40px;
   color: #f7f2f2;
-  background: url('/my-background.webp') no-repeat center center fixed; /* Usa WebP per performance */
+  background: url('/my-background.png') no-repeat center center fixed; 
   background-size: cover;
   overflow-x: hidden;
 }

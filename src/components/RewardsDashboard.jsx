@@ -66,7 +66,7 @@ const socket = io(BACKEND_URL, {
 const COMPUTER_WIN_CHANCE = {
   cardDuel: 0.8,
   memeSlots: 0.92,
-  coinFlip: 0.8,
+  coinFlip: 0.9,
   crazyTime: 0.9,
 };
 
