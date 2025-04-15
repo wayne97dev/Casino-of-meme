@@ -64,10 +64,10 @@ const socket = io(BACKEND_URL, {
 
 // Percentuale di vittoria del computer per ogni minigioco
 const COMPUTER_WIN_CHANCE = {
-  cardDuel: 0.7,
+  cardDuel: 0.8,
   memeSlots: 0.92,
-  coinFlip: 0.6,
-  crazyTime: 0.8,
+  coinFlip: 0.8,
+  crazyTime: 0.9,
 };
 
 // Mazzo per Solana Card Duel
