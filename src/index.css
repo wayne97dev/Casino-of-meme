@@ -166,7 +166,7 @@ canvas {
 /* Stile per le intestazioni */
 .header-box {
   background: linear-gradient(135deg, #4d0101, #850000);
-  border: 2px solid #ffcc00;
+  border: 2px solid #ffcc00; /* Ridotto da 4px a 2px */
   border-radius: 12px;
   padding: 10px 20px;
   display: inline-block;
@@ -178,7 +178,7 @@ canvas {
 /* Stile per i pulsanti a tema casinò */
 .casino-button {
   background: linear-gradient(135deg, #ff4500, #ff8c00);
-  border: 2px solid #ffcc00;
+  border: 2px solid #ffcc00; /* Ridotto da 4px a 2px */
   border-radius: 12px;
   padding: 12px 24px;
   color: #ffffff;
@@ -230,7 +230,7 @@ canvas {
   border-radius: 8px;
   transform-style: preserve-3d;
   transition: transform 0.5s ease, box-shadow 0.3s ease;
-  border: 3px solid #ffcc00;
+  border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.3);
   position: relative;
   overflow: hidden;
@@ -255,7 +255,7 @@ canvas {
 /* Stile per la slot machine */
 .slot-machine {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
-  border: 4px solid #ffcc00;
+  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
   border-radius: 16px;
   padding: 15px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 204, 0, 0.3);
@@ -287,7 +287,7 @@ canvas {
   background-size: cover;
   background-position: center;
   border-radius: 8px;
-  border: 2px solid #ffcc00;
+  border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
   position: relative;
   overflow: hidden;
@@ -323,7 +323,7 @@ canvas {
 }
 
 .slot-reel.winning {
-  border: 3px solid #ffcc00;
+  border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
   animation: winningPulse 0.5s infinite alternate;
 }
 
@@ -337,7 +337,7 @@ canvas {
   min-width: 200px;
   max-width: 300px;
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
-  border: 4px solid #ffcc00;
+  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
   border-radius: 12px;
   padding: 15px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 204, 0, 0.3);
@@ -415,7 +415,7 @@ canvas {
   transform-style: preserve-3d;
   transition: transform 0.5s ease, box-shadow 0.3s ease;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 255, 255, 0.2);
-  border: 4px solid #ffcc00;
+  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
   position: relative;
 }
 
@@ -440,7 +440,7 @@ canvas {
 /* Stile per i box dei giochi */
 .game-box {
   background: linear-gradient(135deg, #2a4066, #1e1e2f);
-  border: 4px solid #ffcc00;
+  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
   border-radius: 16px;
   transform: perspective(1000px) rotateX(5deg);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -469,7 +469,7 @@ canvas {
 /* Stile per l'input del bet */
 .bet-input {
   background: linear-gradient(135deg, #ff4500, #ff8c00);
-  border: 2px solid #ffcc00;
+  border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
   border-radius: 8px;
   padding: 8px 12px;
   color: #ffffff;
@@ -576,7 +576,7 @@ canvas {
   border-radius: 5px;
   font-weight: 700; /* Aleo Bold */
   font-size: 1.2rem;
-  border: 2px solid #ffcc00;
+  border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
 }
 
@@ -597,7 +597,7 @@ canvas {
   color: #fff;
   font-weight: 700; /* Aleo Bold */
   font-size: 1.2rem;
-  border: 3px solid #ffcc00;
+  border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
 }
 
@@ -616,7 +616,7 @@ canvas {
 /* Stile per il round bonus Pachinko */
 .pachinko-board {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
-  border: 4px solid #ffcc00;
+  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
   border-radius: 12px;
   padding: 20px;
   color: #e0e0e0;
@@ -650,7 +650,7 @@ canvas {
   width: 60px;
   height: 40px;
   background: #333;
-  border: 2px solid #ffcc00;
+  border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -677,7 +677,7 @@ canvas {
 /* Stile per il round bonus Cash Hunt */
 .cash-hunt-board {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
-  border: 4px solid #ffcc00;
+  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
   border-radius: 12px;
   padding: 20px;
   color: #e0e0e0;
@@ -692,7 +692,7 @@ canvas {
 /* Stile per il round bonus Crazy Time */
 .crazy-time-board {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
-  border: 4px solid #ffcc00;
+  border: 3px solid #ffcc00; /* Ridotto da 4px a 3px */
   border-radius: 12px;
   padding: 20px;
   color: #e0e0e0;
@@ -707,7 +707,7 @@ canvas {
 /* Stile per la chat simulata */
 .chat-box {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
-  border: 2px solid #ffcc00;
+  border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
   border-radius: 8px;
   padding: 10px;
   margin-top: 20px;
@@ -786,7 +786,7 @@ table {
   .card {
     width: 70px;
     height: 100px;
-    border: 2px solid #ffcc00;
+    border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6), inset 0 0 5px rgba(255, 255, 255, 0.3);
   }
 
@@ -796,7 +796,7 @@ table {
   }
 
   .slot-machine {
-    border: 3px solid #ffcc00;
+    border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
     padding: 10px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
     max-width: 320px;
@@ -806,7 +806,7 @@ table {
     width: 50px;
     height: 50px;
     border-radius: 6px;
-    border: 2px solid #ffcc00;
+    border: 1px solid #ffcc00; /* Già 1px */
     box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
   }
 
@@ -838,7 +838,7 @@ table {
   }
 
   .slot-reel.winning {
-    border: 2px solid #ffcc00;
+    border: 1px solid #ffcc00; /* Ridotto da 2px a 1px */
     animation: winningPulseMobile 0.5s infinite alternate;
   }
 
@@ -850,7 +850,7 @@ table {
   .payout-table {
     width: 100%;
     max-width: 280px;
-    border: 3px solid #ffcc00;
+    border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
     padding: 10px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
     transform: none;
@@ -874,7 +874,7 @@ table {
     width: 80px;
     height: 80px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
-    border: 3px solid #ffcc00;
+    border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
   }
 
   .coin.flipping {
@@ -888,7 +888,7 @@ table {
   }
 
   .game-box {
-    border: 3px solid #ffcc00;
+    border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
     padding: 1rem;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
     transform: none;
@@ -938,7 +938,7 @@ table {
     width: 100%;
     max-width: 300px;
     height: 200px;
-    border: 3px solid #ffcc00;
+    border: 2px solid #ffcc00; /* Ridotto da 3px a 2px */
     padding: 15px;
   }
 

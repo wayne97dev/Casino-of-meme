@@ -3241,10 +3241,12 @@ const evaluateResult = (result) => {
               <CasinoScene
                 onSelectGame={setSelectedGame}
                 triggerWinEffect={triggerWinEffect}
-              />
-{/* Nuova sezione per Contract e Social Links */}
-{/* Nuova sezione per Contract e Social Links */}
-<div className="game-box p-6 mt-10 mb-10 max-w-lg mx-auto">
+                className="mb-20" // Aggiunto margine inferiore
+/>
+              
+
+{/* Nuova sezione per Contract e Social Links con più spazio sopra */}
+<div className="game-box p-6 mt-30 mb-10 max-w-lg mx-auto"> {/* Aumentato da mt-10 a mt-20 */}
       <div className="flex justify-center mb-4">
         <p className="text-lg text-orange-700">
           Contract: <span className="text-cyan-400">TBA (To Be Announced)</span>
@@ -3252,7 +3254,7 @@ const evaluateResult = (result) => {
       </div>
       <div className="flex flex-wrap gap-20 justify-center">
         <a
-          href="https://t.me/Casinofmeme" // Sostituisci con il tuo link
+          href="https://t.me/your-telegram-link" // Sostituisci con il tuo link
           target="_blank"
           rel="noopener noreferrer"
           className="casino-button w-24 mx-6 text-center"
@@ -3260,7 +3262,7 @@ const evaluateResult = (result) => {
           Telegram
         </a>
         <a
-          href="https://x.com/CasinofmemeSOL" // Sostituisci con il tuo link
+          href="https://x.com/your-twitter-handle" // Sostituisci con il tuo link
           target="_blank"
           rel="noopener noreferrer"
           className="casino-button w-24 mx-6 text-center"
@@ -3276,7 +3278,7 @@ const evaluateResult = (result) => {
           Dextools
         </a>
         <a
-          href="https://casinoofmemes-organization.gitbook.io/thesolanacasino" // Sostituisci con il tuo link
+          href="https://your-gitbook-link.gitbook.io" // Sostituisci con il tuo link
           target="_blank"
           rel="noopener noreferrer"
           className="casino-button w-24 mx-6 text-center"
