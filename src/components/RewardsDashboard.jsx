@@ -902,8 +902,8 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       />
       <CrazyTimeWheel
         position={[2, -1, -16]}
-        gameName="Crazy Time"
-        onClick={() => handleSelectGame('Crazy Time')}
+        gameName="Crazy Wheel"
+        onClick={() => handleSelectGame('Crazy Wheel')}
       />
 
       <CasinoTable position={[-15, -1, -15]} />
@@ -3885,10 +3885,10 @@ const evaluateResult = (result) => {
          
 
              
-{selectedGame === 'Crazy Time' && (
+{selectedGame === 'Crazy Wheel' && (
                 <div>
                   <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
-                    Crazy Time
+                    Crazy Wheel
                   </h2>
                   <div className="mb-6 text-center">
                     <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
