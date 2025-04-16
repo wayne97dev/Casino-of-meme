@@ -4003,7 +4003,8 @@ const evaluateResult = (result) => {
                                       fontSize="14"
                                       fontWeight="bold"
                                       textAnchor="middle"
-                                      transform={`rotate(${textAngle + 90}, ${textX}, ${textY})`}
+                                      dominantBaseline="middle"
+                                      transform={`rotate(${textAngle}, ${textX}, ${textY})`} // Ruota il testo per allinearlo radialmente
                                     >
                                       {segment.value}
                                     </text>
