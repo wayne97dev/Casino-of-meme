@@ -26,14 +26,12 @@ const spinSound = '/spin-sound.mp3';
 const winSound = '/win-sound.mp3';
 
 const RPC_ENDPOINT = import.meta.env.VITE_RPC_ENDPOINT;
-const WALLET_PRIVATE_KEY = import.meta.env.VITE_WALLET_PRIVATE_KEY;
 const MINT_ADDRESS_RAW = import.meta.env.VITE_MINT_ADDRESS;
 
 console.log('DEBUG - RPC_ENDPOINT:', RPC_ENDPOINT);
-console.log('DEBUG - WALLET_PRIVATE_KEY:', WALLET_PRIVATE_KEY ? 'Present' : 'Not defined');
 console.log('DEBUG - MINT_ADDRESS_RAW:', MINT_ADDRESS_RAW);
 
-if (!RPC_ENDPOINT || !WALLET_PRIVATE_KEY || !MINT_ADDRESS_RAW) {
+if (!RPC_ENDPOINT ||  !MINT_ADDRESS_RAW) {
   console.error('ERROR - One or more environment variables are not defined in .env');
 }
 
@@ -46,7 +44,6 @@ const TOKEN_NAME = 'Casino of Meme';
 const TOKEN_SYMBOL = 'COM';
 
 const connection = RPC_ENDPOINT ? new Connection(RPC_ENDPOINT, 'confirmed') : null;
-const wallet = WALLET_PRIVATE_KEY ? Keypair.fromSecretKey(bs58.decode(WALLET_PRIVATE_KEY)) : null;
 
 const CARD_BACK_IMAGE = '/card-back.png';
 
@@ -1093,28 +1090,24 @@ const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
 
 
 
+    const fetchComBalance = async () => {
+      if (!connected || !publicKey) {
+        setComBalance(0);
+        return;
+      }
+  
+      try {
+        const userATA = await getAssociatedTokenAddress(MINT_ADDRESS, publicKey);
+        const balance = await connection.getTokenAccountBalance(userATA);
+        const comBalance = balance.value.uiAmount || 0;
+        setComBalance(comBalance);
+        console.log(`Fetched COM balance: ${comBalance} COM`);
+      } catch (err) {
+        console.error('Error fetching COM balance:', err);
+        setComBalance(0);
+      }
+    };
 
-// Funzione per recuperare il saldo COM
-const fetchComBalance = async () => {
-  if (!connected || !publicKey) {
-    setComBalance(0);
-    return;
-  }
-
-  try {
-    const userATA = await getAssociatedTokenAddress(
-      new PublicKey(MINT_ADDRESS_RAW), // Assicurati che MINT_ADDRESS_RAW sia definito
-      publicKey
-    );
-    const balance = await connection.getTokenAccountBalance(userATA);
-    const comBalance = balance.value.uiAmount || 0;
-    setComBalance(comBalance);
-    console.log(`Fetched COM balance: ${comBalance} COM`);
-  } catch (err) {
-    console.error('Error fetching COM balance:', err);
-    setComBalance(0); // Fallback in caso di errore
-  }
-};
 
 // Aggiorna betAmount al minBet iniziale
 useEffect(() => {
@@ -1215,38 +1208,30 @@ useEffect(() => {
     console.log('Distribute winnings:', { winnerAddress, amount });
     if (winnerAddress === publicKey?.toString()) {
       try {
-        const casinoATA = await getAssociatedTokenAddress(MINT_ADDRESS, wallet.publicKey);
-        const winnerATA = await getAssociatedTokenAddress(MINT_ADDRESS, publicKey);
-
-        const transaction = new Transaction().add(
-          createTransferInstruction(
-            casinoATA,
-            winnerATA,
-            wallet.publicKey,
-            amount * 1e6
-          )
-        );
-
-        const { blockhash } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = wallet.publicKey;
-        transaction.partialSign(wallet);
-
-        const signature = await connection.sendRawTransaction(transaction.serialize());
-        await connection.confirmTransaction(signature);
-        console.log(`Sent ${amount} COM to the Winner ${publicKey.toString()}`);
-        setTriggerWinEffect(true);
-        playSound(winAudioRef);
-        setPlayerStats(prev => ({
-          ...prev,
-          wins: prev.wins + 1,
-          totalWinnings: prev.totalWinnings + amount,
-        }));
-        setPokerMessage(`You Won ${amount.toFixed(2)} COM!`);
-        fetchComBalance(); // Aggiorna il saldo COM
+        const response = await fetch('https://casino-of-meme-backend-production.up.railway.app/distribute-winnings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ winnerAddress, amount }),
+        });
+        const result = await response.json();
+        if (result.success) {
+          setTriggerWinEffect(true);
+          playSound(winAudioRef);
+          setPlayerStats(prev => ({
+            ...prev,
+            wins: prev.wins + 1,
+            totalWinnings: prev.totalWinnings + amount,
+          }));
+          setPokerMessage(`You Won ${amount.toFixed(2)} COM!`);
+          fetchComBalance();
+        } else {
+          setPokerMessage('Errore nella distribuzione delle vincite. Contatta il supporto.');
+        }
       } catch (err) {
-        console.error('Error distributing winnings:', err);
-        setPokerMessage('Contact support.');
+        console.error('Errore nella distribuzione delle vincite:', err);
+        setPokerMessage('Errore nella distribuzione delle vincite. Contatta il supporto.');
       }
     } else {
       setPokerMessage(`${winnerAddress.slice(0, 8)}... ha vinto ${amount.toFixed(2)} COM!`);
@@ -1259,39 +1244,22 @@ useEffect(() => {
 
     if (connected && publicKey && amount > 0) {
       try {
-        const casinoATA = await getAssociatedTokenAddress(MINT_ADDRESS, wallet.publicKey);
-        const playerATA = await getAssociatedTokenAddress(MINT_ADDRESS, publicKey);
-
-        // Verifica se l'ATA del giocatore esiste
-        try {
-          await getAccount(connection, playerATA);
-        } catch (err) {
-          console.error('Player ATA does not exist:', err);
-          setPokerMessage('Refund failed: Token account not found. Contact support.');
-          return;
+        const response = await fetch('https://casino-of-meme-backend-production.up.railway.app/refund', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ playerAddress: publicKey.toString(), amount }),
+        });
+        const result = await response.json();
+        if (result.success) {
+          setPokerMessage(`Refund of ${amount.toFixed(2)} COM received!`);
+          fetchComBalance();
+        } else {
+          setPokerMessage('Refund failed: Error processing refund. Contact support.');
         }
-
-        const transaction = new Transaction().add(
-          createTransferInstruction(
-            casinoATA,
-            playerATA,
-            wallet.publicKey,
-            amount * 1e6 // Converti in unità base (6 decimali)
-          )
-        );
-
-        const { blockhash } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = wallet.publicKey;
-        transaction.partialSign(wallet);
-
-        const signature = await connection.sendRawTransaction(transaction.serialize());
-        await connection.confirmTransaction(signature);
-        console.log(`Refunded ${amount} COM to ${publicKey.toString()}`);
-        setPokerMessage(`Refund of ${amount.toFixed(2)} COM received!`);
-        fetchComBalance(); // Aggiorna il saldo COM
       } catch (err) {
-        console.error('Error processing refund transaction:', err);
+        console.error('Error processing refund:', err);
         setPokerMessage('Refund failed: Transaction error. Contact support.');
       }
     } else {
