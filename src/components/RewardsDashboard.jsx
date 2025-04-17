@@ -62,7 +62,7 @@ const socket = io(BACKEND_URL, {
 // Percentuale di vittoria del computer per ogni minigioco
 const COMPUTER_WIN_CHANCE = {
   cardDuel: 0.9,
-  memeSlots: 0.91,
+  memeSlots: 0.92,
   coinFlip: 0.92,
   crazyTime: 0.95,
 };
