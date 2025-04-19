@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definizione delle varianti di Aleo (ottimizzate con font-display: swap già presente) */
+/* Definizione delle varianti di Aleo */
 @font-face {
   font-family: 'Aleo';
   src: url('/fonts/Aleo-Regular.ttf') format('truetype');
@@ -53,9 +53,9 @@
 
 /* Applica Aleo globalmente e previeni pull-to-refresh */
 html, body, .game-box, .slot-machine, .wheel-container {
-  overscroll-behavior-y: none; /* Previene pull-to-refresh */
-  -webkit-overflow-scrolling: touch; /* Migliora scorrimento su iOS */
-  touch-action: pan-y; /* Limita gesture che possono causare refresh */
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 body {
@@ -63,10 +63,11 @@ body {
   margin: 0;
   padding: 40px;
   color: #f7f2f2;
+  background: linear-gradient(135deg, #1a1a2e, #2a2a4e); /* Fallback */
   background: url('/my-background.webp') no-repeat center center fixed, linear-gradient(135deg, #1a1a2e, #2a2a4e);
   background-size: cover;
   overflow-x: hidden;
-  -webkit-font-smoothing: antialiased; /* Migliora rendering testo */
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Applica font globalmente */
@@ -77,12 +78,12 @@ body {
 /* Stili per componenti React */
 canvas {
   width: 100% !important;
-  height: 60vh; /* Altezza dinamica */
+  height: 60vh;
   max-height: 500px;
-  display: block; /* Previeni margini indesiderati */
+  display: block;
 }
 
-/* Animazioni ottimizzate per ridurre carico su CPU */
+/* Animazioni ottimizzate */
 @keyframes casinoBackground {
   0% { background-position: 0% 0%; }
   50% { background-position: 100% 100%; }
@@ -117,15 +118,15 @@ canvas {
   font-weight: 700;
   text-transform: uppercase;
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.3);
-  transition: transform 0.1s ease, box-shadow 0.1s ease; /* Transizioni più veloci */
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
   position: relative;
   overflow: hidden;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   will-change: transform, box-shadow;
-  display: block; /* Centra su mobile */
-  margin: 0 auto; /* Centra su mobile */
-  min-height: 48px; /* Altezza minima per touch */
+  display: block;
+  margin: 0 auto;
+  min-height: 48px;
 }
 
 .casino-button:hover {
@@ -167,7 +168,6 @@ canvas {
   height: 150px;
   background-size: cover;
   border-radius: 8px;
-  transform-style: preserve-3d;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   border: 2px solid #ffcc00;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.3);
@@ -188,7 +188,7 @@ canvas {
 }
 
 .card:hover {
-  transform: rotateY(20deg) translateZ(40px) scale(1.05);
+  transform: scale(1.05);
   box-shadow: 0 12px 24px rgba(255, 204, 0, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.5);
 }
 
@@ -202,7 +202,8 @@ canvas {
   position: relative;
   overflow: hidden;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   max-width: 600px;
   width: 100%;
   margin: 0 auto;
@@ -220,7 +221,6 @@ canvas {
   z-index: 1;
 }
 
-/* Stile per ogni rullo */
 .slot-reel {
   width: 90px;
   height: 90px;
@@ -277,19 +277,19 @@ canvas {
 .payout-table {
   min-width: 200px;
   max-width: 300px;
-  background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
+  background: linear-gradient(135deg, #1a1a2e, #2a2a4e); /* Fallback per bg-gray-800 */
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 15px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 204, 0, 0.3);
   position: relative;
   overflow: hidden;
-  transform: perspective(1000px) rotateX(5deg);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  margin-top: 15px;
 }
 
 .payout-table:hover {
-  transform: perspective(1000px) rotateX(0deg) scale(1.02);
+  transform: scale(1.02);
   box-shadow: 0 15px 30px rgba(255, 204, 0, 0.8);
 }
 
@@ -352,7 +352,6 @@ canvas {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  transform-style: preserve-3d;
   transition: transform 0.5s ease, box-shadow 0.3s ease;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 255, 255, 0.2);
   border: 3px solid #ffcc00;
@@ -383,7 +382,6 @@ canvas {
   background: linear-gradient(135deg, #2a4066, #1e1e2f);
   border: 3px solid #ffcc00;
   border-radius: 16px;
-  transform: perspective(1000px) rotateX(5deg);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7);
   position: relative;
@@ -403,7 +401,7 @@ canvas {
 }
 
 .game-box:hover {
-  transform: perspective(1000px) rotateX(0deg) scale(1.02);
+  transform: scale(1.02);
   box-shadow: 0 15px 30px rgba(255, 204, 0, 0.8);
 }
 
@@ -726,14 +724,14 @@ table {
 /* Media Queries Ottimizzate per Mobile */
 @media (max-width: 768px) {
   body {
-    padding: 16px; /* Riduci padding */
+    padding: 16px;
     background: url('/my-background.webp') no-repeat center center fixed, linear-gradient(135deg, #1a1a2e, #2a2a4e);
     background-size: cover;
   }
 
   canvas {
     height: 50vh;
-    max-height: 350px; /* Riduci altezza canvas */
+    max-height: 350px;
   }
 
   @keyframes neon-glow {
@@ -745,7 +743,7 @@ table {
   .header-box {
     padding: 6px 12px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-    font-size: clamp(1rem, 4vw, 1.75rem); /* Font più piccolo */
+    font-size: clamp(1rem, 4vw, 1.75rem);
     border-radius: 8px;
   }
 
@@ -758,12 +756,12 @@ table {
     max-width: 280px;
     margin: 8px auto;
     border-radius: 8px;
-    transition: transform 0.1s ease, box-shadow 0.1s ease; /* Transizioni più veloci */
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
   }
 
   .casino-button:hover {
     box-shadow: 0 0 10px rgba(255, 204, 0, 0.8), inset 0 0 5px rgba(255, 255, 255, 0.5);
-    transform: scale(1.03); /* Riduci scala per mobile */
+    transform: scale(1.03);
   }
 
   .casino-button:active {
@@ -777,51 +775,42 @@ table {
     border: 1px solid #ffcc00;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6), inset 0 0 5px rgba(255, 255, 255, 0.3);
     border-radius: 6px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease; /* Transizioni più veloci */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
 
   .card:hover {
-    transform: rotateY(10deg) translateZ(20px) scale(1.03);
+    transform: scale(1.03);
     box-shadow: 0 6px 12px rgba(255, 204, 0, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.5);
   }
 
   .slot-machine {
-    border: 2px solid #ffcc00;
-    padding: 10px;
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
-    max-width: 320px;
+    border: 3px solid #ffcc00;
+    padding: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.7);
+    max-width: 450px;
     border-radius: 12px;
+    flex-direction: column;
   }
 
   .slot-reel {
-    width: 50px;
-    height: 50px;
+    width: 70px;
+    height: 70px;
     border-radius: 6px;
     border: 1px solid #ffcc00;
-    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
-    transition: background-image 0.05s ease-out; /* Rimuovi transform per performance */
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.5);
+    transition: background-image 0.05s ease-out;
   }
 
   .slot-reel.spinning {
-    animation: spinReelMobile 0.12s linear infinite; /* Leggermente più lento */
-  }
-
-  @keyframes spinReelMobile {
-    0% { transform: translateY(-100%); }
-    100% { transform: translateY(0); }
+    animation: spinReel 0.12s linear infinite;
   }
 
   .slot-reel.stopping {
-    animation: stopReelMobile 0.5s ease-out forwards;
-  }
-
-  @keyframes stopReelMobile {
-    0% { transform: translateY(-50%); }
-    100% { transform: translateY(0); }
+    animation: stopReel 0.5s ease-out forwards;
   }
 
   .slot-machine.winning .slot-reel {
-    animation: winningGlowMobile 0.7s infinite alternate; /* Rallenta animazione */
+    animation: winningGlowMobile 0.7s infinite alternate;
   }
 
   @keyframes winningGlowMobile {
@@ -845,7 +834,6 @@ table {
     border: 2px solid #ffcc00;
     padding: 10px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
-    transform: none; /* Rimuovi prospettiva per performance */
     margin: 12px auto;
     border-radius: 10px;
   }
@@ -872,7 +860,7 @@ table {
   }
 
   .coin.flipping {
-    animation: flipCoinMobile 1.2s ease-in-out; /* Animazione più veloce */
+    animation: flipCoinMobile 1.2s ease-in-out;
   }
 
   @keyframes flipCoinMobile {
@@ -885,13 +873,11 @@ table {
     border: 2px solid #ffcc00;
     padding: 12px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
-    transform: none;
     border-radius: 12px;
     margin-bottom: 12px;
   }
 
   .game-box:hover {
-    transform: none; /* Rimuovi effetto hover per performance */
     box-shadow: 0 8px 16px rgba(255, 204, 0, 0.8);
   }
 
@@ -925,7 +911,7 @@ table {
   }
 
   .wheel text {
-    font-size: 12px; /* Testo più piccolo */
+    font-size: 12px;
   }
 
   .wheel .multiplier-text {
@@ -992,7 +978,7 @@ table {
   }
 
   .presenter-image {
-    animation: presenterTalkMobile 2.5s infinite; /* Animazione più lenta */
+    animation: presenterTalkMobile 2.5s infinite;
   }
 
   @keyframes presenterTalkMobile {
@@ -1002,7 +988,7 @@ table {
   }
 
   .win-image {
-    width: 200px; /* Riduci dimensione immagine vincita */
+    width: 200px;
   }
 }
 
@@ -1039,22 +1025,23 @@ table {
   }
 
   .slot-machine {
-    max-width: 280px;
-    padding: 8px;
+    max-width: 400px;
+    padding: 10px;
     border-radius: 10px;
   }
 
   .slot-reel {
-    width: 40px;
-    height: 40px;
-    border-radius: 4px;
-    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.5);
+    width: 60px;
+    height: 60px;
+    border-radius: 6px;
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.5);
   }
 
   .payout-table {
     max-width: 240px;
     padding: 8px;
     border-radius: 8px;
+    margin: 10px auto;
   }
 
   .payout-table h3 {
