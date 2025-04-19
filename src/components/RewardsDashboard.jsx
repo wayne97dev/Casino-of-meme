@@ -3312,8 +3312,7 @@ const spinWheel = async (event) => {
       />
       {betError && <p className="bet-error">{betError}</p>}
     </div>
-    <div className="game-box p-6 mb-10 flex flex-col md:flex-row gap-4 md:gap-6"> {/* Layout condizionale */}
-      {/* Griglia della slot machine */}
+    <div className="game-box p-6 mb-10 flex flex-col md:flex-row gap-4 md:gap-6">
       <div className={`slot-machine ${slotStatus === 'won' ? 'winning' : ''}`}>
         <div className="grid grid-cols-5 gap-1">
           {slotReelsDisplay.map((meme, index) => {
@@ -3333,7 +3332,6 @@ const spinWheel = async (event) => {
           })}
         </div>
       </div>
-      {/* Tabella dei pagamenti */}
       <div className="payout-table bg-gray-800 rounded-lg p-4 text-orange-700">
         <h3 className="text-xl font-bold mb-4">Payouts</h3>
         <table className="w-full text-left">

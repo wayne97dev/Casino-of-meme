@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definizione delle varianti di Aleo */
+/* Definizione delle varianti di Aleo (ridotte per performance) */
 @font-face {
   font-family: 'Aleo';
   src: url('/fonts/Aleo-Regular.ttf') format('truetype');
@@ -51,11 +51,9 @@
   font-display: swap;
 }
 
-/* Applica Aleo globalmente e previeni pull-to-refresh */
+/* Applica Aleo globalmente */
 html, body, .game-box, .slot-machine, .wheel-container {
-  overscroll-behavior-y: none;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+  overscroll-behavior-y: none; /* Previene pull-to-refresh */
 }
 
 body {
@@ -63,14 +61,11 @@ body {
   margin: 0;
   padding: 40px;
   color: #f7f2f2;
-  background: linear-gradient(135deg, #1a1a2e, #2a2a4e); /* Fallback */
-  background: url('/my-background.webp') no-repeat center center fixed, linear-gradient(135deg, #1a1a2e, #2a2a4e);
+  background: url('/my-background.webp') no-repeat center center fixed, linear-gradient(135deg, #1a1a2e, #2a2a4e); /* Immagine con fallback */
   background-size: cover;
   overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
 }
 
-/* Applica font globalmente */
 * {
   font-family: 'Aleo', sans-serif !important;
 }
@@ -78,12 +73,10 @@ body {
 /* Stili per componenti React */
 canvas {
   width: 100% !important;
-  height: 60vh;
+  height: 60vh; /* Altezza dinamica */
   max-height: 500px;
-  display: block;
 }
 
-/* Animazioni ottimizzate */
 @keyframes casinoBackground {
   0% { background-position: 0% 0%; }
   50% { background-position: 100% 100%; }
@@ -118,26 +111,23 @@ canvas {
   font-weight: 700;
   text-transform: uppercase;
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.3);
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  will-change: transform, box-shadow;
-  display: block;
-  margin: 0 auto;
-  min-height: 48px;
+  will-change: transform, box-shadow; /* Ottimizza animazioni */
 }
 
 .casino-button:hover {
   background: linear-gradient(135deg, #ff8c00, #ff4500);
-  box-shadow: 0 0 15px rgba(255, 204, 0, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 20px rgba(255, 204, 0, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.5);
   transform: scale(1.05);
 }
 
 .casino-button:active {
-  transform: scale(0.95);
-  box-shadow: 0 0 10px rgba(255, 204, 0, 0.8);
+  transform: scale(0.95); /* Feedback per tocco */
+  box-shadow: 0 0 15px rgba(255, 204, 0, 0.8);
 }
 
 .casino-button:disabled {
@@ -155,7 +145,7 @@ canvas {
   width: 100%;
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.5s;
+  transition: 0.5s;
 }
 
 .casino-button:hover::before {
@@ -168,7 +158,8 @@ canvas {
   height: 150px;
   background-size: cover;
   border-radius: 8px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transform-style: preserve-3d;
+  transition: transform 0.5s ease, box-shadow 0.3s ease;
   border: 2px solid #ffcc00;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.3);
   position: relative;
@@ -188,7 +179,7 @@ canvas {
 }
 
 .card:hover {
-  transform: scale(1.05);
+  transform: rotateY(20deg) translateZ(40px) scale(1.05);
   box-shadow: 0 12px 24px rgba(255, 204, 0, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.5);
 }
 
@@ -202,8 +193,7 @@ canvas {
   position: relative;
   overflow: hidden;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  justify-content: center;
   max-width: 600px;
   width: 100%;
   margin: 0 auto;
@@ -221,6 +211,7 @@ canvas {
   z-index: 1;
 }
 
+/* Stile per ogni rullo */
 .slot-reel {
   width: 90px;
   height: 90px;
@@ -277,19 +268,19 @@ canvas {
 .payout-table {
   min-width: 200px;
   max-width: 300px;
-  background: linear-gradient(135deg, #1a1a2e, #2a2a4e); /* Fallback per bg-gray-800 */
+  background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 15px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 204, 0, 0.3);
   position: relative;
   overflow: hidden;
+  transform: perspective(1000px) rotateX(5deg);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
-  margin-top: 15px;
 }
 
 .payout-table:hover {
-  transform: scale(1.02);
+  transform: perspective(1000px) rotateX(0deg) scale(1.02);
   box-shadow: 0 15px 30px rgba(255, 204, 0, 0.8);
 }
 
@@ -352,6 +343,7 @@ canvas {
   width: 120px;
   height: 120px;
   border-radius: 50%;
+  transform-style: preserve-3d;
   transition: transform 0.5s ease, box-shadow 0.3s ease;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 255, 255, 0.2);
   border: 3px solid #ffcc00;
@@ -382,6 +374,7 @@ canvas {
   background: linear-gradient(135deg, #2a4066, #1e1e2f);
   border: 3px solid #ffcc00;
   border-radius: 16px;
+  transform: perspective(1000px) rotateX(5deg);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7);
   position: relative;
@@ -401,7 +394,7 @@ canvas {
 }
 
 .game-box:hover {
-  transform: scale(1.02);
+  transform: perspective(1000px) rotateX(0deg) scale(1.02);
   box-shadow: 0 15px 30px rgba(255, 204, 0, 0.8);
 }
 
@@ -684,13 +677,13 @@ canvas {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 1000;
-  pointer-events: none;
+  z-index: 1000; /* Sopra tutti gli altri elementi */
+  pointer-events: none; /* Non interferisce con i click */
 }
 
 /* Stile per l'immagine di vincita */
 .win-image {
-  width: 300px;
+  width: 300px; /* Regola la dimensione come preferisci */
   height: auto;
   opacity: 0;
   animation: winAnimation 3s ease-in-out;
@@ -721,52 +714,37 @@ table {
   color: #e0e0e0;
 }
 
-/* Media Queries Ottimizzate per Mobile */
+/* Media Queries per Mobile - Ottimizzazioni solo per Meme Slots */
 @media (max-width: 768px) {
   body {
-    padding: 16px;
+    padding: 20px;
     background: url('/my-background.webp') no-repeat center center fixed, linear-gradient(135deg, #1a1a2e, #2a2a4e);
     background-size: cover;
   }
 
   canvas {
     height: 50vh;
-    max-height: 350px;
-  }
-
-  @keyframes neon-glow {
-    0% { box-shadow: 0 0 3px #00ffcc; }
-    50% { box-shadow: 0 0 6px #00ffcc; }
-    100% { box-shadow: 0 0 3px #00ffcc; }
+    max-height: 400px;
   }
 
   .header-box {
-    padding: 6px 12px;
+    padding: 8px 16px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-    font-size: clamp(1rem, 4vw, 1.75rem);
-    border-radius: 8px;
+    font-size: clamp(1.25rem, 5vw, 2.5rem);
   }
 
   .casino-button {
-    padding: 8px 16px;
-    font-size: clamp(0.85rem, 3vw, 1rem);
-    box-shadow: 0 0 6px rgba(255, 204, 0, 0.5), inset 0 0 3px rgba(255, 255, 255, 0.3);
+    padding: 10px 20px;
+    font-size: clamp(0.9rem, 3vw, 1.25rem);
+    box-shadow: 0 0 8px rgba(255, 204, 0, 0.5), inset 0 0 4px rgba(255, 255, 255, 0.3);
     min-height: 44px;
     width: 100%;
-    max-width: 280px;
-    margin: 8px auto;
-    border-radius: 8px;
-    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    max-width: 300px;
+    margin: 0.5rem auto;
   }
 
   .casino-button:hover {
-    box-shadow: 0 0 10px rgba(255, 204, 0, 0.8), inset 0 0 5px rgba(255, 255, 255, 0.5);
-    transform: scale(1.03);
-  }
-
-  .casino-button:active {
-    transform: scale(0.97);
-    box-shadow: 0 0 8px rgba(255, 204, 0, 0.8);
+    box-shadow: 0 0 15px rgba(255, 204, 0, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.5);
   }
 
   .card {
@@ -774,48 +752,57 @@ table {
     height: 100px;
     border: 1px solid #ffcc00;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6), inset 0 0 5px rgba(255, 255, 255, 0.3);
-    border-radius: 6px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
 
   .card:hover {
-    transform: scale(1.03);
-    box-shadow: 0 6px 12px rgba(255, 204, 0, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.5);
+    transform: rotateY(10deg) translateZ(20px) scale(1.05);
+    box-shadow: 0 6px 12px rgba(255, 204, 0, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.5);
   }
 
+  /* Ottimizzazioni per Meme Slots */
   .slot-machine {
-    border: 3px solid #ffcc00;
-    padding: 12px;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.7);
-    max-width: 450px;
-    border-radius: 12px;
-    flex-direction: column;
+    border: 2px solid #ffcc00;
+    padding: 10px;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
+    max-width: 320px;
+    flex-direction: column; /* Griglia sopra, tabella sotto */
+    align-items: center;
   }
 
   .slot-reel {
-    width: 70px;
+    width: 70px; /* Ridotto per mobile */
     height: 70px;
     border-radius: 6px;
     border: 1px solid #ffcc00;
-    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.5);
-    transition: background-image 0.05s ease-out;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+    transition: background-image 0.05s ease-out; /* Rimossa transform per performance */
   }
 
   .slot-reel.spinning {
-    animation: spinReel 0.12s linear infinite;
+    animation: spinReelMobile 0.1s linear infinite;
+  }
+
+  @keyframes spinReelMobile {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(0); }
   }
 
   .slot-reel.stopping {
-    animation: stopReel 0.5s ease-out forwards;
+    animation: stopReelMobile 0.5s ease-out forwards;
+  }
+
+  @keyframes stopReelMobile {
+    0% { transform: translateY(-50%); }
+    100% { transform: translateY(0); }
   }
 
   .slot-machine.winning .slot-reel {
-    animation: winningGlowMobile 0.7s infinite alternate;
+    animation: winningGlowMobile 0.7s infinite alternate; /* Rallentata per performance */
   }
 
   @keyframes winningGlowMobile {
-    0% { box-shadow: 0 0 4px #ffcc00, inset 0 0 8px #ffcc00; }
-    100% { box-shadow: 0 0 12px #ffcc00, inset 0 0 16px #ffcc00; }
+    0% { box-shadow: 0 0 5px #ffcc00, inset 0 0 10px #ffcc00; }
+    100% { box-shadow: 0 0 15px #ffcc00, inset 0 0 20px #ffcc00; }
   }
 
   .slot-reel.winning {
@@ -824,8 +811,8 @@ table {
   }
 
   @keyframes winningPulseMobile {
-    0% { transform: scale(1); box-shadow: 0 0 4px #ffcc00; }
-    100% { transform: scale(1.03); box-shadow: 0 0 8px #ffcc00; }
+    0% { transform: scale(1); box-shadow: 0 0 5px #ffcc00; }
+    100% { transform: scale(1.05); box-shadow: 0 0 10px #ffcc00; }
   }
 
   .payout-table {
@@ -834,7 +821,8 @@ table {
     border: 2px solid #ffcc00;
     padding: 10px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
-    margin: 12px auto;
+    transform: none; /* Rimossa prospettiva per performance */
+    margin: 12px auto; /* Spazio sopra e centrato */
     border-radius: 10px;
   }
 
@@ -843,12 +831,12 @@ table {
   }
 
   .payout-table table {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
   }
 
   .payout-table th,
   .payout-table td {
-    padding: 6px;
+    padding: 8px;
   }
 
   .coin {
@@ -856,53 +844,44 @@ table {
     height: 80px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
     border: 2px solid #ffcc00;
-    font-size: 1rem;
   }
 
   .coin.flipping {
-    animation: flipCoinMobile 1.2s ease-in-out;
+    animation: flipCoinMobile 1s ease-in-out;
   }
 
   @keyframes flipCoinMobile {
     0% { transform: rotateY(0deg); }
-    50% { transform: rotateY(720deg) translateZ(20px); }
+    50% { transform: rotateY(720deg) translateZ(30px); }
     100% { transform: rotateY(1440deg); }
   }
 
   .game-box {
     border: 2px solid #ffcc00;
-    padding: 12px;
+    padding: 1rem;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
-    border-radius: 12px;
-    margin-bottom: 12px;
-  }
-
-  .game-box:hover {
-    box-shadow: 0 8px 16px rgba(255, 204, 0, 0.8);
+    transform: none;
+    flex-direction: column;
+    align-items: center;
   }
 
   .bet-input {
-    padding: 6px 10px;
-    box-shadow: 0 0 6px rgba(255, 204, 0, 0.5);
+    padding: 8px;
+    box-shadow: 0 0 8px rgba(255, 204, 0, 0.5);
     width: 100%;
-    max-width: 120px;
-    margin: 8px auto;
-    font-size: 0.9rem;
-    border-radius: 6px;
+    max-width: 150px;
+    margin: 0.5rem auto;
+    display: block;
   }
 
   .bet-input:hover,
   .bet-input:focus {
-    box-shadow: 0 0 12px rgba(255, 204, 0, 0.8);
-  }
-
-  .bet-error {
-    font-size: 0.8rem;
+    box-shadow: 0 0 15px rgba(255, 204, 0, 0.8);
   }
 
   .wheel-container {
-    width: 280px;
-    height: 280px;
+    width: 300px;
+    height: 300px;
   }
 
   .wheel {
@@ -910,40 +889,26 @@ table {
     height: 100%;
   }
 
-  .wheel text {
-    font-size: 12px;
-  }
-
-  .wheel .multiplier-text {
-    font-size: 10px;
-  }
-
   .wheel-indicator {
-    bottom: -15px;
+    bottom: -20px;
   }
 
   .wheel-result {
-    font-size: 0.9rem;
-    padding: 4px 8px;
-  }
-
-  .coin-flip {
-    gap: 12px;
+    font-size: 1rem;
   }
 
   .coin-flip .coin {
     width: 70px;
     height: 70px;
-    font-size: 0.9rem;
+    font-size: 1rem;
   }
 
   .pachinko-board {
     width: 100%;
-    max-width: 280px;
+    max-width: 300px;
     height: 200px;
     border: 2px solid #ffcc00;
-    padding: 12px;
-    border-radius: 10px;
+    padding: 15px;
   }
 
   .pachinko-board .disc {
@@ -954,7 +919,7 @@ table {
   .pachinko-board .slot {
     width: 45px;
     height: 30px;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
   }
 
   @keyframes fallDisc {
@@ -964,77 +929,46 @@ table {
 
   .chat-box {
     max-height: 100px;
-    padding: 8px;
-    margin-top: 12px;
-  }
-
-  .chat-message {
-    font-size: 0.8rem;
   }
 
   .presenter {
     width: 80px;
     height: 80px;
   }
-
-  .presenter-image {
-    animation: presenterTalkMobile 2.5s infinite;
-  }
-
-  @keyframes presenterTalkMobile {
-    0% { transform: translateY(0); }
-    50% { transform: translateY(-3px); }
-    100% { transform: translateY(0); }
-  }
-
-  .win-image {
-    width: 200px;
-  }
 }
 
 @media (max-width: 480px) {
   body {
-    padding: 12px;
-  }
-
-  canvas {
-    height: 45vh;
-    max-height: 300px;
+    padding: 10px;
   }
 
   .header-box {
-    padding: 4px 8px;
-    font-size: clamp(0.9rem, 3.5vw, 1.25rem);
-    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 1rem;
   }
 
   .casino-button {
     padding: 6px 12px;
-    font-size: clamp(0.75rem, 3vw, 0.9rem);
-    min-height: 40px;
-    max-width: 240px;
-    margin: 6px auto;
-    border-radius: 6px;
+    font-size: 0.85rem;
   }
 
   .card {
     width: 60px;
     height: 85px;
-    border-radius: 4px;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.6);
   }
 
+  /* Ottimizzazioni per Meme Slots */
   .slot-machine {
-    max-width: 400px;
-    padding: 10px;
-    border-radius: 10px;
+    max-width: 280px;
+    padding: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.7); /* Ombra semplificata */
   }
 
   .slot-reel {
-    width: 60px;
-    height: 60px;
-    border-radius: 6px;
-    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.5);
+    width: 50px; /* Ulteriore riduzione per schermi piccoli */
+    height: 50px;
+    border-radius: 4px;
+    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.5);
   }
 
   .payout-table {
@@ -1060,39 +994,23 @@ table {
   .coin {
     width: 60px;
     height: 60px;
-    font-size: 0.8rem;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
+    font-size: 0.9rem;
   }
 
   .wheel-container {
-    width: 240px;
-    height: 240px;
-  }
-
-  .wheel text {
-    font-size: 10px;
-  }
-
-  .wheel .multiplier-text {
-    font-size: 8px;
-  }
-
-  .wheel-result {
-    font-size: 0.8rem;
-    padding: 3px 6px;
+    width: 250px;
+    height: 250px;
   }
 
   .pachinko-board {
-    max-width: 240px;
+    max-width: 250px;
     height: 180px;
-    padding: 10px;
-    border-radius: 8px;
   }
 
   .pachinko-board .slot {
     width: 40px;
     height: 25px;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
   }
 
   @keyframes fallDisc {
@@ -1102,19 +1020,10 @@ table {
 
   .chat-box {
     max-height: 80px;
-    padding: 6px;
-  }
-
-  .chat-message {
-    font-size: 0.75rem;
   }
 
   .presenter {
     width: 60px;
     height: 60px;
-  }
-
-  .win-image {
-    width: 150px;
   }
 }
