@@ -39,7 +39,7 @@ const CARD_BACK_IMAGE = '/card-back.png';
 const MIN_BET_POKER = 1000; // 1000 COM per Poker PvP
 const MIN_BET_OTHER = 0.01; // 0.01 SOL per gli altri minigiochi
 
-const BACKEND_URL = 'https://api.casino-of-meme.com';
+const BACKEND_URL = 'https://casino-of-meme-backend-production.up.railway.app';
 const socket = io(BACKEND_URL, {
   reconnection: true,
   reconnectionAttempts: 5,
@@ -1894,113 +1894,193 @@ const startBlackjack = async () => {
     return;
   }
 
-  setGameStatus('playing');
+  setGameStatus('betting');
+  // Resettiamo le carte subito per non mostrarle durante la transazione
   setPlayerCards([]);
   setOpponentCards([]);
   setGameMessage('Placing bet...');
 
   try {
-    const result = await createAndSignTransaction(betAmount, 'solanaCardDuel', { action: 'start' });
-    setPlayerCards(result.playerCards);
-    setOpponentCards(result.opponentCards);
-    setGameMessage(result.message);
-    setGameId(result.gameId); // Salva il gameId restituito dal backend
+    console.log('DEBUG - Sending bet transaction...');
+    // Usa createAndSignTransaction per inviare la scommessa al backend
+    await createAndSignTransaction(betAmount, 'solanaCardDuel', { action: 'start' });
+
+    // Pesca le carte solo dopo che la transazione è confermata
+    const playerInitial = [drawCard(), drawCard()];
+    const dealerInitial = [drawCard(), drawCard()]; // Banco con 2 carte
+
+    const arePlayerCardsValid = playerInitial.every(card => card && card.value && card.image);
+    const areDealerCardsValid = dealerInitial.every(card => card && card.value && card.image);
+
+    if (!arePlayerCardsValid || !areDealerCardsValid) {
+      console.error('DEBUG - Invalid cards assigned:', { playerInitial, dealerInitial });
+      setGameMessage('Error: Invalid cards. Please try again.');
+      setGameStatus('idle');
+      setPlayerCards([]);
+      setOpponentCards([]);
+      return;
+    }
+
+    console.log('DEBUG - Player cards:', playerInitial);
+    console.log('DEBUG - Dealer cards:', dealerInitial);
+    setPlayerCards(playerInitial);
+    setOpponentCards(dealerInitial); // "opponentCards" ora rappresenta le carte del banco
+
+    setGameStatus('playing');
+    setGameMessage('Bet placed! Your turn: Hit or Stand.');
   } catch (err) {
-    console.error('Start Blackjack failed:', err);
+    console.error('DEBUG - Bet failed:', err);
     setGameMessage(`Bet failed: ${err.message}`);
     setGameStatus('idle');
+    setPlayerCards([]);
+    setOpponentCards([]);
   }
 };
 
-// Funzione per pescare una carta (hit)
-const hit = async () => {
-  if (gameStatus !== 'playing' || !gameId) return;
+const hit = () => {
+  if (gameStatus !== 'playing') return;
 
-  try {
-    const response = await fetch(`${BACKEND_URL}/play-solana-card-duel`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        playerAddress: publicKey.toString(),
-        gameId,
-        action: 'hit',
-        playerCards,
-        opponentCards,
-      }),
-    });
+  const newCard = drawCard();
+  if (!newCard || !newCard.value || !newCard.image) {
+    console.error('DEBUG - Invalid card drawn:', newCard);
+    setGameMessage('Error: Invalid card. Please try again.');
+    return;
+  }
 
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Server responded with status ${response.status}: ${text}`);
-    }
+  setPlayerCards(prev => [...prev, newCard]);
+  const newScore = calculateScore([...playerCards, newCard]);
 
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error);
-    }
-
-    setPlayerCards(result.playerCards);
-    setGameMessage(result.message);
-    if (result.outcome === 'lose') {
-      setGameStatus('finished');
-      setGameId(null); // Resetta il gameId
-    }
-  } catch (err) {
-    console.error('Hit failed:', err);
-    setGameMessage(`Hit failed: ${err.message}`);
+  if (newScore > 21) {
+    setGameStatus('finished');
+    setGameMessage('You busted! Dealer wins.');
+  } else {
+    setGameMessage(`Your score: ${newScore}. Hit or Stand?`);
   }
 };
 
-// Funzione per fermarsi (stand)
 const stand = async () => {
-  if (gameStatus !== 'playing' || !gameId) return;
+  if (gameStatus !== 'playing') return;
 
-  try {
-    const response = await fetch(`${BACKEND_URL}/play-solana-card-duel`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        playerAddress: publicKey.toString(),
-        gameId,
-        action: 'stand',
-        playerCards,
-        opponentCards,
-      }),
-    });
+  const playerScore = calculateScore(playerCards);
+  let dealerCards = [...opponentCards];
+  let dealerScore = calculateScore(dealerCards);
 
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Server responded with status ${response.status}: ${text}`);
+  // Il banco pesca carte finché il punteggio è inferiore a 17
+  while (dealerScore < 17) {
+    const newCard = drawCard();
+    if (!newCard || !newCard.value || !newCard.image) {
+      console.error('DEBUG - Invalid card drawn for dealer:', newCard);
+      setGameMessage('Error: Invalid dealer card. Please try again.');
+      return;
     }
+    dealerCards = [...dealerCards, newCard];
+    dealerScore = calculateScore(dealerCards);
+    setOpponentCards(dealerCards); // Aggiorna le carte del banco visibili
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Pausa per simulare il gioco
+  }
 
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error);
-    }
+  console.log('DEBUG - Final player score:', playerScore);
+  console.log('DEBUG - Final dealer score:', dealerScore);
 
-    setPlayerCards(result.playerCards);
-    setOpponentCards(result.opponentCards);
-    setGameMessage(result.message);
+  const winAmount = betAmount * 2; // Vincita doppia per la vittoria
+  const tieAmount = betAmount; // Rimborso della scommessa in caso di pareggio
+
+  // Logica di vincita
+  if (dealerScore > 21) {
     setGameStatus('finished');
-    if (result.outcome === 'win') {
-      setTriggerWinEffect(true);
-      playSound(winAudioRef);
-      updateMissionProgress(2);
-      setPlayerStats(prev => ({
-        ...prev,
-        wins: prev.wins + 1,
-        totalWinnings: prev.totalWinnings + result.totalWin,
-      }));
+    setGameMessage(`Dealer busted! You won ${winAmount.toFixed(2)} SOL!`);
+
+    try {
+      // Distribuisci la vincita tramite il backend
+      const response = await fetch(`${BACKEND_URL}/distribute-winnings-sol`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          playerAddress: publicKey.toString(),
+          amount: winAmount,
+        }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setTriggerWinEffect(true);
+        playSound(winAudioRef);
+        updateMissionProgress(2);
+        setPlayerStats(prev => ({
+          ...prev,
+          wins: prev.wins + 1,
+          totalWinnings: prev.totalWinnings + winAmount,
+        }));
+      } else {
+        setGameMessage(`You won ${winAmount.toFixed(2)} SOL, but prize distribution failed: ${result.error}. Contact support.`);
+      }
+    } catch (err) {
+      console.error('DEBUG - Prize distribution failed:', err);
+      setGameMessage('You won, but prize distribution failed. Contact support.');
     }
-    setGameId(null); // Resetta il gameId
-  } catch (err) {
-    console.error('Stand failed:', err);
-    setGameMessage(`Stand failed: ${err.message}`);
+  } else if (playerScore > dealerScore) {
     setGameStatus('finished');
+    setGameMessage(`You won ${winAmount.toFixed(2)} SOL!`);
+
+    try {
+      // Distribuisci la vincita tramite il backend
+      const response = await fetch(`${BACKEND_URL}/distribute-winnings-sol`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          playerAddress: publicKey.toString(),
+          amount: winAmount,
+        }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setTriggerWinEffect(true);
+        playSound(winAudioRef);
+        updateMissionProgress(2);
+        setPlayerStats(prev => ({
+          ...prev,
+          wins: prev.wins + 1,
+          totalWinnings: prev.totalWinnings + winAmount,
+        }));
+      } else {
+        setGameMessage(`You won ${winAmount.toFixed(2)} SOL, but prize distribution failed: ${result.error}. Contact support.`);
+      }
+    } catch (err) {
+      console.error('DEBUG - Prize distribution failed:', err);
+      setGameMessage('You won, but prize distribution failed. Contact support.');
+    }
+  } else if (playerScore === dealerScore) {
+    setGameStatus('finished');
+    setGameMessage("It's a tie! Your bet is returned.");
+
+    try {
+      // Rimborso della scommessa tramite il backend
+      const response = await fetch(`${BACKEND_URL}/distribute-winnings-sol`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          playerAddress: publicKey.toString(),
+          amount: tieAmount,
+        }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        setGameMessage(`Tie, but bet return failed: ${result.error}. Contact support.`);
+      }
+    } catch (err) {
+      console.error('DEBUG - Bet return failed:', err);
+      setGameMessage('Tie, but bet return failed. Contact support.');
+    }
+  } else {
+    setGameStatus('finished');
+    setGameMessage('Dealer wins! Try again.');
   }
 };
-
-
 
   
 
