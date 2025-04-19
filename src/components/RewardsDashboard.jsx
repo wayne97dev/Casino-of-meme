@@ -39,7 +39,7 @@ const CARD_BACK_IMAGE = '/card-back.png';
 const MIN_BET_POKER = 1000; // 1000 COM per Poker PvP
 const MIN_BET_OTHER = 0.01; // 0.01 SOL per gli altri minigiochi
 
-const BACKEND_URL = 'https://casino-of-meme-backend-production.up.railway.app';
+const BACKEND_URL = 'https://api.casino-of-meme.com';
 const socket = io(BACKEND_URL, {
   reconnection: true,
   reconnectionAttempts: 5,
@@ -1177,7 +1177,7 @@ const [timeLeft, setTimeLeft] = useState(30); // Stato per il tempo rimanente
 
 
 
-// Configurazione Socket.IO per Poker PvP
+
 // Configurazione Socket.IO per Poker PvP
 const socket = io(BACKEND_URL, {
   reconnection: true,
