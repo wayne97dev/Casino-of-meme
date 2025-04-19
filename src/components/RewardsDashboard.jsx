@@ -1,15 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Connection, PublicKey, Keypair, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import {
-  getAssociatedTokenAddress,
-  getMint,
-  TOKEN_PROGRAM_ID,
-  AccountLayout,
-  createTransferInstruction,
-  createAssociatedTokenAccountInstruction, // Aggiungi questa importazione
-  getAccount, // Aggiungi per verificare l'esistenza degli account
-} from '@solana/spl-token';
-import bs58 from 'bs58';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Canvas, useThree, useLoader } from '@react-three/fiber';
@@ -17,8 +6,11 @@ import { OrbitControls, PerspectiveCamera, Text, useFBX, useAnimations, Stars } 
 import * as THREE from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import io from 'socket.io-client';
-import axios from 'axios';
-import { VersionedTransaction, TransactionMessage } from '@solana/web3.js';
+import { getMint, TOKEN_PROGRAM_ID, AccountLayout } from '@solana/spl-token';
+import { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction, SystemProgram } from '@solana/web3.js';
+import { getAssociatedTokenAddress, createTransferInstruction } from '@solana/spl-token';
+
+
 
 // File audio
 const backgroundMusic = '/audio.mp3';
@@ -34,16 +26,12 @@ console.log('DEBUG - MINT_ADDRESS_RAW:', MINT_ADDRESS_RAW);
 if (!RPC_ENDPOINT ||  !MINT_ADDRESS_RAW) {
   console.error('ERROR - One or more environment variables are not defined in .env');
 }
-
-const MINT_ADDRESS = MINT_ADDRESS_RAW ? new PublicKey(MINT_ADDRESS_RAW) : null;
-const WSOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
-const WBTC_MINT = new PublicKey('3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh');
-const WETH_MINT = new PublicKey('7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs');
+const MINT_ADDRESS = MINT_ADDRESS_RAW || null;
 
 const TOKEN_NAME = 'Casino of Meme';
 const TOKEN_SYMBOL = 'COM';
 
-const connection = RPC_ENDPOINT ? new Connection(RPC_ENDPOINT, 'confirmed') : null;
+
 
 const CARD_BACK_IMAGE = '/card-back.png';
 
@@ -51,7 +39,7 @@ const CARD_BACK_IMAGE = '/card-back.png';
 const MIN_BET_POKER = 1000; // 1000 COM per Poker PvP
 const MIN_BET_OTHER = 0.01; // 0.01 SOL per gli altri minigiochi
 
-const BACKEND_URL = 'https://casino-of-meme-backend-production.up.railway.app/';
+const BACKEND_URL = 'https://casino-of-meme-backend-production.up.railway.app';
 const socket = io(BACKEND_URL, {
   reconnection: true,
   reconnectionAttempts: 5,
@@ -969,6 +957,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
 // Componente principale
 const RewardsDashboard = () => {
   const { publicKey, connected, signTransaction } = useWallet();
+  const TAX_WALLET_ADDRESS = '2E1LhcV3pze6Q6P7MEsxUoNYK3KECm2rTS2D18eSRTn9';
   const [taxWalletBalance, setTaxWalletBalance] = useState(0);
   const [rewardSol, setRewardSol] = useState(0);
   const [rewardWbtc, setRewardWbtc] = useState(0);
@@ -986,6 +975,10 @@ const RewardsDashboard = () => {
   const [betAmount, setBetAmount] = useState(MIN_BET_OTHER); // Default a 0.01 SOL
   const [betError, setBetError] = useState(null);
   const [showWinImage, setShowWinImage] = useState(false);
+  const [gameId, setGameId] = useState(null);
+  const [crazyTimeWheel, setCrazyTimeWheel] = useState([]);
+  const [wheelSegmentIndex, setWheelSegmentIndex] = useState(null);
+
 
 
 
@@ -1095,13 +1088,21 @@ const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
         setComBalance(0);
         return;
       }
-  
+    
       try {
-        const userATA = await getAssociatedTokenAddress(MINT_ADDRESS, publicKey);
-        const balance = await connection.getTokenAccountBalance(userATA);
-        const comBalance = balance.value.uiAmount || 0;
-        setComBalance(comBalance);
-        console.log(`Fetched COM balance: ${comBalance} COM`);
+        const response = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        const result = await response.json();
+        if (result.success) {
+          setComBalance(result.balance);
+          console.log(`Fetched COM balance: ${result.balance} COM`);
+        } else {
+          throw new Error(result.error);
+        }
       } catch (err) {
         console.error('Error fetching COM balance:', err);
         setComBalance(0);
@@ -1178,10 +1179,17 @@ const [timeLeft, setTimeLeft] = useState(30); // Stato per il tempo rimanente
 
 // Configurazione Socket.IO per Poker PvP
 // Configurazione Socket.IO per Poker PvP
+const socket = io(BACKEND_URL, {
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  transports: ['websocket'],
+});
+
 useEffect(() => {
   const handleGameState = (game) => {
     console.log('Game state received:', game);
-    console.log('My socket.id:', socket.id);
+    console.log('My socket.id:', socket.id || 'undefined');
     console.log('New currentTurn:', game.currentTurn);
     console.log('Updated pot:', game.pot);
     console.log('Updated timeLeft:', game.timeLeft);
@@ -1208,7 +1216,7 @@ useEffect(() => {
     console.log('Distribute winnings:', { winnerAddress, amount });
     if (winnerAddress === publicKey?.toString()) {
       try {
-        const response = await fetch('https://casino-of-meme-backend-production.up.railway.app/distribute-winnings', {
+        const response = await fetch(`${BACKEND_URL}/distribute-winnings`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1244,7 +1252,7 @@ useEffect(() => {
 
     if (connected && publicKey && amount > 0) {
       try {
-        const response = await fetch('https://casino-of-meme-backend-production.up.railway.app/refund', {
+        const response = await fetch(`${BACKEND_URL}/refund`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1270,18 +1278,18 @@ useEffect(() => {
   };
 
   socket.on('connect', () => {
-    console.log('Socket connected:', socket.id);
+    console.log('Socket connected:', socket.id || 'undefined');
     setPokerMessage('Connected to server');
     const gameId = localStorage.getItem('currentGameId');
     if (gameId && publicKey) {
+      console.log('Emitting reconnectPlayer:', { playerAddress: publicKey.toString(), gameId });
       socket.emit('reconnectPlayer', { playerAddress: publicKey.toString(), gameId });
     }
   });
 
   socket.on('connect_error', (err) => {
-    console.error('Socket connection error:', err);
+    console.error('Socket connection error:', err.message);
     setPokerMessage('Failed to connect to server. Retrying...');
-    setTimeout(() => socket.connect(), 5000);
   });
 
   socket.on('waiting', (data) => {
@@ -1301,7 +1309,7 @@ useEffect(() => {
     console.log('Left waiting list:', message);
     setPokerMessage(message);
     setWaitingPlayersList(prev => prev.filter(p => p.address !== publicKey?.toString()));
-    setBetAmount(minBet); // Ripristina la scommessa al minimo
+    setBetAmount(minBet);
   });
 
   socket.on('gameState', handleGameState);
@@ -1311,10 +1319,8 @@ useEffect(() => {
     setPokerMessage(data.message);
   });
 
-  if (!socket.connected) {
-    console.log('Connecting socket...');
-    socket.connect();
-  }
+  console.log('Connecting socket...');
+  socket.connect();
 
   return () => {
     socket.off('connect');
@@ -1327,8 +1333,7 @@ useEffect(() => {
     socket.off('distributeWinnings', handleDistributeWinnings);
     socket.off('error');
   };
-}, [publicKey]);
-
+}, [publicKey, minBet]);
 
 // Determina se è il turno del giocatore corrente
 const isMyTurn = currentTurn === socket.id;
@@ -1409,6 +1414,68 @@ useEffect(() => {
   };
 
  
+  // Modifica createAndSignTransaction
+const createAndSignTransaction = async (betAmount, gameType, additionalData = {}) => {
+  if (!connected || !publicKey || !signTransaction) {
+    throw new Error('Please connect your wallet to play!');
+  }
+
+  const validGameTypes = ['memeSlots', 'coinFlip', 'crazyWheel', 'solanaCardDuel'];
+  if (!validGameTypes.includes(gameType)) {
+    throw new Error(`Invalid gameType: ${gameType}`);
+  }
+
+  const roundedBetAmount = Math.round(betAmount * 1000000000) / 1000000000;
+
+  try {
+    const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+    const betInLamports = Math.round(roundedBetAmount * LAMPORTS_PER_SOL);
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: publicKey,
+        toPubkey: new PublicKey(TAX_WALLET_ADDRESS),
+        lamports: betInLamports,
+      })
+    );
+
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = publicKey;
+
+    const signedTransaction = await signTransaction(transaction);
+
+    const endpointMap = {
+      memeSlots: '/play-meme-slots',
+      coinFlip: '/play-coin-flip',
+      crazyWheel: '/play-crazy-wheel',
+      solanaCardDuel: '/play-solana-card-duel',
+    };
+
+    const response = await fetch(`${BACKEND_URL}${endpointMap[gameType]}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerAddress: publicKey.toString(),
+        betAmount: roundedBetAmount,
+        signedTransaction: signedTransaction.serialize().toString('base64'),
+        ...additionalData,
+      }),
+    });
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+
+    return result;
+  } catch (err) {
+    console.error(`Failed to process transaction for ${gameType}:`, err);
+    throw err;
+  }
+};
+
+ 
+
 
   const handleBetChange = (e) => {
     const value = parseFloat(e.target.value);
@@ -1417,35 +1484,36 @@ useEffect(() => {
   };
 
 
-
   const updateMissionProgress = (missionId, increment = 1) => {
     setMissions(prev => {
       const updatedMissions = prev.map(mission => {
         if (mission.id === missionId && !mission.completed) {
           const newCurrent = mission.current + increment;
           if (newCurrent >= mission.target) {
-            const rewardInLamports = mission.reward * LAMPORTS_PER_SOL;
-            const transaction = new Transaction().add(
-              SystemProgram.transfer({
-                fromPubkey: wallet.publicKey,
-                toPubkey: publicKey,
-                lamports: rewardInLamports,
-              })
-            );
-
             (async () => {
               try {
-                const { blockhash } = await connection.getLatestBlockhash();
-                transaction.recentBlockhash = blockhash;
-                transaction.feePayer = wallet.publicKey;
-                transaction.partialSign(wallet);
-                const signature = await connection.sendRawTransaction(transaction.serialize());
-                await connection.confirmTransaction(signature);
-
-                const message = `Mission completed! You earned ${mission.reward} SOL!`;
-                if (missionId === 1) setSlotMessage(prev => `${prev}\n${message}`);
-                else if (missionId === 2) setGameMessage(prev => `${prev}\n${message}`);
-                else if (missionId === 3) addChatMessage(message);
+                const response = await fetch(`${BACKEND_URL}/distribute-winnings-sol`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    playerAddress: publicKey.toString(),
+                    amount: mission.reward,
+                  }),
+                });
+                const result = await response.json();
+                if (result.success) {
+                  const message = `Mission completed! You earned ${mission.reward} SOL!`;
+                  if (missionId === 1) setSlotMessage(prev => `${prev}\n${message}`);
+                  else if (missionId === 2) setGameMessage(prev => `${prev}\n${message}`);
+                  else if (missionId === 3) addChatMessage(message);
+                } else {
+                  const errorMessage = 'Mission completed, but reward distribution failed. Contact support.';
+                  if (missionId === 1) setSlotMessage(prev => `${prev}\n${errorMessage}`);
+                  else if (missionId === 2) setGameMessage(prev => `${prev}\n${errorMessage}`);
+                  else if (missionId === 3) addChatMessage(errorMessage);
+                }
               } catch (err) {
                 console.error('Mission reward distribution failed:', err);
                 const errorMessage = 'Mission completed, but reward distribution failed. Contact support.';
@@ -1454,7 +1522,7 @@ useEffect(() => {
                 else if (missionId === 3) addChatMessage(errorMessage);
               }
             })();
-
+  
             return { ...mission, current: newCurrent, completed: true };
           }
           return { ...mission, current: newCurrent };
@@ -1464,7 +1532,7 @@ useEffect(() => {
       return updatedMissions;
     });
   };
-
+  
 
   const joinPokerGame = async () => {
     if (!connected || !publicKey) {
@@ -1480,114 +1548,42 @@ useEffect(() => {
       return;
     }
   
+    if (comBalance < betAmount) {
+      setPokerMessage('Saldo COM insufficiente.');
+      console.log('Join failed: Insufficient COM balance', { comBalance, betAmount });
+      return;
+    }
+  
     try {
-      console.log('Fetching token accounts...');
-      const userATA = await getAssociatedTokenAddress(
-        new PublicKey(MINT_ADDRESS_RAW),
-        publicKey
-      );
-      const casinoATA = await getAssociatedTokenAddress(
-        new PublicKey(MINT_ADDRESS_RAW),
-        wallet.publicKey
-      );
-      console.log('Token accounts:', { userATA: userATA.toString(), casinoATA: casinoATA.toString() });
-  
-      // Crea una transazione
-      const transaction = new Transaction();
-  
-      // Verifica se l'ATA dell'utente esiste, altrimenti crealo
-      console.log('Checking user ATA...');
-      let userAccountExists = false;
-      try {
-        await getAccount(connection, userATA);
-        userAccountExists = true;
-        console.log('User ATA exists');
-      } catch (err) {
-        console.log('User ATA does not exist, creating...');
-        transaction.add(
-          createAssociatedTokenAccountInstruction(
-            publicKey, // Payer (l'utente paga per la creazione)
-            userATA, // Indirizzo dell'ATA
-            publicKey, // Owner (l'utente)
-            new PublicKey(MINT_ADDRESS_RAW) // Mint del token
-          )
-        );
-      }
-  
-      // Verifica se l'ATA del casinò esiste, altrimenti crealo
-      console.log('Checking casino ATA...');
-      let casinoAccountExists = false;
-      try {
-        await getAccount(connection, casinoATA);
-        casinoAccountExists = true;
-        console.log('Casino ATA exists');
-      } catch (err) {
-        console.log('Casino ATA does not exist, creating...');
-        transaction.add(
-          createAssociatedTokenAccountInstruction(
-            publicKey, // Payer (l'utente paga per la creazione)
-            casinoATA, // Indirizzo dell'ATA
-            wallet.publicKey, // Owner (il casinò)
-            new PublicKey(MINT_ADDRESS_RAW) // Mint del token
-          )
-        );
-      }
-  
-      // Verifica il saldo COM dell'utente (dopo aver creato l'ATA, se necessario)
-      console.log('Fetching user COM balance...');
-      if (userAccountExists || transaction.instructions.length > 0) {
-        const userBalance = await connection.getTokenAccountBalance(userATA);
-        if (userBalance.value.uiAmount < betAmount) {
-          setPokerMessage('Saldo COM insufficiente.');
-          console.log('Join failed: Insufficient COM balance', {
-            userBalance: userBalance.value.uiAmount,
-            betAmount,
-          });
-          return;
-        }
-        console.log('User COM balance:', userBalance.value.uiAmount);
-      }
-  
-      // Aggiungi l'istruzione di trasferimento
-      console.log('Creating transfer instruction...');
-      transaction.add(
-        createTransferInstruction(
-          userATA,
-          casinoATA,
-          publicKey,
-          betAmount * 1e6 // Converti in unità base (6 decimali)
-        )
-      );
-  
-      console.log('Fetching latest blockhash...');
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = publicKey;
-  
-      console.log('Sending COM transaction...');
-      const signed = await signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(signature);
-      console.log('COM transaction confirmed:', signature);
-  
-      console.log('Emitting joinGame:', { playerAddress: publicKey.toString(), betAmount });
-      socket.emit('joinGame', {
-        playerAddress: publicKey.toString(),
-        betAmount,
+      console.log('Sending joinGame request:', { playerAddress: publicKey.toString(), betAmount });
+      const response = await fetch(`${BACKEND_URL}/join-poker-game`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          playerAddress: publicKey.toString(),
+          betAmount,
+        }),
       });
-      setPokerMessage('Ti sei unito al gioco! In attesa di un altro giocatore...');
+      const result = await response.json();
+      if (result.success) {
+        socket.emit('joinGame', {
+          playerAddress: publicKey.toString(),
+          betAmount,
+        });
+        setPokerMessage('Ti sei unito al gioco! In attesa di un altro giocatore...');
+        fetchComBalance(); // Aggiorna il saldo dopo la transazione
+      } else {
+        setPokerMessage(`Impossibile unirsi al gioco: ${result.error}`);
+        console.log('Join failed:', result.error);
+      }
     } catch (err) {
       console.error('Errore in joinPokerGame:', err);
-      if (err.name === 'SendTransactionError') {
-        const logs = err.logs || [];
-        console.error('Transaction logs:', logs);
-        setPokerMessage('Errore nella transazione: ' + (logs.join('\n') || err.message));
-      } else {
-        setPokerMessage('Impossibile unirsi al gioco. Riprova.');
-      }
+      setPokerMessage('Impossibile unirsi al gioco. Riprova.');
     }
   };
-
+  
   const makePokerMove = async (move, amount = 0) => {
     if (!connected || !publicKey || pokerStatus !== 'playing') {
       setPokerMessage('Gioco non in corso o portafoglio non connesso!');
@@ -1610,52 +1606,50 @@ useEffect(() => {
       return;
     }
   
-    if (move === 'call' || move === 'bet' || move === 'raise') {
-      let additionalBet;
-      if (move === 'call') {
-        additionalBet = currentBet - (playerBets[publicKey?.toString()] || 0);
-      } else {
-        additionalBet = amount - (playerBets[publicKey?.toString()] || 0);
+    let additionalBet = 0;
+    if (move === 'call') {
+      additionalBet = currentBet - (playerBets[publicKey.toString()] || 0);
+    } else if (move === 'bet' || move === 'raise') {
+      additionalBet = amount - (playerBets[publicKey.toString()] || 0);
+    }
+  
+    if (additionalBet > 0) {
+      if (comBalance < additionalBet) {
+        setPokerMessage('Saldo COM insufficiente. Aggiungi fondi e riprova.');
+        return;
       }
   
-      if (additionalBet > 0) {
-        try {
-          const userATA = await getAssociatedTokenAddress(MINT_ADDRESS, publicKey);
-          const casinoATA = await getAssociatedTokenAddress(MINT_ADDRESS, wallet.publicKey);
-          const userBalance = await connection.getTokenAccountBalance(userATA);
-          if (userBalance.value.uiAmount < additionalBet) {
-            setPokerMessage('Saldo COM insufficiente. Aggiungi fondi e riprova.');
-            return;
-          }
-  
-          const transaction = new Transaction().add(
-            createTransferInstruction(
-              userATA,
-              casinoATA,
-              publicKey,
-              additionalBet * 1e6
-            )
-          );
-  
-          const { blockhash } = await connection.getLatestBlockhash();
-          transaction.recentBlockhash = blockhash;
-          transaction.feePayer = publicKey;
-  
-          const signed = await signTransaction(transaction);
-          const signature = await connection.sendRawTransaction(signed.serialize());
-          await connection.confirmTransaction(signature);
-          console.log(`Trasferiti ${additionalBet} COM per ${move}`);
-        } catch (err) {
-          console.error('Errore nella scommessa:', err);
-          setPokerMessage('Scommessa fallita. Riprova.');
+      try {
+        const response = await fetch(`${BACKEND_URL}/make-poker-move`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            playerAddress: publicKey.toString(),
+            gameId,
+            move,
+            amount: additionalBet,
+          }),
+        });
+        const result = await response.json();
+        if (!result.success) {
+          setPokerMessage(`Scommessa fallita: ${result.error}`);
           return;
         }
+        fetchComBalance(); // Aggiorna il saldo dopo la transazione
+      } catch (err) {
+        console.error('Errore nella scommessa:', err);
+        setPokerMessage('Scommessa fallita. Riprova.');
+        return;
       }
     }
   
     console.log(`Emissione evento makeMove: gameId=${gameId}, move=${move}, amount=${amount}`);
     socket.emit('makeMove', { gameId, move, amount });
   };
+  
+  
 
   const [accumulatedRewards, setAccumulatedRewards] = useState({
     sol: 0,
@@ -1682,7 +1676,7 @@ useEffect(() => {
    
   // Fetch dei dati di reward
   useEffect(() => {
-    if (connection && wallet && MINT_ADDRESS) {
+    if (MINT_ADDRESS && RPC_ENDPOINT) {
       fetchRewardsData();
     } else {
       setError('Incomplete configuration: check the .env file');
@@ -1706,81 +1700,124 @@ useEffect(() => {
 
   const [lastBalance, setLastBalance] = useState(null);
 
-  const fetchRewardsData = async () => {
-    try {
-      setLoading(true);
+  const fetchRewardsData = async (retries = 3, delay = 1000) => {
+    setLoading(true);
+    setError(null);
   
-      const balance = await connection.getBalance(wallet.publicKey);
-      const usableBalance = balance * 0.5;
-      setTaxWalletBalance(balance / 1e9);
+    let newAccumulated = { sol: 0, wbtc: 0, weth: 0 }; // Valore predefinito
   
-      const solPerToken = Math.floor(usableBalance * 0.95);
-      const solPerPortion = Math.floor(solPerToken / 3);
-      const dailySolReward = solPerPortion / 1e9;
-  
-      const wbtcATA = await getAssociatedTokenAddress(WBTC_MINT, wallet.publicKey);
-      const wethATA = await getAssociatedTokenAddress(WETH_MINT, wallet.publicKey);
-      const wbtcBalance = await connection.getTokenAccountBalance(wbtcATA).catch(() => ({ value: { amount: '0' } }));
-      const wethBalance = await connection.getTokenAccountBalance(wethATA).catch(() => ({ value: { amount: '0' } }));
-      const dailyWbtcReward = Number(wbtcBalance.value.amount) / 1e8;
-      const dailyWethReward = Number(wethBalance.value.amount) / 1e8;
-  
-      const prevAccumulated = loadAccumulatedRewards();
-      const newAccumulated = {
-        sol: prevAccumulated.sol + dailySolReward,
-        wbtc: prevAccumulated.wbtc + dailyWbtcReward,
-        weth: prevAccumulated.weth + dailyWethReward,
-      };
-  
-      setAccumulatedRewards(newAccumulated);
-      setRewardSol(dailySolReward);
-      setRewardWbtc(dailyWbtcReward);
-      setRewardWeth(dailyWethReward);
-  
-      localStorage.setItem('accumulatedRewards', JSON.stringify(newAccumulated));
-  
-      const holderList = await getHolders(MINT_ADDRESS);
-      const mintInfo = await getMint(connection, MINT_ADDRESS);
-      const supply = Number(mintInfo.supply) / 1e6;
-      setTotalSupply(supply);
-  
-      const updatedHolders = holderList.map(holder => ({
-        ...holder,
-        solReward: (holder.amount / supply) * dailySolReward, // Usa daily per gli holders
-        wbtcReward: (holder.amount / supply) * dailyWbtcReward,
-        wethReward: (holder.amount / supply) * dailyWethReward,
-      }));
-      setHolders(updatedHolders);
-      setHolderCount(updatedHolders.length);
-  
-      if (connected && publicKey) {
-        const userATA = await getAssociatedTokenAddress(MINT_ADDRESS, publicKey);
-        const userBalance = await connection.getTokenAccountBalance(userATA).catch(() => ({ value: { uiAmount: 0 } }));
-        const userAmount = userBalance.value.uiAmount || 0;
-        setUserTokens(userAmount);
-        // Usa le ricompense accumulate per l'utente
-        setUserRewards({
-          sol: (userAmount / supply) * newAccumulated.sol,
-          wbtc: (userAmount / supply) * newAccumulated.wbtc,
-          weth: (userAmount / supply) * newAccumulated.weth,
+    for (let i = 0; i < retries; i++) {
+      try {
+        // Recupera il saldo del tax wallet dal backend
+        const balanceResponse = await fetch(`${BACKEND_URL}/tax-wallet-balance`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         });
+        if (!balanceResponse.ok) {
+          throw new Error(`HTTP error! status: ${balanceResponse.status}`);
+        }
+        const balanceResult = await balanceResponse.json();
+        if (balanceResult.success) {
+          setTaxWalletBalance(balanceResult.balance);
+          console.log('DEBUG - Tax wallet balance fetched:', balanceResult.balance);
+        } else {
+          throw new Error(balanceResult.error);
+        }
+  
+        // Recupera le ricompense dal backend
+        const rewardsResponse = await fetch(`${BACKEND_URL}/rewards`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!rewardsResponse.ok) {
+          throw new Error(`HTTP error! status: ${rewardsResponse.status}`);
+        }
+        const rewardsResult = await rewardsResponse.json();
+        if (rewardsResult.success) {
+          setRewardSol(rewardsResult.rewards.sol);
+          setRewardWbtc(rewardsResult.rewards.wbtc);
+          setRewardWeth(rewardsResult.rewards.weth);
+  
+          const prevAccumulated = loadAccumulatedRewards();
+          newAccumulated = {
+            sol: prevAccumulated.sol + rewardsResult.rewards.sol,
+            wbtc: prevAccumulated.wbtc + rewardsResult.rewards.wbtc,
+            weth: prevAccumulated.weth + rewardsResult.rewards.weth,
+          };
+          setAccumulatedRewards(newAccumulated);
+          localStorage.setItem('accumulatedRewards', JSON.stringify(newAccumulated));
+        } else {
+          throw new Error(rewardsResult.error);
+        }
+  
+        // Ricerca degli holders nel frontend
+        if (connected && publicKey && MINT_ADDRESS && RPC_ENDPOINT) {
+          const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+          const holderList = await getHolders(MINT_ADDRESS, connection);
+          const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS));
+          const supply = Number(mintInfo.supply) / 1e6;
+          setTotalSupply(supply);
+  
+          const updatedHolders = holderList.map(holder => ({
+            ...holder,
+            solReward: (holder.amount / supply) * rewardsResult.rewards.sol,
+            wbtcReward: (holder.amount / supply) * rewardsResult.rewards.wbtc,
+            wethReward: (holder.amount / supply) * rewardsResult.rewards.weth,
+          }));
+          setHolders(updatedHolders);
+          setHolderCount(updatedHolders.length);
+  
+          const userBalance = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }).then(res => res.json());
+          const userAmount = userBalance.success ? userBalance.balance : 0;
+          setUserTokens(userAmount);
+          setUserRewards({
+            sol: (userAmount / supply) * newAccumulated.sol,
+            wbtc: (userAmount / supply) * newAccumulated.wbtc,
+            weth: (userAmount / supply) * newAccumulated.weth,
+          });
+        } else {
+          setHolders([]);
+          setHolderCount(0);
+          setTotalSupply(0);
+          setUserTokens(0);
+          setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
+        }
+        return;
+      } catch (error) {
+        console.error(`Error in fetchRewardsData (attempt ${i + 1}/${retries}):`, error);
+        if (i < retries - 1) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          setError('Error fetching data: ' + error.message);
+          setHolders([]);
+          setHolderCount(0);
+          setTotalSupply(0);
+          setUserTokens(0);
+          setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
+        }
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('DEBUG - Error in fetchRewardsData:', error);
-      setError('Error fetching data: ' + error.message);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const getHolders = async (mintAddress) => {
+  const getHolders = async (mintAddress, connection) => {
     const holders = [];
     const filters = [
       { dataSize: 165 },
-      { memcmp: { offset: 0, bytes: mintAddress.toBase58() } },
+      { memcmp: { offset: 0, bytes: mintAddress } },
     ];
     const accounts = await connection.getProgramAccounts(TOKEN_PROGRAM_ID, { filters });
-
+  
     const sortedAccounts = accounts
       .map(account => {
         const accountData = AccountLayout.decode(account.account.data);
@@ -1792,7 +1829,7 @@ useEffect(() => {
       })
       .filter(Boolean)
       .sort((a, b) => b.amount - a.amount);
-
+  
     const filteredHolders = sortedAccounts.slice(1);
     console.log('DEBUG - Tutti gli holders filtrati (esclusa pool):', filteredHolders);
     return filteredHolders;
@@ -1843,209 +1880,129 @@ useEffect(() => {
     return score;
   };
 
-  const startBlackjack = async () => {
-    if (!connected || !publicKey) {
-      setGameMessage('Please connect your wallet to play!');
-      return;
-    }
-  
-    const betError = validateBet(betAmount, 'Solana Card Duel');
-    if (betError) {
-      setGameMessage(betError);
-      return;
-    }
-    setGameStatus('betting');
-    // Resettiamo le carte subito per non mostrarle durante la transazione
-    setPlayerCards([]);
-    setOpponentCards([]);
-    setGameMessage('Placing bet...');
-  
-    const betInLamports = betAmount * LAMPORTS_PER_SOL;
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: wallet.publicKey,
-        lamports: betInLamports,
-      })
-    );
-  
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = publicKey;
-  
-    try {
-      console.log('DEBUG - Sending bet transaction...');
-      const signed = await signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(signed.serialize());
-      console.log('DEBUG - Bet transaction signature:', signature);
-      await connection.confirmTransaction(signature);
-  
-      // Pesca le carte solo dopo che la transazione è confermata
-      const playerInitial = [drawCard(), drawCard()];
-      const dealerInitial = [drawCard(), drawCard()]; // Banco con 2 carte
-  
-      const arePlayerCardsValid = playerInitial.every(card => card && card.value && card.image);
-      const areDealerCardsValid = dealerInitial.every(card => card && card.value && card.image);
-  
-      if (!arePlayerCardsValid || !areDealerCardsValid) {
-        console.error('DEBUG - Invalid cards assigned:', { playerInitial, dealerInitial });
-        setGameMessage('Error: Invalid cards. Please try again.');
-        setGameStatus('idle');
-        setPlayerCards([]);
-        setOpponentCards([]);
-        return;
-      }
-  
-      console.log('DEBUG - Player cards:', playerInitial);
-      console.log('DEBUG - Dealer cards:', dealerInitial);
-      setPlayerCards(playerInitial);
-      setOpponentCards(dealerInitial); // "opponentCards" ora rappresenta le carte del banco
-  
-      setGameStatus('playing');
-      setGameMessage('Bet placed! Your turn: Hit or Stand.');
-    } catch (err) {
-      console.error('DEBUG - Bet failed:', err);
-      setGameMessage('Bet failed. Try again.');
-      setGameStatus('idle');
-      setPlayerCards([]);
-      setOpponentCards([]);
-    }
-  };
+  // Modifica Solana Card Duel
+// Funzione per iniziare la partita
+const startBlackjack = async () => {
+  if (!connected || !publicKey) {
+    setGameMessage('Please connect your wallet to play!');
+    return;
+  }
 
-  const hit = () => {
-    if (gameStatus !== 'playing') return;
-  
-    const newCard = drawCard();
-    setPlayerCards(prev => [...prev, newCard]);
-    const newScore = calculateScore([...playerCards, newCard]);
-  
-    if (newScore > 21) {
-      setGameStatus('finished');
-      setGameMessage('You busted! Dealer wins.');
-    } else {
-      setGameMessage(`Your score: ${newScore}. Hit or Stand?`);
-    }
-  };
+  const betError = validateBet(betAmount, 'Solana Card Duel');
+  if (betError) {
+    setGameMessage(betError);
+    return;
+  }
 
-  const stand = async () => {
-    if (gameStatus !== 'playing') return;
-  
-    const playerScore = calculateScore(playerCards);
-    let dealerCards = [...opponentCards];
-    let dealerScore = calculateScore(dealerCards);
-  
-    // Il banco pesca carte finché il punteggio è inferiore a 17
-    while (dealerScore < 17) {
-      const newCard = drawCard();
-      dealerCards = [...dealerCards, newCard];
-      dealerScore = calculateScore(dealerCards);
-      setOpponentCards(dealerCards); // Aggiorna le carte del banco visibili
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Pausa per simulare il gioco
+  setGameStatus('playing');
+  setPlayerCards([]);
+  setOpponentCards([]);
+  setGameMessage('Placing bet...');
+
+  try {
+    const result = await createAndSignTransaction(betAmount, 'solanaCardDuel', { action: 'start' });
+    setPlayerCards(result.playerCards);
+    setOpponentCards(result.opponentCards);
+    setGameMessage(result.message);
+    setGameId(result.gameId); // Salva il gameId restituito dal backend
+  } catch (err) {
+    console.error('Start Blackjack failed:', err);
+    setGameMessage(`Bet failed: ${err.message}`);
+    setGameStatus('idle');
+  }
+};
+
+// Funzione per pescare una carta (hit)
+const hit = async () => {
+  if (gameStatus !== 'playing' || !gameId) return;
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/play-solana-card-duel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerAddress: publicKey.toString(),
+        gameId,
+        action: 'hit',
+        playerCards,
+        opponentCards,
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Server responded with status ${response.status}: ${text}`);
     }
-  
-    console.log('DEBUG - Final player score:', playerScore);
-    console.log('DEBUG - Final dealer score:', dealerScore);
-  
-    const winAmount = betAmount * 2;
-    const winAmountInLamports = winAmount * LAMPORTS_PER_SOL;
-  
-    // Logica di vincita
-    if (dealerScore > 21) {
-      setGameStatus('finished');
-      setGameMessage(`Dealer busted! You won ${winAmount.toFixed(2)} SOL!`);
-  
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: wallet.publicKey,
-          toPubkey: publicKey,
-          lamports: winAmountInLamports,
-        })
-      );
-  
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = wallet.publicKey;
-      transaction.partialSign(wallet);
-  
-      try {
-        const signature = await connection.sendRawTransaction(transaction.serialize());
-        await connection.confirmTransaction(signature);
-        console.log('DEBUG - Prize distributed:', signature);
-        setTriggerWinEffect(true);
-        playSound(winAudioRef);
-        updateMissionProgress(2);
-        setPlayerStats(prev => ({
-          ...prev,
-          wins: prev.wins + 1,
-          totalWinnings: prev.totalWinnings + winAmount,
-        }));
-      } catch (err) {
-        console.error('DEBUG - Prize distribution failed:', err);
-        setGameMessage('You won, but prize distribution failed. Contact support.');
-      }
-    } else if (playerScore > dealerScore) {
-      setGameStatus('finished');
-      setGameMessage(`You won ${winAmount.toFixed(2)} SOL!`);
-  
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: wallet.publicKey,
-          toPubkey: publicKey,
-          lamports: winAmountInLamports,
-        })
-      );
-  
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = wallet.publicKey;
-      transaction.partialSign(wallet);
-  
-      try {
-        const signature = await connection.sendRawTransaction(transaction.serialize());
-        await connection.confirmTransaction(signature);
-        console.log('DEBUG - Prize distributed:', signature);
-        setTriggerWinEffect(true);
-        playSound(winAudioRef);
-        updateMissionProgress(2);
-        setPlayerStats(prev => ({
-          ...prev,
-          wins: prev.wins + 1,
-          totalWinnings: prev.totalWinnings + winAmount,
-        }));
-      } catch (err) {
-        console.error('DEBUG - Prize distribution failed:', err);
-        setGameMessage('You won, but prize distribution failed. Contact support.');
-      }
-    } else if (playerScore === dealerScore) {
-      setGameStatus('finished');
-      setGameMessage("It's a tie! Your bet is returned.");
-  
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: wallet.publicKey,
-          toPubkey: publicKey,
-          lamports: betAmount * LAMPORTS_PER_SOL,
-        })
-      );
-  
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = wallet.publicKey;
-      transaction.partialSign(wallet);
-  
-      try {
-        const signature = await connection.sendRawTransaction(transaction.serialize());
-        await connection.confirmTransaction(signature);
-        console.log('DEBUG - Bet returned:', signature);
-      } catch (err) {
-        console.error('DEBUG - Bet return failed:', err);
-        setGameMessage('Tie, but bet return failed. Contact support.');
-      }
-    } else {
-      setGameStatus('finished');
-      setGameMessage('Dealer wins! Try again.');
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error);
     }
-  };
+
+    setPlayerCards(result.playerCards);
+    setGameMessage(result.message);
+    if (result.outcome === 'lose') {
+      setGameStatus('finished');
+      setGameId(null); // Resetta il gameId
+    }
+  } catch (err) {
+    console.error('Hit failed:', err);
+    setGameMessage(`Hit failed: ${err.message}`);
+  }
+};
+
+// Funzione per fermarsi (stand)
+const stand = async () => {
+  if (gameStatus !== 'playing' || !gameId) return;
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/play-solana-card-duel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerAddress: publicKey.toString(),
+        gameId,
+        action: 'stand',
+        playerCards,
+        opponentCards,
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Server responded with status ${response.status}: ${text}`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+
+    setPlayerCards(result.playerCards);
+    setOpponentCards(result.opponentCards);
+    setGameMessage(result.message);
+    setGameStatus('finished');
+    if (result.outcome === 'win') {
+      setTriggerWinEffect(true);
+      playSound(winAudioRef);
+      updateMissionProgress(2);
+      setPlayerStats(prev => ({
+        ...prev,
+        wins: prev.wins + 1,
+        totalWinnings: prev.totalWinnings + result.totalWin,
+      }));
+    }
+    setGameId(null); // Resetta il gameId
+  } catch (err) {
+    console.error('Stand failed:', err);
+    setGameMessage(`Stand failed: ${err.message}`);
+    setGameStatus('finished');
+  }
+};
+
+
+
+  
 
   
   const generateSlotResult = () => {
@@ -2197,826 +2154,678 @@ const animateReels = (result, callback) => {
   }, intervalTime);
 };
 
-  const spinSlots = async () => {
-    if (!connected || !publicKey) {
-      setSlotMessage('Please connect your wallet to play!');
-      return;
-    }
-  
-    const betError = validateBet(betAmount);
-    if (betError) {
-      setSlotMessage(betError);
-      return;
-    }
-  
-    setSlotStatus('spinning');
-    setIsStopping(false);
-    playSound(spinAudioRef);
-  
-    const betInLamports = betAmount * LAMPORTS_PER_SOL;
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: wallet.publicKey,
-        lamports: betInLamports,
-      })
-    );
-  
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = publicKey;
-  
-    try {
-      const signed = await signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(signature);
-  
-      const result = generateSlotResult();
-  
-      // Controlla che il risultato sia valido
-      if (!result || result.length !== 25 || result.some(item => !item || !item.name || !item.image)) {
-        console.error('DEBUG - Invalid slot result:', result);
-        setSlotMessage('Error: Invalid slot result. Please try again.');
-        setSlotStatus('idle');
-        return;
-      }
-  
-      // Passa il risultato a animateReels
-      animateReels(result, () => evaluateResult(result));
-    } catch (err) {
-      console.error('Spin failed:', err);
-      setSlotMessage(`Spin failed: ${err.message}. Try again.`);
-      setSlotStatus('idle');
-    }
-  };
-  
-
-  // Aggiorna evaluateResult per un confronto più robusto e log dettagliati
-const evaluateResult = (result) => {
-  // Linee vincenti che iniziano da indici nella prima riga [0, 1, 2, 3, 4] o prima colonna [0, 5, 10, 15, 20]
-  const winLines = [
-    [0, 1, 2, 3, 4],
-    [5, 6, 7, 8, 9],
-    [10, 11, 12, 13, 14],
-    [15, 16, 17, 18, 19],
-    [20, 21, 22, 23, 24],
-    [0, 5, 10, 15, 20],
-    [1, 6, 11, 16, 21],
-    [2, 7, 12, 17, 22],
-    [3, 8, 13, 18, 23],
-    [4, 9, 14, 19, 24],
-    [0, 6, 12, 18, 24],
-    [4, 8, 12, 16, 20],
-    [5, 11, 17],
-    [5, 11, 17, 23],
-    [10, 16, 22],
-    [15, 21, 23],
-  ];
-
-  const winningLinesFound = [];
-  const winningIndices = new Set();
-  let totalWin = 0;
-  const winDetails = [];
-
-  console.log('DEBUG - Slot Reels Result:', result.map((item, index) => `${index}: ${item ? item.name : 'null'}`));
-
-  for (let i = 0; i < winLines.length; i++) {
-    const line = winLines[i];
-    const symbolsInLine = line.map(index => {
-      if (!result[index] || !result[index].name) {
-        console.warn(`DEBUG - Invalid or null symbol at index ${index} in line ${i}`);
-        return null;
-      }
-      return result[index].name; // Mantieni il case originale per il confronto
-    });
-
-    console.log(`DEBUG - Line ${i} (${line.join(', ')}): [${symbolsInLine.join(', ')}]`);
-
-    // Verifica che tutti i simboli siano definiti
-    if (symbolsInLine.some(symbol => symbol === null)) {
-      console.warn(`DEBUG - Skipping line ${i} due to null symbols:`, symbolsInLine);
-      continue;
-    }
-
-    // Debug specifico per la linea [10, 11, 12, 13, 14]
-    if (line.join(',') === '10,11,12,13,14') {
-      console.log(`DEBUG - Detailed check for line [10, 11, 12, 13, 14]:`, symbolsInLine);
-      console.log(`DEBUG - Symbols at [10, 11, 12]:`, symbolsInLine.slice(0, 3));
-    }
-
-    // Controlla sequenze di simboli consecutivi
-    let currentSymbol = symbolsInLine[0];
-    let streak = 1;
-    let streakStart = 0;
-
-    for (let j = 1; j < symbolsInLine.length; j++) {
-      console.log(`DEBUG - Comparing ${symbolsInLine[j - 1]} with ${symbolsInLine[j]} at indices ${line[j - 1]} and ${line[j]}`);
-      if (symbolsInLine[j] === currentSymbol) {
-        streak++;
-        console.log(`DEBUG - Streak increased to ${streak} for symbol ${currentSymbol} at index ${line[j]}`);
-      } else {
-        // Registra la sequenza vincente se >= 3
-        if (streak >= 3) {
-          console.log(`DEBUG - Winning sequence found in line ${i}: ${currentSymbol} x${streak} (indices ${line.slice(streakStart, streakStart + streak).join(', ')})`);
-          winningLinesFound.push(i);
-          for (let k = streakStart; k < streakStart + streak; k++) {
-            winningIndices.add(line[k]);
-          }
-          let winAmount;
-          if (streak === 3) {
-            winAmount = betAmount * 0.5; // 3 simboli: 0.5x il bet
-          } else if (streak === 4) {
-            winAmount = betAmount * 3; // 4 simboli: 3x il bet
-          } else if (streak === 5) {
-            winAmount = betAmount * 10; // 5 simboli: 10x il bet
-          }
-          if (currentSymbol.toLowerCase() === 'bonus') {
-            winAmount *= 2; // Bonus raddoppia la vincita
-          }
-          totalWin += winAmount;
-          winDetails.push(`${streak} ${currentSymbol} = ${winAmount.toFixed(3)} SOL`);
-          console.log(`DEBUG - Win amount for this sequence: ${winAmount.toFixed(3)} SOL`);
-        }
-        currentSymbol = symbolsInLine[j];
-        streak = 1;
-        streakStart = j;
-      }
-    }
-
-    // Controlla l'ultima sequenza della linea
-    if (streak >= 3) {
-      console.log(`DEBUG - Winning sequence found in line ${i}: ${currentSymbol} x${streak} (indices ${line.slice(streakStart, streakStart + streak).join(', ')})`);
-      winningLinesFound.push(i);
-      for (let k = streakStart; k < streakStart + streak; k++) {
-        winningIndices.add(line[k]);
-      }
-      let winAmount;
-      if (streak === 3) {
-        winAmount = betAmount * 0.5; // 3 simboli: 0.5x il bet
-      } else if (streak === 4) {
-        winAmount = betAmount * 3; // 4 simboli: 3x il bet
-      } else if (streak === 5) {
-        winAmount = betAmount * 10; // 5 simboli: 10x il bet
-      }
-      if (currentSymbol.toLowerCase() === 'bonus') {
-        winAmount *= 2; // Bonus raddoppia la vincita
-      }
-      totalWin += winAmount;
-      winDetails.push(`${streak} ${currentSymbol} = ${winAmount.toFixed(3)} SOL`);
-      console.log(`DEBUG - Win amount for this sequence: ${winAmount.toFixed(3)} SOL`);
-    }
+// Modifica spinSlots
+const spinSlots = async () => {
+  if (!connected || !publicKey || !signTransaction) {
+    setSlotMessage('Please connect your wallet to play!');
+    return;
   }
 
-  setWinningLines(winningLinesFound);
-  setWinningIndices(Array.from(winningIndices));
+  const betError = validateBet(betAmount);
+  if (betError) {
+    setSlotMessage(betError);
+    return;
+  }
 
-  console.log('DEBUG - Winning Lines:', winningLinesFound);
-  console.log('DEBUG - Winning Indices:', Array.from(winningIndices));
-  console.log('DEBUG - Total Win:', totalWin.toFixed(3), 'SOL');
-  console.log('DEBUG - Win Details:', winDetails);
+  setSlotStatus('spinning');
+  setIsStopping(false);
+  playSound(spinAudioRef);
 
-  if (winningLinesFound.length > 0) {
-    setSlotStatus('won');
-    let message = `Jackpot! You won ${totalWin.toFixed(3)} SOL!`;
-    if (winDetails.length > 1) {
-      message += ` (Details: ${winDetails.join(' + ')})`;
-    } else if (winDetails.length === 1) {
-      message += ` (Details: ${winDetails[0]})`;
-    }
-    setSlotMessage(message);
-
-    if (!connection || !wallet || !publicKey) {
-      console.error('Missing required objects for transaction:', {
-        connection: !!connection,
-        wallet: !!wallet,
-        publicKey: !!publicKey,
-      });
-      setSlotMessage('Error: Cannot distribute prize. Missing wallet or connection.');
-      return;
-    }
-
-    const winAmountInLamports = totalWin * LAMPORTS_PER_SOL;
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: wallet.publicKey,
-        toPubkey: publicKey,
-        lamports: winAmountInLamports,
-      })
-    );
-
-    (async () => {
-      try {
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = wallet.publicKey;
-        transaction.sign(wallet);
-
-        const signature = await connection.sendRawTransaction(transaction.serialize());
-        console.log('DEBUG - Transaction signature:', signature);
-
-        const confirmation = await connection.confirmTransaction({
-          signature,
-          blockhash,
-          lastValidBlockHeight,
-        });
-
-        if (confirmation.value.err) {
-          throw new Error('Transaction confirmation failed: ' + JSON.stringify(confirmation.value.err));
-        }
-
-        console.log('DEBUG - Prize distributed successfully:', signature);
+  try {
+    const result = await createAndSignTransaction(betAmount, 'memeSlots');
+    animateReels(result.result, () => {
+      setWinningLines(result.winningLines);
+      setWinningIndices(result.winningIndices);
+      if (result.totalWin > 0) {
+        setSlotStatus('won');
+        setSlotMessage(`Jackpot! You won ${result.totalWin.toFixed(3)} SOL!`);
         setTriggerWinEffect(true);
         playSound(winAudioRef);
-
         setPlayerStats(prev => ({
           ...prev,
-          totalWinnings: prev.totalWinnings + totalWin,
-        }));
-      } catch (err) {
-        console.error('Prize distribution failed:', err);
-        setSlotMessage(`You won ${totalWin.toFixed(3)} SOL, but prize distribution failed: ${err.message}. Contact support.`);
-      }
-    })();
-  } else {
-    setSlotStatus('lost');
-    setSlotMessage('No luck this time. Spin again!');
-  }
-
-  updateMissionProgress(1);
-  setPlayerStats(prev => ({
-    ...prev,
-    spins: prev.spins + 1,
-  }));
-};
-
-
-
-  const flipCoin = async (choice) => {
-    if (!connected || !publicKey) {
-      setFlipMessage('Please connect your wallet to play!');
-      return;
-    }
-
-    const betError = validateBet(betAmount);
-    if (betError) {
-      setFlipMessage(betError);
-      return;
-    }
-
-    setFlipStatus('flipping');
-    setFlipChoice(choice);
-    const betInLamports = betAmount * LAMPORTS_PER_SOL;
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: wallet.publicKey,
-        lamports: betInLamports,
-      })
-    );
-
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = publicKey;
-
-    try {
-      const signed = await signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(signature);
-
-      let result;
-      if (Math.random() < COMPUTER_WIN_CHANCE.coinFlip) {
-        result = choice === 'blue' ? 'red' : 'blue';
-      } else {
-        result = choice;
-      }
-      setFlipResult(result);
-
-      if (choice === result) {
-        setFlipStatus('won');
-        const winAmount = betAmount * 2;
-        const winAmountInLamports = winAmount * LAMPORTS_PER_SOL;
-        setFlipMessage(`You won ${winAmount.toFixed(2)} SOL!`);
-
-        const transaction = new Transaction().add(
-          SystemProgram.transfer({
-            fromPubkey: wallet.publicKey,
-            toPubkey: publicKey,
-            lamports: winAmountInLamports,
-          })
-        );
-
-        const { blockhash } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = wallet.publicKey;
-        transaction.partialSign(wallet);
-
-        try {
-          const signature = await connection.sendRawTransaction(transaction.serialize());
-          await connection.confirmTransaction(signature);
-          console.log('Prize distributed:', signature);
-          setTriggerWinEffect(true);
-          playSound(winAudioRef);
-        } catch (err) {
-          console.error('Prize distribution failed:', err);
-          setFlipMessage('You won, but prize distribution failed. Contact support.');
-        }
-
-        setPlayerStats(prev => ({
-          ...prev,
-          wins: prev.wins + 1,
-          totalWinnings: prev.totalWinnings + winAmount,
+          totalWinnings: prev.totalWinnings + result.totalWin,
         }));
       } else {
-        setFlipStatus('lost');
-        setFlipMessage('The computer wins! Try again.');
+        setSlotStatus('lost');
+        setSlotMessage('No luck this time. Spin again!');
       }
-    } catch (err) {
-      console.error('Flip failed:', err);
-      setFlipMessage('Flip failed. Try again.');
-      setFlipStatus('idle');
-    }
-  };
-
-  const presenterMessages = [
-    "Welcome to Crazy Time! Place your bets!",
-    "Come on, bet on Pachinko, it might be your lucky day!",
-    "The wheel is about to spin! Are you ready?",
-    "Great! You've triggered a bonus round!",
-    "Don't give up, the next spin could be the one!",
-  ];
-
-  const addChatMessage = (message) => {
-    setChatMessages(prev => [...prev, message].slice(-5));
-  };
-
-  const handleBetSelection = (segment, event) => {
-    event.preventDefault(); // Impedisce il refresh
-    setBets(prevBets => {
-      const currentBet = prevBets[segment] || 0;
-      const newBet = currentBet > 0 ? 0 : betAmount;
-      addChatMessage(
-        newBet > 0
-          ? `You placed a bet of ${newBet.toFixed(2)} SOL on ${segment}!`
-          : `You removed your bet from ${segment}!`
-      );
-      return {
-        ...prevBets,
-        [segment]: newBet,
-      };
-    });
-  };
-
-
-
-  
-
-  const spinWheel = async (event) => {
-    event.preventDefault(); // Impedisce il refresh
-    if (!connected || !publicKey) {
-      setWheelMessage('Please connect your wallet to play!');
-      addChatMessage('Please connect your wallet to play!');
-      return;
-    }
-    const totalBet = Object.values(bets).reduce((sum, bet) => sum + bet, 0);
-    if (totalBet === 0) {
-      setWheelMessage('Please place a bet on at least one segment!');
-      addChatMessage('Please place a bet on at least one segment!');
-      return;
-    }
-    const betError = validateBet(totalBet);
-    if (betError) {
-      setWheelMessage(betError);
-      addChatMessage(betError);
-      return;
-    }
-  
-    setWheelStatus('preparing'); // Nuovo stato per feedback
-    setWheelMessage('Preparing transaction...');
-    playSound(spinAudioRef);
-  
-    const betInLamports = totalBet * LAMPORTS_PER_SOL;
-    const instructions = [
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: wallet.publicKey,
-        lamports: betInLamports,
-      }),
-    ];
-  
-    try {
-      const { blockhash } = await connection.getLatestBlockhash();
-      const messageV0 = new TransactionMessage({
-        payerKey: publicKey,
-        recentBlockhash: blockhash,
-        instructions,
-      }).compileToV0Message();
-      const transaction = new VersionedTransaction(messageV0);
-  
-      setWheelMessage('Awaiting wallet approval...');
-      const signed = await signTransaction(transaction);
-  
-      setWheelMessage('Sending transaction...');
-      const signature = await connection.sendTransaction(signed, {
-        maxRetries: 3,
-        skipPreflight: true, // Accelera l'invio su mobile
-      });
-  
-      setWheelMessage('Confirming transaction...');
-      await connection.confirmTransaction(signature, 'confirmed');
-  
-      setWheelStatus('spinning');
-      addChatMessage('The wheel is spinning... Are you ready?');
-
-
-
-  
-      // Seleziona un segmento per il Top Slot tra quelli su cui il giocatore ha scommesso
-      const betSegments = Object.keys(bets).filter(segment => bets[segment] > 0);
-      const topSlotSegment = betSegments[Math.floor(Math.random() * betSegments.length)];
-      const topSlotMultiplier = [2, 3, 5, 10][Math.floor(Math.random() * 4)]; // Moltiplicatori più realistici
-      setTopSlot({ segment: topSlotSegment, multiplier: topSlotMultiplier });
-      addChatMessage(`Top Slot: ${topSlotSegment} with multiplier ${topSlotMultiplier}x!`);
-  
-      const spins = 5;
-      const segmentAngle = 360 / crazyTimeWheel.length;
-  
-      const betIndices = crazyTimeWheel
-        .map((segment, index) => (betSegments.includes(String(segment.value)) ? index : -1))
-        .filter(index => index !== -1);
-  
-      let resultIndex;
-      if (Math.random() < COMPUTER_WIN_CHANCE.crazyTime) {
-        const nonBetIndices = crazyTimeWheel
-          .map((segment, index) => (betIndices.includes(index) ? -1 : index))
-          .filter(index => index !== -1);
-        if (nonBetIndices.length > 0) {
-          resultIndex = nonBetIndices[Math.floor(Math.random() * nonBetIndices.length)];
-        } else {
-          resultIndex = Math.floor(Math.random() * crazyTimeWheel.length);
-        }
-      } else {
-        if (betIndices.length > 0) {
-          resultIndex = betIndices[Math.floor(Math.random() * betIndices.length)];
-        } else {
-          resultIndex = Math.floor(Math.random() * crazyTimeWheel.length);
-        }
-      }
-  
-      const targetAngle = resultIndex * segmentAngle;
-      const finalAngle = (spins * 360) + targetAngle + (Math.random() * segmentAngle);
-      setRotationAngle(finalAngle);
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-  
-      const normalizedAngle = finalAngle % 360;
-      const adjustedAngle = (normalizedAngle - 90 + 360) % 360;
-      const winningIndex = (crazyTimeWheel.length - Math.floor(adjustedAngle / segmentAngle) - 1) % crazyTimeWheel.length;
-      const result = crazyTimeWheel[winningIndex];
-  
-      console.log('Segment Angle:', segmentAngle);
-      console.log('Final Angle:', finalAngle);
-      console.log('Normalized Angle:', normalizedAngle);
-      console.log('Adjusted Angle:', adjustedAngle);
-      console.log('Winning Index:', winningIndex);
-      console.log('Result:', result.value);
-      console.log('Result Color:', result.color, result.colorName);
-      console.log('Crazy Time Wheel:', crazyTimeWheel);
-  
-      setWheelResult(result);
-      setLastResults((prev) => [...prev, result.value].slice(-10));
-      addChatMessage(`The wheel stopped on ${result.value}!`);
-  
-      if (result.type === 'number') {
-        const betOnResult = bets[result.value] || 0;
-        if (betOnResult > 0) {
-          let multiplier = parseInt(result.value);
-          let topSlotApplied = false;
-          if (String(topSlotSegment) === String(result.value)) {
-            multiplier *= topSlotMultiplier;
-            topSlotApplied = true;
-          }
-          const winAmount = betOnResult * multiplier;
-          const winAmountInLamports = winAmount * LAMPORTS_PER_SOL;
-          setWheelMessage(
-            topSlotApplied
-              ? `You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
-              : `You won ${winAmount.toFixed(2)} SOL!`
-          );
-          addChatMessage(
-            topSlotApplied
-              ? `Great! You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
-              : `Great! You won ${winAmount.toFixed(2)} SOL!`
-          );
-  
-          const transaction = new Transaction().add(
-            SystemProgram.transfer({
-              fromPubkey: wallet.publicKey,
-              toPubkey: publicKey,
-              lamports: winAmountInLamports,
-            })
-          );
-  
-          const { blockhash: winBlockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-          transaction.recentBlockhash = winBlockhash;
-          transaction.feePayer = wallet.publicKey;
-          transaction.sign(wallet);
-  
-          try {
-            const signature = await connection.sendRawTransaction(transaction.serialize());
-            await connection.confirmTransaction({
-              signature,
-              blockhash: winBlockhash,
-              lastValidBlockHeight,
-            });
-            console.log('Prize distributed:', signature);
-            setTriggerWinEffect(true);
-            playSound(winAudioRef);
-          } catch (err) {
-            console.error('Prize distribution failed:', err);
-            setWheelMessage('You won, but prize distribution failed. Contact support.');
-            addChatMessage('You won, but prize distribution failed. Contact support.');
-          }
-  
-          setPlayerStats(prev => ({
-            ...prev,
-            totalWinnings: prev.totalWinnings + winAmount,
-          }));
-        } else {
-          setWheelMessage('No win this time. Try again!');
-          addChatMessage('No win this time. Try again!');
-        }
-        setWheelStatus('finished');
-      } else {
-        setWheelStatus('bonus');
-        addChatMessage(`You triggered the ${result.value} bonus round!`);
-  
-        if (result.value === 'Coin Flip') {
-          const redMultiplier = [2, 3, 5, 10][Math.floor(Math.random() * 4)];
-          const blueMultiplier = [2, 3, 5, 10][Math.floor(Math.random() * 4)];
-          const side = Math.random() < 0.5 ? 'red' : 'blue';
-          let multiplier = side === 'red' ? redMultiplier : blueMultiplier;
-          let topSlotApplied = false;
-          if (String(topSlotSegment) === 'Coin Flip') {
-            multiplier *= topSlotMultiplier;
-            topSlotApplied = true;
-          }
-          setBonusResult({ type: 'Coin Flip', side, redMultiplier, blueMultiplier, multiplier });
-  
-          const betOnBonus = bets['Coin Flip'] || 0;
-          if (betOnBonus > 0) {
-            const winAmount = betOnBonus * multiplier;
-            const winAmountInLamports = winAmount * LAMPORTS_PER_SOL;
-            setWheelMessage(
-              topSlotApplied
-                ? `Coin Flip: ${side} wins! You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
-                : `Coin Flip: ${side} wins! You won ${winAmount.toFixed(2)} SOL!`
-            );
-            addChatMessage(
-              topSlotApplied
-                ? `Coin Flip: ${side} wins! You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
-                : `Coin Flip: ${side} wins! You won ${winAmount.toFixed(2)} SOL!`
-            );
-  
-            const transaction = new Transaction().add(
-              SystemProgram.transfer({
-                fromPubkey: wallet.publicKey,
-                toPubkey: publicKey,
-                lamports: winAmountInLamports,
-              })
-            );
-  
-            const { blockhash: winBlockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-            transaction.recentBlockhash = winBlockhash;
-            transaction.feePayer = wallet.publicKey;
-            transaction.sign(wallet);
-  
-            try {
-              const signature = await connection.sendRawTransaction(transaction.serialize());
-              await connection.confirmTransaction({
-                signature,
-                blockhash: winBlockhash,
-                lastValidBlockHeight,
-              });
-              console.log('Prize distributed:', signature);
-              setTriggerWinEffect(true);
-              playSound(winAudioRef);
-            } catch (err) {
-              console.error('Prize distribution failed:', err);
-              setWheelMessage('You won, but prize distribution failed. Contact support.');
-              addChatMessage('You won, but prize distribution failed. Contact support.');
-            }
-  
-            setPlayerStats(prev => ({
-              ...prev,
-              totalWinnings: prev.totalWinnings + winAmount,
-            }));
-          } else {
-            setWheelMessage('You accessed Coin Flip, but did not bet on it.');
-            addChatMessage('You accessed Coin Flip, but did not bet on it.');
-          }
-        } else if (result.value === 'Pachinko') {
-          const multipliers = [2, 3, 5, 10, 20];
-          const slotIndex = Math.floor(Math.random() * multipliers.length);
-          let multiplier = multipliers[slotIndex];
-          let topSlotApplied = false;
-          if (String(topSlotSegment) === 'Pachinko') {
-            multiplier *= topSlotMultiplier;
-            topSlotApplied = true;
-          }
-          setBonusResult({ type: 'Pachinko', slotIndex, multiplier });
-  
-          const betOnBonus = bets['Pachinko'] || 0;
-          if (betOnBonus > 0) {
-            const winAmount = betOnBonus * multiplier;
-            const winAmountInLamports = winAmount * LAMPORTS_PER_SOL;
-            setWheelMessage(
-              topSlotApplied
-                ? `Pachinko: You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
-                : `Pachinko: You won ${winAmount.toFixed(2)} SOL!`
-            );
-            addChatMessage(
-              topSlotApplied
-                ? `Pachinko: You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
-                : `Pachinko: You won ${winAmount.toFixed(2)} SOL!`
-            );
-  
-            const transaction = new Transaction().add(
-              SystemProgram.transfer({
-                fromPubkey: wallet.publicKey,
-                toPubkey: publicKey,
-                lamports: winAmountInLamports,
-              })
-            );
-  
-            const { blockhash: winBlockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-            transaction.recentBlockhash = winBlockhash;
-            transaction.feePayer = wallet.publicKey;
-            transaction.sign(wallet);
-  
-            try {
-              const signature = await connection.sendRawTransaction(transaction.serialize());
-              await connection.confirmTransaction({
-                signature,
-                blockhash: winBlockhash,
-                lastValidBlockHeight,
-              });
-              console.log('Prize distributed:', signature);
-              setTriggerWinEffect(true);
-              playSound(winAudioRef);
-            } catch (err) {
-              console.error('Prize distribution failed:', err);
-              setWheelMessage('You won, but prize distribution failed. Contact support.');
-              addChatMessage('You won, but prize distribution failed. Contact support.');
-            }
-  
-            setPlayerStats(prev => ({
-              ...prev,
-              totalWinnings: prev.totalWinnings + winAmount,
-            }));
-          } else {
-            setWheelMessage('You accessed Pachinko, but did not bet on it.');
-            addChatMessage('You accessed Pachinko, but did not bet on it.');
-          }
-        } else if (result.value === 'Cash Hunt') {
-          const multipliers = Array(10).fill().map(() => Math.floor(Math.random() * 50) + 1);
-          const chosenMultiplier = multipliers[Math.floor(Math.random() * multipliers.length)];
-          let multiplier = chosenMultiplier;
-          let topSlotApplied = false;
-          if (String(topSlotSegment) === 'Cash Hunt') {
-            multiplier *= topSlotMultiplier;
-            topSlotApplied = true;
-          }
-          setBonusResult({ type: 'Cash Hunt', multipliers, chosenMultiplier, multiplier });
-  
-          const betOnBonus = bets['Cash Hunt'] || 0;
-          if (betOnBonus > 0) {
-            const winAmount = betOnBonus * multiplier;
-            const winAmountInLamports = winAmount * LAMPORTS_PER_SOL;
-            setWheelMessage(
-              topSlotApplied
-                ? `Cash Hunt: You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
-                : `Cash Hunt: You won ${winAmount.toFixed(2)} SOL!`
-            );
-            addChatMessage(
-              topSlotApplied
-                ? `Cash Hunt: You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
-                : `Cash Hunt: You won ${winAmount.toFixed(2)} SOL!`
-            );
-  
-            const transaction = new Transaction().add(
-              SystemProgram.transfer({
-                fromPubkey: wallet.publicKey,
-                toPubkey: publicKey,
-                lamports: winAmountInLamports,
-              })
-            );
-  
-            const { blockhash: winBlockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-            transaction.recentBlockhash = winBlockhash;
-            transaction.feePayer = wallet.publicKey;
-            transaction.sign(wallet);
-  
-            try {
-              const signature = await connection.sendRawTransaction(transaction.serialize());
-              await connection.confirmTransaction({
-                signature,
-                blockhash: winBlockhash,
-                lastValidBlockHeight,
-              });
-              console.log('Prize distributed:', signature);
-              setTriggerWinEffect(true);
-              playSound(winAudioRef);
-            } catch (err) {
-              console.error('Prize distribution failed:', err);
-              setWheelMessage('You won, but prize distribution failed. Contact support.');
-              addChatMessage('You won, but prize distribution failed. Contact support.');
-            }
-  
-            setPlayerStats(prev => ({
-              ...prev,
-              totalWinnings: prev.totalWinnings + winAmount,
-            }));
-          } else {
-            setWheelMessage('You accessed Cash Hunt, but did not bet on it.');
-            addChatMessage('You accessed Cash Hunt, but did not bet on it.');
-          }
-        } else if (result.value === 'Crazy Time') {
-          const multipliers = [10, 20, 50, 100, 200];
-          const chosenMultiplier = multipliers[Math.floor(Math.random() * multipliers.length)];
-          let multiplier = chosenMultiplier;
-          let topSlotApplied = false;
-          if (String(topSlotSegment) === 'Crazy Time') {
-            multiplier *= topSlotMultiplier;
-            topSlotApplied = true;
-          }
-          setBonusResult({ type: 'Crazy Time', multiplier });
-  
-          const betOnBonus = bets['Crazy Time'] || 0;
-          if (betOnBonus > 0) {
-            const winAmount = betOnBonus * multiplier;
-            const winAmountInLamports = winAmount * LAMPORTS_PER_SOL;
-            setWheelMessage(
-              topSlotApplied
-                ? `Crazy Time: You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
-                : `Crazy Time: You won ${winAmount.toFixed(2)} SOL!`
-            );
-            addChatMessage(
-              topSlotApplied
-                ? `Crazy Time: You won ${winAmount.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
-                : `Crazy Time: You won ${winAmount.toFixed(2)} SOL!`
-            );
-  
-            const transaction = new Transaction().add(
-              SystemProgram.transfer({
-                fromPubkey: wallet.publicKey,
-                toPubkey: publicKey,
-                lamports: winAmountInLamports,
-              })
-            );
-  
-            const { blockhash: winBlockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-            transaction.recentBlockhash = winBlockhash;
-            transaction.feePayer = wallet.publicKey;
-            transaction.sign(wallet);
-  
-            try {
-              const signature = await connection.sendRawTransaction(transaction.serialize());
-              await connection.confirmTransaction({
-                signature,
-                blockhash: winBlockhash,
-                lastValidBlockHeight,
-              });
-              console.log('Prize distributed:', signature);
-              setTriggerWinEffect(true);
-              playSound(winAudioRef);
-            } catch (err) {
-              console.error('Prize distribution failed:', err);
-              setWheelMessage('You won, but prize distribution failed. Contact support.');
-              addChatMessage('You won, but prize distribution failed. Contact support.');
-            }
-  
-            setPlayerStats(prev => ({
-              ...prev,
-              totalWinnings: prev.totalWinnings + winAmount,
-            }));
-          } else {
-            setWheelMessage('You accessed Crazy Time, but did not bet on it.');
-            addChatMessage('You accessed Crazy Time, but did not bet on it.');
-          }
-        }
-      }
-  
-      updateMissionProgress(3);
+      updateMissionProgress(1);
       setPlayerStats(prev => ({
         ...prev,
         spins: prev.spins + 1,
       }));
+    });
+  } catch (err) {
+    setSlotMessage(`Spin failed: ${err.message}`);
+    setSlotStatus('idle');
+  }
+};
+
+
+  // Aggiorna evaluateResult per un confronto più robusto e log dettagliati
+  const evaluateResult = async (result) => {
+    const winLines = [
+      [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24],
+      [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24],
+      [0, 6, 12, 18, 24], [4, 8, 12, 16, 20],
+    ];
+  
+    const winningLinesFound = [];
+    const winningIndices = new Set();
+    let totalWin = 0;
+    const winDetails = [];
+  
+    for (let i = 0; i < winLines.length; i++) {
+      const line = winLines[i];
+      const symbolsInLine = line.map(index => result[index]?.name);
+  
+      if (symbolsInLine.some(symbol => !symbol)) {
+        console.warn(`DEBUG - Skipping line ${i} due to null symbols:`, symbolsInLine);
+        continue;
+      }
+  
+      let currentSymbol = symbolsInLine[0];
+      let streak = 1;
+      let streakStart = 0;
+  
+      for (let j = 1; j < symbolsInLine.length; j++) {
+        if (symbolsInLine[j] === currentSymbol) {
+          streak++;
+        } else {
+          if (streak >= 3) {
+            winningLinesFound.push(i);
+            for (let k = streakStart; k < streakStart + streak; k++) {
+              winningIndices.add(line[k]);
+            }
+            let winAmount;
+            if (streak === 3) winAmount = betAmount * 0.5;
+            else if (streak === 4) winAmount = betAmount * 3;
+            else if (streak === 5) winAmount = betAmount * 10;
+            if (currentSymbol.toLowerCase() === 'bonus') winAmount *= 2;
+            totalWin += winAmount;
+            winDetails.push(`${streak} ${currentSymbol} = ${winAmount.toFixed(3)} SOL`);
+          }
+          currentSymbol = symbolsInLine[j];
+          streak = 1;
+          streakStart = j;
+        }
+      }
+  
+      if (streak >= 3) {
+        winningLinesFound.push(i);
+        for (let k = streakStart; k < streakStart + streak; k++) {
+          winningIndices.add(line[k]);
+        }
+        let winAmount;
+        if (streak === 3) winAmount = betAmount * 0.5;
+        else if (streak === 4) winAmount = betAmount * 3;
+        else if (streak === 5) winAmount = betAmount * 10;
+        if (currentSymbol.toLowerCase() === 'bonus') winAmount *= 2;
+        totalWin += winAmount;
+        winDetails.push(`${streak} ${currentSymbol} = ${winAmount.toFixed(3)} SOL`);
+      }
+    }
+  
+    setWinningLines(winningLinesFound);
+    setWinningIndices(Array.from(winningIndices));
+  
+    if (winningLinesFound.length > 0) {
+      setSlotStatus('won');
+      let message = `Jackpot! You won ${totalWin.toFixed(3)} SOL!`;
+      if (winDetails.length > 1) {
+        message += ` (Details: ${winDetails.join(' + ')})`;
+      } else if (winDetails.length === 1) {
+        message += ` (Details: ${winDetails[0]})`;
+      }
+      setSlotMessage(message);
+  
+      try {
+        const response = await fetch(`${BACKEND_URL}/distribute-winnings-sol`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            playerAddress: publicKey.toString(),
+            amount: totalWin,
+          }),
+        });
+        const result = await response.json();
+        if (result.success) {
+          setTriggerWinEffect(true);
+          playSound(winAudioRef);
+          setPlayerStats(prev => ({
+            ...prev,
+            totalWinnings: prev.totalWinnings + totalWin,
+          }));
+        } else {
+          setSlotMessage(`You won ${totalWin.toFixed(3)} SOL, but prize distribution failed: ${result.error}. Contact support.`);
+        }
+      } catch (err) {
+        console.error('Prize distribution failed:', err);
+        setSlotMessage(`You won ${totalWin.toFixed(3)} SOL, but prize distribution failed. Contact support.`);
+      }
+    } else {
+      setSlotStatus('lost');
+      setSlotMessage('No luck this time. Spin again!');
+    }
+  
+    updateMissionProgress(1);
+    setPlayerStats(prev => ({
+      ...prev,
+      spins: prev.spins + 1,
+    }));
+  };
+
+
+
+  // Modifica flipCoin
+const flipCoin = async (choice) => {
+  if (!connected || !publicKey) {
+    setFlipMessage('Please connect your wallet to play!');
+    return;
+  }
+
+  const betError = validateBet(betAmount);
+  if (betError) {
+    setFlipMessage(betError);
+    return;
+  }
+
+  setFlipStatus('flipping');
+  setFlipChoice(choice);
+
+  try {
+    const result = await createAndSignTransaction(betAmount, 'coinFlip', { choice });
+    setFlipResult(result.flipResult);
+
+    if (choice === result.flipResult) {
+      setFlipStatus('won');
+      setFlipMessage(`You won ${result.totalWin.toFixed(2)} SOL!`);
+      setTriggerWinEffect(true);
+      playSound(winAudioRef);
+      setPlayerStats(prev => ({
+        ...prev,
+        wins: prev.wins + 1,
+        totalWinnings: prev.totalWinnings + result.totalWin,
+      }));
+    } else {
+      setFlipStatus('lost');
+      setFlipMessage('The computer wins! Try again.');
+    }
+  } catch (err) {
+    setFlipMessage(`Flip failed: ${err.message}`);
+    setFlipStatus('idle');
+  }
+};
+
+
+
+
+
+const WheelComponent = ({ crazyTimeWheel, wheelStatus, wheelResult, rotationAngle }) => {
+  const wheelRef = useRef(null);
+
+  useEffect(() => {
+    const wheelElement = wheelRef.current;
+    if (!wheelElement) return;
+
+    if (wheelStatus === 'spinning') {
+      wheelElement.style.transition = 'transform 5s ease-out';
+      wheelElement.style.transform = `rotate(${rotationAngle}deg)`;
+      console.log('DEBUG - Wheel animation started: spinning', { rotationAngle });
+    } else {
+      wheelElement.style.transition = 'none';
+      wheelElement.style.transform = `rotate(${rotationAngle}deg)`;
+      console.log('DEBUG - Wheel animation stopped:', { rotationAngle, wheelStatus });
+    }
+  }, [wheelStatus, rotationAngle]);
+
+  if (!crazyTimeWheel.length) {
+    return <div>Loading wheel...</div>;
+  }
+
+  return (
+    <div className="wheel-container">
+      <svg
+        className="wheel"
+        ref={wheelRef}
+        viewBox="0 0 500 500"
+        style={{ transform: `rotate(${rotationAngle}deg)` }}
+      >
+        <g transform="translate(250, 250)">
+          <circle cx="0" cy="0" r="100" fill="#ff3333" stroke="#d4af37" strokeWidth="5" />
+          <text
+            x="0"
+            y="-10"
+            textAnchor="middle"
+            fill="#fff"
+            fontSize="40"
+            fontWeight="bold"
+            fontFamily="'Arial', sans-serif"
+          >
+            CRAZY
+          </text>
+          <text
+            x="0"
+            y="20"
+            textAnchor="middle"
+            fill="#fff"
+            fontSize="40"
+            fontWeight="bold"
+            fontFamily="'Arial', sans-serif"
+          >
+            TIME
+          </text>
+
+          {crazyTimeWheel.map((segment, index) => {
+            const angle = (index * 360) / crazyTimeWheel.length;
+            const rad = (angle * Math.PI) / 180;
+            const nextAngle = ((index + 1) * 360) / crazyTimeWheel.length;
+            const nextRad = (nextAngle * Math.PI) / 180;
+            const r = 225;
+            const innerR = 100;
+            const x1 = innerR * Math.cos(rad);
+            const y1 = innerR * Math.sin(rad);
+            const x2 = r * Math.cos(rad);
+            const y2 = r * Math.sin(rad);
+            const x3 = r * Math.cos(nextRad);
+            const y3 = r * Math.sin(nextRad);
+            const x4 = innerR * Math.cos(nextRad);
+            const y4 = innerR * Math.sin(nextRad);
+            const textAngle = angle + (360 / crazyTimeWheel.length) / 2;
+            const textRad = (textAngle * Math.PI) / 180;
+            const textX = (innerR + (r - innerR) / 2) * Math.cos(textRad);
+            const textY = (innerR + (r - innerR) / 2) * Math.sin(textRad);
+            return (
+              <g key={index}>
+                <path
+                  d={`M ${x1} ${y1} L ${x2} ${y2} A ${r} ${r} 0 0 1 ${x3} ${y3} L ${x4} ${y4} A ${innerR} ${innerR} 0 0 0 ${x1} ${y1} Z`}
+                  fill={segment.color}
+                  stroke="#d4af37"
+                  strokeWidth="3"
+                />
+                <text
+                  x={textX}
+                  y={textY}
+                  fill="#fff"
+                  fontSize="14"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  transform={`rotate(${textAngle}, ${textX}, ${textY})`}
+                >
+                  {segment.value}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+        <circle cx="250" cy="250" r="235" fill="none" stroke="#d4af37" strokeWidth="10" />
+      </svg>
+      <div className="wheel-indicator">
+        <svg width="60" height="40" viewBox="0 0 60 40">
+          <polygon points="30,0 60,40 0,40" fill="#ff3333" stroke="#d4af37" strokeWidth="2" />
+        </svg>
+      </div>
+      {wheelResult && (
+        <div className="wheel-result" style={{ color: wheelResult.color }}>
+          Result: {wheelResult.value} ({wheelResult.colorName})
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+
+
+
+
+
+
+// Carica crazyTimeWheel all'avvio
+useEffect(() => {
+  const fetchWheel = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/get-crazy-wheel`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch crazyTimeWheel: ${response.status}`);
+      }
+      const backendResponse = await response.json();
+      if (backendResponse.success && backendResponse.wheel?.length) {
+        setCrazyTimeWheel(backendResponse.wheel);
+        console.log('DEBUG - Loaded crazyTimeWheel:', backendResponse.wheel.slice(0, 5));
+      } else {
+        throw new Error('Invalid wheel data');
+      }
     } catch (err) {
-      console.error('Spin failed:', err);
-      setWheelMessage('Spin failed. Try again.');
-      addChatMessage('Spin failed. Try again!');
-      setWheelStatus('idle');
+      console.error('Error fetching crazyTimeWheel:', err);
+      setWheelMessage('Errore nel caricamento della ruota. Riprova.');
     }
   };
+  fetchWheel();
+}, []);
+
+// Funzione spinWheel
+const spinWheel = async (event) => {
+  event.preventDefault(); // Impedisce il refresh della pagina
+  if (!connected || !publicKey || !signTransaction) {
+    setWheelMessage('Please connect your wallet to play!');
+    addChatMessage('Please connect your wallet to play!');
+    return;
+  }
+
+  const totalBet = Object.values(bets).reduce((sum, bet) => sum + bet, 0);
+  if (totalBet === 0) {
+    setWheelMessage('Please place a bet on at least one segment!');
+    addChatMessage('Please place a bet on at least one segment!');
+    return;
+  }
+
+  const betError = validateBet(totalBet);
+  if (betError) {
+    setWheelMessage(betError);
+    addChatMessage(betError);
+    return;
+  }
+
+  // Verifica il saldo SOL
+  try {
+    const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+    const betInLamports = Math.round(totalBet * LAMPORTS_PER_SOL);
+    const userBalance = await connection.getBalance(publicKey);
+    if (userBalance < betInLamports) {
+      setWheelMessage('Insufficient SOL balance. Add funds and try again.');
+      addChatMessage('Insufficient SOL balance. Add funds and try again.');
+      return;
+    }
+  } catch (err) {
+    console.error('Error checking SOL balance:', err);
+    setWheelMessage('Error checking SOL balance. Try again.');
+    addChatMessage('Error checking SOL balance. Try again.');
+    return;
+  }
+
+  // Verifica che crazyTimeWheel sia caricata
+  if (!crazyTimeWheel.length) {
+    setWheelMessage('Wheel data not loaded. Please try again.');
+    addChatMessage('Wheel data not loaded. Please try again.');
+    return;
+  }
+
+  setWheelStatus('preparing');
+  setWheelMessage('Preparing transaction...');
+  playSound(spinAudioRef);
+
+  try {
+    // Crea e firma la transazione
+    const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+    const betInLamports = Math.round(totalBet * LAMPORTS_PER_SOL);
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: publicKey,
+        toPubkey: new PublicKey(TAX_WALLET_ADDRESS),
+        lamports: betInLamports,
+      })
+    );
+
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = publicKey;
+
+    setWheelMessage('Awaiting wallet approval...');
+    const signedTransaction = await signTransaction(transaction);
+
+    // Invia la transazione al backend per validazione
+    setWheelMessage('Sending transaction...');
+    const response = await fetch(`${BACKEND_URL}/play-crazy-wheel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerAddress: publicKey.toString(),
+        bets,
+        signedTransaction: signedTransaction.serialize().toString('base64'),
+      }),
+    });
+
+    const backendResponse = await response.json();
+    console.log('DEBUG - Backend response:', backendResponse);
+    if (!backendResponse.success) {
+      throw new Error(backendResponse.error || 'Transaction failed');
+    }
+
+    setWheelStatus('spinning');
+    setWheelMessage('The wheel is spinning... Are you ready?');
+    addChatMessage('The wheel is spinning... Are you ready?');
+
+    // Logica di selezione del Top Slot
+    const betSegments = Object.keys(bets).filter(segment => bets[segment] > 0);
+    const topSlotSegment = betSegments[Math.floor(Math.random() * betSegments.length)] || '1';
+    const topSlotMultiplier = [2, 3, 5, 10][Math.floor(Math.random() * 4)];
+    setTopSlot({ segment: topSlotSegment, multiplier: topSlotMultiplier });
+    addChatMessage(`Top Slot: ${topSlotSegment} with multiplier ${topSlotMultiplier}x!`);
+
+    // Logica di selezione del risultato
+    const spins = 5;
+    const segmentAngle = 360 / crazyTimeWheel.length;
+    const betIndices = crazyTimeWheel
+      .map((segment, index) => (betSegments.includes(String(segment.value)) ? index : -1))
+      .filter(index => index !== -1);
+
+    let resultIndex;
+    if (Math.random() < COMPUTER_WIN_CHANCE.crazyTime) {
+      const nonBetIndices = crazyTimeWheel
+        .map((segment, index) => (betIndices.includes(index) ? -1 : index))
+        .filter(index => index !== -1);
+      resultIndex = nonBetIndices.length > 0
+        ? nonBetIndices[Math.floor(Math.random() * nonBetIndices.length)]
+        : Math.floor(Math.random() * crazyTimeWheel.length);
+    } else {
+      resultIndex = betIndices.length > 0
+        ? betIndices[Math.floor(Math.random() * betIndices.length)]
+        : Math.floor(Math.random() * crazyTimeWheel.length);
+    }
+
+    // Calcolo dell'angolo per l'animazione
+    const targetAngle = resultIndex * segmentAngle;
+    const finalAngle = (spins * 360) + targetAngle + (Math.random() * segmentAngle);
+    setRotationAngle(finalAngle);
+
+    // Aspetta 5 secondi per l'animazione
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    // Calcola l'indice vincente
+    const normalizedAngle = finalAngle % 360;
+    const adjustedAngle = (normalizedAngle - 90 + 360) % 360;
+    const winningIndex = (crazyTimeWheel.length - Math.floor(adjustedAngle / segmentAngle) - 1) % crazyTimeWheel.length;
+    const wheelResult = crazyTimeWheel[winningIndex];
+
+    // Validazione del risultato
+    if (!wheelResult || !wheelResult.value || !wheelResult.type || !wheelResult.colorName) {
+      console.error('DEBUG - Invalid wheel result:', wheelResult, { winningIndex, crazyTimeWheel });
+      throw new Error('Invalid wheel result');
+    }
+
+    console.log('DEBUG - Wheel result:', {
+      segmentAngle,
+      finalAngle,
+      normalizedAngle,
+      adjustedAngle,
+      winningIndex,
+      result: wheelResult.value,
+      color: wheelResult.color,
+      colorName: wheelResult.colorName,
+    });
+
+    setWheelSegmentIndex(winningIndex);
+    setWheelResult(wheelResult);
+    setLastResults(prev => [...prev, wheelResult.value].slice(-10));
+    addChatMessage(`The wheel stopped on ${wheelResult.value}!`);
+
+    // Logica di calcolo delle vincite
+    let totalWin = 0;
+    let bonusResult = null;
+    let bonusMessage = '';
+
+    if (wheelResult.type === 'number') {
+      const betOnResult = bets[wheelResult.value] || 0;
+      if (betOnResult > 0) {
+        let multiplier = parseInt(wheelResult.value);
+        let topSlotApplied = String(topSlotSegment) === String(wheelResult.value);
+        if (topSlotApplied) {
+          multiplier *= topSlotMultiplier;
+        }
+        totalWin = betOnResult * multiplier;
+        setWheelMessage(
+          topSlotApplied
+            ? `You won ${totalWin.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+            : `You won ${totalWin.toFixed(2)} SOL!`
+        );
+        addChatMessage(
+          topSlotApplied
+            ? `Great! You won ${totalWin.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+            : `Great! You won ${totalWin.toFixed(2)} SOL!`
+        );
+      } else {
+        setWheelMessage('No win this time. Try again!');
+        addChatMessage('No win this time. Try again!');
+      }
+      setWheelStatus('finished');
+    } else {
+      setWheelStatus('bonus');
+      addChatMessage(`You triggered the ${wheelResult.value} bonus round!`);
+
+      if (wheelResult.value === 'Coin Flip') {
+        const redMultiplier = [2, 3, 5, 10][Math.floor(Math.random() * 4)];
+        const blueMultiplier = [2, 3, 5, 10][Math.floor(Math.random() * 4)];
+        const side = Math.random() < 0.5 ? 'red' : 'blue';
+        let multiplier = side === 'red' ? redMultiplier : blueMultiplier;
+        let topSlotApplied = String(topSlotSegment) === 'Coin Flip';
+        if (topSlotApplied) multiplier *= topSlotMultiplier;
+        bonusResult = { type: 'Coin Flip', side, redMultiplier, blueMultiplier, multiplier };
+        const betOnBonus = bets['Coin Flip'] || 0;
+        if (betOnBonus > 0) {
+          totalWin = betOnBonus * multiplier;
+          bonusMessage = topSlotApplied
+            ? `Coin Flip: ${side} wins! You won ${totalWin.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+            : `Coin Flip: ${side} wins! You won ${totalWin.toFixed(2)} SOL!`;
+        } else {
+          bonusMessage = 'You accessed Coin Flip, but did not bet on it.';
+        }
+      } else if (wheelResult.value === 'Pachinko') {
+        const multipliers = [2, 3, 5, 10, 20];
+        const slotIndex = Math.floor(Math.random() * multipliers.length);
+        let multiplier = multipliers[slotIndex];
+        let topSlotApplied = String(topSlotSegment) === 'Pachinko';
+        if (topSlotApplied) multiplier *= topSlotMultiplier;
+        bonusResult = { type: 'Pachinko', slotIndex, multiplier };
+        const betOnBonus = bets['Pachinko'] || 0;
+        if (betOnBonus > 0) {
+          totalWin = betOnBonus * multiplier;
+          bonusMessage = topSlotApplied
+            ? `Pachinko: You won ${totalWin.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+            : `Pachinko: You won ${totalWin.toFixed(2)} SOL!`;
+        } else {
+          bonusMessage = 'You accessed Pachinko, but did not bet on it.';
+        }
+      } else if (wheelResult.value === 'Cash Hunt') {
+        const multipliers = Array(10).fill().map(() => Math.floor(Math.random() * 50) + 1);
+        const chosenMultiplier = multipliers[Math.floor(Math.random() * multipliers.length)];
+        let multiplier = chosenMultiplier;
+        let topSlotApplied = String(topSlotSegment) === 'Cash Hunt';
+        if (topSlotApplied) multiplier *= topSlotMultiplier;
+        bonusResult = { type: 'Cash Hunt', multipliers, chosenMultiplier, multiplier };
+        const betOnBonus = bets['Cash Hunt'] || 0;
+        if (betOnBonus > 0) {
+          totalWin = betOnBonus * multiplier;
+          bonusMessage = topSlotApplied
+            ? `Cash Hunt: You won ${totalWin.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+            : `Cash Hunt: You won ${totalWin.toFixed(2)} SOL!`;
+        } else {
+          bonusMessage = 'You accessed Cash Hunt, but did not bet on it.';
+        }
+      } else if (wheelResult.value === 'Crazy Time') {
+        const multipliers = [10, 20, 50, 100, 200];
+        const chosenMultiplier = multipliers[Math.floor(Math.random() * multipliers.length)];
+        let multiplier = chosenMultiplier;
+        let topSlotApplied = String(topSlotSegment) === 'Crazy Time';
+        if (topSlotApplied) multiplier *= topSlotMultiplier;
+        bonusResult = { type: 'Crazy Time', multiplier };
+        const betOnBonus = bets['Crazy Time'] || 0;
+        if (betOnBonus > 0) {
+          totalWin = betOnBonus * multiplier;
+          bonusMessage = topSlotApplied
+            ? `Crazy Time: You won ${totalWin.toFixed(2)} SOL with Top Slot ${topSlotMultiplier}x multiplier!`
+            : `Crazy Time: You won ${totalWin.toFixed(2)} SOL!`;
+        } else {
+          bonusMessage = 'You accessed Crazy Time, but did not bet on it.';
+        }
+      }
+
+      setBonusResult(bonusResult);
+      setWheelMessage(bonusMessage);
+      addChatMessage(bonusMessage);
+    }
+
+    // Distribuisci le vincite tramite il backend
+    if (totalWin > 0) {
+      try {
+        const response = await fetch(`${BACKEND_URL}/distribute-winnings-sol`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            playerAddress: publicKey.toString(),
+            amount: totalWin,
+          }),
+        });
+        const winResponse = await response.json();
+        if (winResponse.success) {
+          setTriggerWinEffect(true);
+          playSound(winAudioRef);
+          setPlayerStats(prev => ({
+            ...prev,
+            totalWinnings: prev.totalWinnings + totalWin,
+          }));
+        } else {
+          setWheelMessage(`You won ${totalWin.toFixed(2)} SOL, but prize distribution failed: ${winResponse.error}. Contact support.`);
+          addChatMessage('Prize distribution failed. Contact support.');
+        }
+      } catch (err) {
+        console.error('Prize distribution failed:', err);
+        setWheelMessage(`You won ${totalWin.toFixed(2)} SOL, but prize distribution failed. Contact support.`);
+        addChatMessage('Prize distribution failed. Contact support.');
+      }
+    }
+
+    updateMissionProgress(3);
+    setPlayerStats(prev => ({
+      ...prev,
+      spins: prev.spins + 1,
+    }));
+  } catch (err) {
+    console.error('Spin failed:', err);
+    setWheelMessage(`Spin failed: ${err.message}. Try again.`);
+    addChatMessage('Spin failed. Try again!');
+    setWheelStatus('idle');
+  }
+};
+ 
+
+
+  const addChatMessage = (message) => {
+    setChatMessages(prev => [...prev, message].slice(-10));
+  };
+  
+  const handleBetSelection = (segment, event) => {
+    event.preventDefault();
+    setBets(prev => ({
+      ...prev,
+      [segment]: prev[segment] + betAmount,
+    }));
+  };
+  
+   
 
   const indexOfLastHolder = currentPage * holdersPerPage;
   const indexOfFirstHolder = indexOfLastHolder - holdersPerPage;
