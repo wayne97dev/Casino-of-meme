@@ -978,6 +978,8 @@ const RewardsDashboard = () => {
   const [gameId, setGameId] = useState(null);
   const [crazyTimeWheel, setCrazyTimeWheel] = useState([]);
   const [wheelSegmentIndex, setWheelSegmentIndex] = useState(null);
+  const [betHistory, setBetHistory] = useState([]); // Cronologia delle scommesse
+const [lastBets, setLastBets] = useState(null); // Ultima combinazione di scommesse valida
 
 
 
@@ -1355,7 +1357,6 @@ useEffect(() => {
     return () => clearTimeout(timer);
   }
 }, [triggerWinEffect]);
-
 
 
 
@@ -2589,7 +2590,7 @@ useEffect(() => {
 
 // Funzione spinWheel
 const spinWheel = async (event) => {
-  event.preventDefault(); // Impedisce il refresh della pagina
+  event.preventDefault();
   if (!connected || !publicKey || !signTransaction) {
     setWheelMessage('Please connect your wallet to play!');
     addChatMessage('Please connect your wallet to play!');
@@ -2603,6 +2604,13 @@ const spinWheel = async (event) => {
     return;
   }
 
+  // Salva le scommesse attuali come lastBets
+  console.log('DEBUG - Saving lastBets:', bets);
+  setLastBets({ ...bets });
+  // Resetta la cronologia delle scommesse per la nuova rotazione
+  console.log('DEBUG - Resetting betHistory');
+  setBetHistory([]);
+
   const betError = validateBet(totalBet);
   if (betError) {
     setWheelMessage(betError);
@@ -2610,7 +2618,6 @@ const spinWheel = async (event) => {
     return;
   }
 
-  // Verifica il saldo SOL
   try {
     const connection = new Connection(RPC_ENDPOINT, 'confirmed');
     const betInLamports = Math.round(totalBet * LAMPORTS_PER_SOL);
@@ -2627,7 +2634,6 @@ const spinWheel = async (event) => {
     return;
   }
 
-  // Verifica che crazyTimeWheel sia caricata
   if (!crazyTimeWheel.length) {
     setWheelMessage('Wheel data not loaded. Please try again.');
     addChatMessage('Wheel data not loaded. Please try again.');
@@ -2639,7 +2645,6 @@ const spinWheel = async (event) => {
   playSound(spinAudioRef);
 
   try {
-    // Crea e firma la transazione
     const connection = new Connection(RPC_ENDPOINT, 'confirmed');
     const betInLamports = Math.round(totalBet * LAMPORTS_PER_SOL);
     const transaction = new Transaction().add(
@@ -2657,7 +2662,6 @@ const spinWheel = async (event) => {
     setWheelMessage('Awaiting wallet approval...');
     const signedTransaction = await signTransaction(transaction);
 
-    // Invia la transazione al backend per validazione
     setWheelMessage('Sending transaction...');
     const response = await fetch(`${BACKEND_URL}/play-crazy-wheel`, {
       method: 'POST',
@@ -2679,14 +2683,12 @@ const spinWheel = async (event) => {
     setWheelMessage('The wheel is spinning... Are you ready?');
     addChatMessage('The wheel is spinning... Are you ready?');
 
-    // Logica di selezione del Top Slot
     const betSegments = Object.keys(bets).filter(segment => bets[segment] > 0);
     const topSlotSegment = betSegments[Math.floor(Math.random() * betSegments.length)] || '1';
     const topSlotMultiplier = [2, 3, 5, 10][Math.floor(Math.random() * 4)];
     setTopSlot({ segment: topSlotSegment, multiplier: topSlotMultiplier });
     addChatMessage(`Top Slot: ${topSlotSegment} with multiplier ${topSlotMultiplier}x!`);
 
-    // Logica di selezione del risultato
     const spins = 5;
     const segmentAngle = 360 / crazyTimeWheel.length;
     const betIndices = crazyTimeWheel
@@ -2707,21 +2709,17 @@ const spinWheel = async (event) => {
         : Math.floor(Math.random() * crazyTimeWheel.length);
     }
 
-    // Calcolo dell'angolo per l'animazione
     const targetAngle = resultIndex * segmentAngle;
     const finalAngle = (spins * 360) + targetAngle + (Math.random() * segmentAngle);
     setRotationAngle(finalAngle);
 
-    // Aspetta 5 secondi per l'animazione
     await new Promise(resolve => setTimeout(resolve, 5000));
 
-    // Calcola l'indice vincente
     const normalizedAngle = finalAngle % 360;
     const adjustedAngle = (normalizedAngle - 90 + 360) % 360;
     const winningIndex = (crazyTimeWheel.length - Math.floor(adjustedAngle / segmentAngle) - 1) % crazyTimeWheel.length;
     const wheelResult = crazyTimeWheel[winningIndex];
 
-    // Validazione del risultato
     if (!wheelResult || !wheelResult.value || !wheelResult.type || !wheelResult.colorName) {
       console.error('DEBUG - Invalid wheel result:', wheelResult, { winningIndex, crazyTimeWheel });
       throw new Error('Invalid wheel result');
@@ -2743,7 +2741,6 @@ const spinWheel = async (event) => {
     setLastResults(prev => [...prev, wheelResult.value].slice(-10));
     addChatMessage(`The wheel stopped on ${wheelResult.value}!`);
 
-    // Logica di calcolo delle vincite
     let totalWin = 0;
     let bonusResult = null;
     let bonusMessage = '';
@@ -2848,7 +2845,6 @@ const spinWheel = async (event) => {
       addChatMessage(bonusMessage);
     }
 
-    // Distribuisci le vincite tramite il backend
     if (totalWin > 0) {
       try {
         const response = await fetch(`${BACKEND_URL}/distribute-winnings-sol`, {
@@ -2899,12 +2895,93 @@ const spinWheel = async (event) => {
   
   const handleBetSelection = (segment, event) => {
     event.preventDefault();
-    setBets(prev => ({
-      ...prev,
-      [segment]: prev[segment] + betAmount,
-    }));
+    setBets(prev => {
+      const newBets = {
+        ...prev,
+        [segment]: prev[segment] + betAmount,
+      };
+      // Aggiungi la scommessa alla cronologia
+      setBetHistory(prevHistory => [...prevHistory, { segment, amount: betAmount }]);
+      return newBets;
+    });
+  };
+
+  
+  const cancelLastBet = () => {
+    console.log('DEBUG - cancelLastBet called, betHistory:', betHistory);
+    if (betHistory.length === 0) {
+      setWheelMessage('No bets to cancel!');
+      addChatMessage('No bets to cancel!');
+      return;
+    }
+    const lastBet = betHistory[betHistory.length - 1];
+    setBets(prev => {
+      const newBets = {
+        ...prev,
+        [lastBet.segment]: Math.max(prev[lastBet.segment] - lastBet.amount, 0),
+      };
+      console.log('DEBUG - New bets after cancel:', newBets);
+      return newBets;
+    });
+    setBetHistory(prev => prev.slice(0, -1));
+    setWheelMessage(`Cancelled last bet on ${lastBet.segment} (${lastBet.amount.toFixed(2)} SOL)`);
+    addChatMessage(`Cancelled last bet on ${lastBet.segment} (${lastBet.amount.toFixed(2)} SOL)`);
   };
   
+  const repeatLastBet = async () => {
+    console.log('DEBUG - repeatLastBet called, lastBets:', lastBets, 'wheelStatus:', wheelStatus);
+    if (!lastBets) {
+      setWheelMessage('No previous bets to repeat!');
+      addChatMessage('No previous bets to repeat!');
+      return;
+    }
+  
+    const totalRepeatBet = Object.values(lastBets).reduce((sum, bet) => sum + bet, 0);
+    console.log('DEBUG - Total repeat bet:', totalRepeatBet);
+    if (totalRepeatBet <= 0) {
+      setWheelMessage('Previous bet was invalid!');
+      addChatMessage('Previous bet was invalid!');
+      return;
+    }
+  
+    // Verifica il saldo SOL
+    try {
+      const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+      const betInLamports = Math.round(totalRepeatBet * LAMPORTS_PER_SOL);
+      const userBalance = await connection.getBalance(publicKey);
+      console.log('DEBUG - User balance:', userBalance, 'Required:', betInLamports);
+      if (userBalance < betInLamports) {
+        setWheelMessage('Insufficient SOL balance to repeat bet. Add funds and try again.');
+        addChatMessage('Insufficient SOL balance to repeat bet. Add funds and try again.');
+        return;
+      }
+    } catch (err) {
+      console.error('Error checking SOL balance:', err);
+      setWheelMessage('Error checking SOL balance. Try again.');
+      addChatMessage('Error checking SOL balance. Try again.');
+      return;
+    }
+  
+    // Applica le scommesse precedenti
+    setBets({ ...lastBets });
+    setBetHistory(prev => {
+      const newHistory = [
+        ...prev,
+        ...Object.entries(lastBets)
+          .filter(([_, amount]) => amount > 0)
+          .map(([segment, amount]) => ({ segment, amount })),
+      ];
+      console.log('DEBUG - New betHistory:', newHistory);
+      return newHistory;
+    });
+  
+    setWheelMessage('Repeating last bet and spinning...');
+    addChatMessage('Repeating last bet and spinning...');
+  
+    // Avvia immediatamente la rotazione
+    await spinWheel({ preventDefault: () => {} }); // Simula un evento per spinWheel
+  };
+
    
 
   const indexOfLastHolder = currentPage * holdersPerPage;
@@ -3936,9 +4013,9 @@ const spinWheel = async (event) => {
     {['1', '2', '5', '10', 'Coin Flip', 'Pachinko', 'Cash Hunt', 'Crazy Time'].map(segment => (
       <button
         key={segment}
-        type="button" // Specifica esplicitamente che non è un submit
+        type="button"
         onClick={(e) => handleBetSelection(segment, e)}
-        onTouchStart={(e) => e.preventDefault()} // Gestisce tocchi su mobile
+        onTouchStart={(e) => e.preventDefault()}
         className="casino-button"
         style={{
           background: bets[segment] > 0 ? 'linear-gradient(135deg, #00ff00, #008000)' : '',
@@ -3947,6 +4024,23 @@ const spinWheel = async (event) => {
         {segment} (Bet: {bets[segment].toFixed(2)} SOL)
       </button>
     ))}
+  </div>
+  {/* Nuovi pulsanti */}
+  <div className="flex gap-4 justify-center mt-4">
+    <button
+      onClick={cancelLastBet}
+      className="casino-button"
+      disabled={wheelStatus !== 'idle' || betHistory.length === 0}
+    >
+      Cancel Last Bet
+    </button>
+    <button
+      onClick={repeatLastBet}
+      className="casino-button"
+      disabled={wheelStatus !== 'idle' || !lastBets || Object.values(lastBets).every(bet => bet === 0)}
+    >
+      Repeat Last Spin
+    </button>
   </div>
 </div>
 
@@ -3984,34 +4078,35 @@ const spinWheel = async (event) => {
                       </button>
                     ) : (
                       <button
-                        onClick={() => {
-                          setWheelStatus('idle');
-                          setWheelResult(null);
-                          setBonusResult(null);
-                          setTopSlot({ segment: null, multiplier: 1 });
-                          setBets({
-                            1: 0,
-                            2: 0,
-                            5: 0,
-                            10: 0,
-                            'Coin Flip': 0,
-                            'Pachinko': 0,
-                            'Cash Hunt': 0,
-                            'Crazy Time': 0,
-                          });
-                          setWheelMessage('');
-                          setChatMessages([]);
-                          setRotationAngle(0);
-                        }}
-                        className="w-full casino-button"
-                        disabled={!!betError}
-                      >
-                        Play Again (Total Bet:{' '}
-                        {Object.values(bets)
-                          .reduce((sum, bet) => sum + bet, 0)
-                          .toFixed(2)}{' '}
-                        SOL)
-                      </button>
+  onClick={() => {
+    setWheelStatus('idle');
+    setWheelResult(null);
+    setBonusResult(null);
+    setTopSlot({ segment: null, multiplier: 1 });
+    setBets({
+      1: 0,
+      2: 0,
+      5: 0,
+      10: 0,
+      'Coin Flip': 0,
+      'Pachinko': 0,
+      'Cash Hunt': 0,
+      'Crazy Time': 0,
+    });
+    setBetHistory([]); // Resetta la cronologia
+    setWheelMessage('');
+    setChatMessages([]);
+    setRotationAngle(0);
+  }}
+  className="w-full casino-button"
+  disabled={!!betError}
+>
+  Play Again (Total Bet:{' '}
+  {Object.values(bets)
+    .reduce((sum, bet) => sum + bet, 0)
+    .toFixed(2)}{' '}
+  SOL)
+</button>
                     )}
                     <button
                       onClick={() => setSelectedGame(null)}
