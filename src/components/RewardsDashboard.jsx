@@ -3070,19 +3070,23 @@ const spinWheel = async (event) => {
 
             {/* Pulsanti Show Info e Sync Data separati */}
             <div className="flex justify-center gap-6 mb-6">
-            <button
-              onClick={() => setShowInfo(!showInfo)}
-              className="w-32 casino-button"
-            >
-              {showInfo ? 'Hide Info' : 'Show Info'}
-            </button>
-            <button
-              onClick={fetchRewardsData}
-              className="w-32 casino-button"
-            >
-              Sync Data
-            </button>
-          </div>
+  <button
+    onClick={() => setShowInfo(!showInfo)}
+    className="w-32 casino-button"
+  >
+    {showInfo ? 'Hide Info' : 'Show Info'}
+  </button>
+  <button
+    onClick={async () => {
+      await fetchRewardsData();
+      console.log('DEBUG - Sync Data completed, refreshing page');
+      window.location.reload();
+    }}
+    className="w-32 casino-button"
+  >
+    Sync Data
+  </button>
+</div>
 
           {/* Tabelle collassabili */}
           {showInfo && (
