@@ -1450,64 +1450,83 @@ useEffect(() => {
 
  
   // Modifica createAndSignTransaction
-const createAndSignTransaction = async (betAmount, gameType, additionalData = {}) => {
-  if (!connected || !publicKey || !signTransaction) {
-    throw new Error('Please connect your wallet to play!');
-  }
-
-  const validGameTypes = ['memeSlots', 'coinFlip', 'crazyWheel', 'solanaCardDuel'];
-  if (!validGameTypes.includes(gameType)) {
-    throw new Error(`Invalid gameType: ${gameType}`);
-  }
-
-  const roundedBetAmount = Math.round(betAmount * 1000000000) / 1000000000;
-
-  try {
-    const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-    const betInLamports = Math.round(roundedBetAmount * LAMPORTS_PER_SOL);
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: new PublicKey(TAX_WALLET_ADDRESS),
-        lamports: betInLamports,
-      })
-    );
-
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = publicKey;
-
-    const signedTransaction = await signTransaction(transaction);
-
-    const endpointMap = {
-      memeSlots: '/play-meme-slots',
-      coinFlip: '/play-coin-flip',
-      crazyWheel: '/play-crazy-wheel',
-      solanaCardDuel: '/play-solana-card-duel',
-    };
-
-    const response = await fetch(`${BACKEND_URL}${endpointMap[gameType]}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        playerAddress: publicKey.toString(),
-        betAmount: roundedBetAmount,
-        signedTransaction: signedTransaction.serialize().toString('base64'),
-        ...additionalData,
-      }),
-    });
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error);
+  const createAndSignTransaction = async (betAmount, gameType, additionalData = {}) => {
+    if (!connected || !publicKey) {
+      throw new Error('Please connect your wallet to play!');
     }
-
-    return result;
-  } catch (err) {
-    console.error(`Failed to process transaction for ${gameType}:`, err);
-    throw err;
-  }
-};
+  
+    const validGameTypes = ['memeSlots', 'coinFlip', 'crazyWheel', 'solanaCardDuel'];
+    if (!validGameTypes.includes(gameType)) {
+      throw new Error(`Invalid gameType: ${gameType}`);
+    }
+  
+    const roundedBetAmount = Math.round(betAmount * 1000000000) / 1000000000;
+  
+    try {
+      const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+      const betInLamports = Math.round(roundedBetAmount * LAMPORTS_PER_SOL);
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: new PublicKey(TAX_WALLET_ADDRESS),
+          lamports: betInLamports,
+        })
+      );
+  
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+  
+      const provider = window.phantom?.solana;
+      if (!provider || !provider.signAndSendTransaction) {
+        throw new Error('Phantom wallet provider not found or does not support signAndSendTransaction');
+      }
+  
+      console.log('DEBUG - Signing and sending transaction for:', { gameType, betAmount });
+      const { signature } = await provider.signAndSendTransaction(transaction, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      }).catch(err => {
+        console.error('Sign and send transaction failed:', err);
+        throw new Error('Failed to sign and send transaction. Please try again or use a different wallet.');
+      });
+  
+      console.log('DEBUG - Transaction signature:', signature);
+      await connection.confirmTransaction(signature, 'confirmed');
+  
+      const endpointMap = {
+        memeSlots: '/play-meme-slots',
+        coinFlip: '/play-coin-flip',
+        crazyWheel: '/play-crazy-wheel',
+        solanaCardDuel: '/play-solana-card-duel',
+      };
+  
+      console.log('DEBUG - Sending request to backend:', { playerAddress: publicKey.toString(), betAmount, signature });
+      const response = await fetch(`${BACKEND_URL}${endpointMap[gameType]}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerAddress: publicKey.toString(),
+          betAmount: roundedBetAmount,
+          signature,
+          ...additionalData,
+        }),
+      });
+  
+      const result = await response.json();
+      if (!result.success) {
+        console.error('DEBUG - Backend request failed:', result);
+        throw new Error(result.error || 'Failed to process transaction. Please try again.');
+      }
+  
+      return result;
+    } catch (err) {
+      console.error(`Failed to process transaction for ${gameType}:`, err);
+      throw err;
+    }
+  };
+  
+  
 
  
 
@@ -2393,8 +2412,9 @@ const animateReels = (result, callback) => {
 };
 
 // Modifica spinSlots
+// Aggiorna spinSlots per gestire meglio l'errore
 const spinSlots = async () => {
-  if (!connected || !publicKey || !signTransaction) {
+  if (!connected || !publicKey) {
     setSlotMessage('Please connect your wallet to play!');
     return;
   }
@@ -2434,7 +2454,7 @@ const spinSlots = async () => {
       }));
     });
   } catch (err) {
-    setSlotMessage(`Spin failed: ${err.message}`);
+    setSlotMessage(`Spin failed: ${err.message}. Please try again or contact support.`);
     setSlotStatus('idle');
   }
 };
