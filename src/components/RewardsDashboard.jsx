@@ -987,6 +987,8 @@ const RewardsDashboard = () => {
   const [wheelSegmentIndex, setWheelSegmentIndex] = useState(null);
   const [betHistory, setBetHistory] = useState([]); // Cronologia delle scommesse
 const [lastBets, setLastBets] = useState(null); // Ultima combinazione di scommesse valida
+const [hasSeenWarning, setHasSeenWarning] = useState(false); // Stato per tracciare se l'utente ha visto l'avviso
+
 
 
 
@@ -1042,7 +1044,15 @@ const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
 
 
 
-
+  // Aggiungi il messaggio di avviso per Phantom
+  useEffect(() => {
+    if (connected && publicKey && !hasSeenWarning) {
+      alert(
+        "Note: Phantom may display a security warning. Casino of Meme is safe: we use HTTPS and do not store your private keys. For any concerns, contact us at casinofmeme@gmail.com."
+      );
+      setHasSeenWarning(true);
+    }
+  }, [connected, publicKey]);
 
 
 
