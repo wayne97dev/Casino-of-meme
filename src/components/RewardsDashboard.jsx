@@ -1681,7 +1681,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
   };
   
   const makePokerMove = async (move, amount = 0) => {
-    if (!connected || !publicKey || pokerStatus !== 'playing') {
+    if (!connected || !publicKey || pokerStatus !== 'playing' || !signTransaction) {
       setPokerMessage('Gioco non in corso o portafoglio non connesso!');
       return;
     }
@@ -1697,16 +1697,15 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
       return;
     }
   
-    // Validazione della scommessa solo per "raise"
     if (move === 'raise' && validateBet(amount, 'Poker PvP')) {
       setPokerMessage(validateBet(amount, 'Poker PvP'));
       return;
     }
   
     let additionalBet = 0;
-    if (move === 'call' || move === 'bet') { // Tratta "bet" come "call"
+    if (move === 'call') {
       additionalBet = currentBet - (playerBets[publicKey.toString()] || 0);
-    } else if (move === 'raise') {
+    } else if (move === 'bet' || move === 'raise') {
       additionalBet = amount - (playerBets[publicKey.toString()] || 0);
     }
   
@@ -1717,6 +1716,53 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
       }
   
       try {
+        const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+        const userATA = await getAssociatedTokenAddress(
+          new PublicKey(MINT_ADDRESS),
+          publicKey
+        );
+        const casinoPublicKey = new PublicKey('2E1LhcV3pze6Q6P7MEsxUoNYK3KECm2rTS2D18eSRTn9');
+        const casinoATA = await getAssociatedTokenAddress(
+          new PublicKey(MINT_ADDRESS),
+          casinoPublicKey
+        );
+  
+        const transaction = new Transaction();
+  
+        // Verifica se l'ATA dell'utente esiste, altrimenti creala
+        let userAccountExists = false;
+        try {
+          await getAccount(connection, userATA);
+          userAccountExists = true;
+        } catch (err) {
+          transaction.add(
+            createAssociatedTokenAccountInstruction(
+              publicKey,
+              userATA,
+              publicKey,
+              new PublicKey(MINT_ADDRESS)
+            )
+          );
+        }
+  
+        // Aggiungi l'istruzione di trasferimento
+        transaction.add(
+          createTransferInstruction(
+            userATA,
+            casinoATA,
+            publicKey,
+            additionalBet * 1e6 // Converti in token base
+          )
+        );
+  
+        const { blockhash } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = publicKey;
+  
+        console.log('Signing transaction for move:', move);
+        const signedTransaction = await signTransaction(transaction);
+  
+        console.log('Sending make-poker-move request:', { playerAddress: publicKey.toString(), gameId, move, amount: additionalBet });
         const response = await fetch(`${BACKEND_URL}/make-poker-move`, {
           method: 'POST',
           headers: {
@@ -1727,6 +1773,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
             gameId,
             move,
             amount: additionalBet,
+            signedTransaction: signedTransaction.serialize().toString('base64'),
           }),
         });
         const result = await response.json();
@@ -1734,10 +1781,10 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           setPokerMessage(`Scommessa fallita: ${result.error}`);
           return;
         }
-        fetchComBalance(); // Aggiorna il saldo dopo la transazione
+        fetchComBalance();
       } catch (err) {
         console.error('Errore nella scommessa:', err);
-        setPokerMessage('Scommessa fallita. Riprova.');
+        setPokerMessage(`Scommessa fallita: ${err.message}`);
         return;
       }
     }
@@ -1745,7 +1792,6 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
     console.log(`Emissione evento makeMove: gameId=${gameId}, move=${move}, amount=${amount}`);
     socket.emit('makeMove', { gameId, move, amount });
   };
-  
   
 
   const [accumulatedRewards, setAccumulatedRewards] = useState({
