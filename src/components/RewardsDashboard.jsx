@@ -6,9 +6,16 @@ import { OrbitControls, PerspectiveCamera, Text, useFBX, useAnimations, Stars } 
 import * as THREE from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import io from 'socket.io-client';
-import { getMint, TOKEN_PROGRAM_ID, AccountLayout } from '@solana/spl-token';
+import {
+  getMint,
+  TOKEN_PROGRAM_ID,
+  AccountLayout,
+  getAssociatedTokenAddress,
+  createTransferInstruction,
+  createAssociatedTokenAccountInstruction,
+  getAccount,
+} from '@solana/spl-token';
 import { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction, SystemProgram } from '@solana/web3.js';
-import { getAssociatedTokenAddress, createTransferInstruction } from '@solana/spl-token';
 
 
 
@@ -1180,13 +1187,7 @@ const [timeLeft, setTimeLeft] = useState(30); // Stato per il tempo rimanente
 
 
 
-// Configurazione Socket.IO per Poker PvP
-const socket = io(BACKEND_URL, {
-  reconnection: true,
-  reconnectionAttempts: 5,
-  reconnectionDelay: 1000,
-  transports: ['websocket'],
-});
+
 
 useEffect(() => {
   const handleGameState = (game) => {
@@ -1214,10 +1215,11 @@ useEffect(() => {
     }
   };
 
-  const handleDistributeWinnings = async ({ winnerAddress, amount }) => {
-    console.log('Distribute winnings:', { winnerAddress, amount });
+  const handleDistributeWinnings = async ({ winnerAddress, amount, isRefund }) => {
+    console.log('Distribute winnings:', { winnerAddress, amount, isRefund });
     if (winnerAddress === publicKey?.toString()) {
       try {
+        console.log('Sending request to /distribute-winnings:', { winnerAddress, amount });
         const response = await fetch(`${BACKEND_URL}/distribute-winnings`, {
           method: 'POST',
           headers: {
@@ -1226,32 +1228,42 @@ useEffect(() => {
           body: JSON.stringify({ winnerAddress, amount }),
         });
         const result = await response.json();
-        if (result.success) {
+        console.log('Response from /distribute-winnings:', result);
+        if (response.ok && result.success) {
           setTriggerWinEffect(true);
           playSound(winAudioRef);
-          setPlayerStats(prev => ({
-            ...prev,
-            wins: prev.wins + 1,
-            totalWinnings: prev.totalWinnings + amount,
-          }));
-          setPokerMessage(`You Won ${amount.toFixed(2)} COM!`);
+          if (!isRefund) {
+            setPlayerStats(prev => ({
+              ...prev,
+              wins: prev.wins + 1,
+              totalWinnings: prev.totalWinnings + amount,
+            }));
+          }
+          setPokerMessage(`You ${isRefund ? 'received a refund of' : 'won'} ${amount.toFixed(2)} COM!`);
           fetchComBalance();
         } else {
-          setPokerMessage('Errore nella distribuzione delle vincite. Contatta il supporto.');
+          console.error('Failed to distribute winnings:', result.error || 'Unknown error');
+          const errorMessage = result.error || 'Unknown error';
+          const transactionSignature = result.transactionSignature || 'N/A';
+          setPokerMessage(
+            `Failed to receive ${amount.toFixed(2)} COM: ${errorMessage}. Transaction Signature: ${transactionSignature}. Please contact support with these details.`
+          );
         }
       } catch (err) {
-        console.error('Errore nella distribuzione delle vincite:', err);
-        setPokerMessage('Errore nella distribuzione delle vincite. Contatta il supporto.');
+        console.error('Error distributing winnings:', err.message, err.stack);
+        setPokerMessage(
+          `Error receiving ${amount.toFixed(2)} COM: ${err.message}. Please contact support with error details.`
+        );
       }
     } else {
-      setPokerMessage(`${winnerAddress.slice(0, 8)}... ha vinto ${amount.toFixed(2)} COM!`);
+      setPokerMessage(`${winnerAddress.slice(0, 8)}... has ${isRefund ? 'received a refund of' : 'won'} ${amount.toFixed(2)} COM!`);
     }
   };
 
-  const handleRefund = async ({ message, amount }) => {
-    console.log('Refund received:', { message, amount });
+  const handleRefund = async ({ message, amount, isRefund }) => {
+    console.log('Refund received:', { message, amount, isRefund });
     setPokerMessage(message);
-
+  
     if (connected && publicKey && amount > 0) {
       try {
         const response = await fetch(`${BACKEND_URL}/refund`, {
@@ -1265,6 +1277,13 @@ useEffect(() => {
         if (result.success) {
           setPokerMessage(`Refund of ${amount.toFixed(2)} COM received!`);
           fetchComBalance();
+          // Non aggiorniamo la leaderboard per i rimborsi
+          if (!isRefund) {
+            setPlayerStats(prev => ({
+              ...prev,
+              totalWinnings: prev.totalWinnings + amount,
+            }));
+          }
         } else {
           setPokerMessage('Refund failed: Error processing refund. Contact support.');
         }
@@ -1275,7 +1294,7 @@ useEffect(() => {
     } else {
       setPokerMessage('Refund failed: Wallet not connected or invalid amount.');
     }
-
+  
     setWaitingPlayersList(prev => prev.filter(p => p.address !== publicKey?.toString()));
   };
 
@@ -1533,10 +1552,30 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
       return updatedMissions;
     });
   };
+
+
+  useEffect(() => {
+    socket.on('connect', () => {
+      console.log('Socket connected:', socket.id);
+      setPokerMessage('Connected to server');
+    });
+  
+    socket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err.message);
+      setPokerMessage('Failed to connect to server. Retrying...');
+    });
+  
+    socket.connect();
+  
+    return () => {
+      socket.off('connect');
+      socket.off('connect_error');
+    };
+  }, []);
   
 
   const joinPokerGame = async () => {
-    if (!connected || !publicKey) {
+    if (!connected || !publicKey || !signTransaction) {
       setPokerMessage('Connetti il tuo portafoglio per giocare!');
       console.log('Join failed: Wallet not connected', { connected, publicKey });
       return;
@@ -1556,6 +1595,53 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
     }
   
     try {
+      console.log('Creating transaction for joining poker game...');
+      const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+      const userATA = await getAssociatedTokenAddress(
+        new PublicKey(MINT_ADDRESS),
+        publicKey
+      );
+      const casinoPublicKey = new PublicKey('2E1LhcV3pze6Q6P7MEsxUoNYK3KECm2rTS2D18eSRTn9');
+      const casinoATA = await getAssociatedTokenAddress(
+        new PublicKey(MINT_ADDRESS),
+        casinoPublicKey
+      );
+  
+      const transaction = new Transaction();
+      
+      // Verifica se l'ATA dell'utente esiste, altrimenti creala
+      let userAccountExists = false;
+      try {
+        await getAccount(connection, userATA);
+        userAccountExists = true;
+      } catch (err) {
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            publicKey,
+            userATA,
+            publicKey,
+            new PublicKey(MINT_ADDRESS)
+          )
+        );
+      }
+  
+      // Aggiungi l'istruzione di trasferimento
+      transaction.add(
+        createTransferInstruction(
+          userATA,
+          casinoATA,
+          publicKey,
+          betAmount * 1e6 // Converti in token base
+        )
+      );
+  
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+  
+      console.log('Signing transaction...');
+      const signedTransaction = await signTransaction(transaction);
+  
       console.log('Sending joinGame request:', { playerAddress: publicKey.toString(), betAmount });
       const response = await fetch(`${BACKEND_URL}/join-poker-game`, {
         method: 'POST',
@@ -1565,23 +1651,32 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
         body: JSON.stringify({
           playerAddress: publicKey.toString(),
           betAmount,
+          signedTransaction: signedTransaction.serialize().toString('base64'),
         }),
       });
       const result = await response.json();
       if (result.success) {
+        console.log('Transaction successful, emitting joinGame event...');
         socket.emit('joinGame', {
           playerAddress: publicKey.toString(),
           betAmount,
+        }, (ack) => {
+          if (ack) {
+            console.log('joinGame event acknowledged by server:', ack);
+            setPokerMessage('Ti sei unito al gioco! In attesa di un altro giocatore...');
+            fetchComBalance(); // Aggiorna il saldo dopo la transazione
+          } else {
+            console.error('No acknowledgment received for joinGame event');
+            setPokerMessage('Errore: evento joinGame non confermato dal server.');
+          }
         });
-        setPokerMessage('Ti sei unito al gioco! In attesa di un altro giocatore...');
-        fetchComBalance(); // Aggiorna il saldo dopo la transazione
       } else {
         setPokerMessage(`Impossibile unirsi al gioco: ${result.error}`);
         console.log('Join failed:', result.error);
       }
     } catch (err) {
       console.error('Errore in joinPokerGame:', err);
-      setPokerMessage('Impossibile unirsi al gioco. Riprova.');
+      setPokerMessage('Impossibile unirsi al gioco: ' + err.message);
     }
   };
   
@@ -1602,15 +1697,16 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
       return;
     }
   
-    if ((move === 'bet' || move === 'raise') && validateBet(amount, 'Poker PvP')) {
+    // Validazione della scommessa solo per "raise"
+    if (move === 'raise' && validateBet(amount, 'Poker PvP')) {
       setPokerMessage(validateBet(amount, 'Poker PvP'));
       return;
     }
   
     let additionalBet = 0;
-    if (move === 'call') {
+    if (move === 'call' || move === 'bet') { // Tratta "bet" come "call"
       additionalBet = currentBet - (playerBets[publicKey.toString()] || 0);
-    } else if (move === 'bet' || move === 'raise') {
+    } else if (move === 'raise') {
       additionalBet = amount - (playerBets[publicKey.toString()] || 0);
     }
   
@@ -4129,4 +4225,4 @@ const spinWheel = async (event) => {
   );
 };
 
-export default RewardsDashboard; 
+export default RewardsDashboard;
