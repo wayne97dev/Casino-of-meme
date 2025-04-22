@@ -1213,6 +1213,11 @@ useEffect(() => {
     if (game.gameId) {
       localStorage.setItem('currentGameId', game.gameId);
     }
+    // Controllo per stato bloccato
+    if (game.status === 'playing' && game.timeLeft <= 0 && game.currentTurn === socket.id) {
+      setPokerMessage('Your turn timed out. Please reconnect or start a new game.');
+      socket.emit('leaveGame', { playerAddress: publicKey?.toString(), gameId });
+    }
   };
 
   const handleDistributeWinnings = async ({ winnerAddress, amount, isRefund }) => {
