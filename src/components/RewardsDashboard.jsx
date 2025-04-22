@@ -22,7 +22,7 @@ import { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction, SystemProgram } f
 // File audio
 const backgroundMusic = '/audio.mp3';
 const spinSound = '/spin-sound.mp3';
-const winSound = '/win-sound.mp3';
+const winSound = '/audio/win-sound.mp3';
 
 const RPC_ENDPOINT = import.meta.env.VITE_RPC_ENDPOINT;
 const MINT_ADDRESS_RAW = import.meta.env.VITE_MINT_ADDRESS;
