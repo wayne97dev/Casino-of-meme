@@ -1477,7 +1477,16 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = publicKey;
 
-    const signedTransaction = await signTransaction(transaction);
+   
+
+        // Aggiungi il messaggio di conferma qui, prima della firma
+        const transactionMessage = `You are sending ${roundedBetAmount} SOL to Casino of Meme (Address: ${TAX_WALLET_ADDRESS}). Continue?`;
+        if (!window.confirm(transactionMessage)) {
+          throw new Error('Transaction cancelled by user');
+        }
+    
+        // Procedi con la firma della transazione
+        const signedTransaction = await signTransaction(transaction);
 
     const endpointMap = {
       memeSlots: '/play-meme-slots',
