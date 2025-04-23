@@ -864,7 +864,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       <pointLight position={[0, 5, 0]} color={winLightColor} intensity={2} distance={20} />
       <pointLight position={[15, 5, 15]} color="blue" intensity={2} distance={20} />
 
-      <Stars radius={100} depth={50} count={isMobile ? 1000 : 3000} factor={4} saturation={0} fade />
+      <Stars radius={100} depth={50} count={isMobile ? 500 : 1000} factor={4} saturation={0} fade />
 
       {/* Mostra il pavimento solo quando la texture è pronta */}
       {isFloorReady && (
@@ -913,7 +913,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
 
       <EffectComposer>
-        <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9}  height={isMobile ? 100 : 300} />
+        <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9}  height={isMobile ? 50 : 100} />
       </EffectComposer>
     </>
   );
