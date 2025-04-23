@@ -9,7 +9,7 @@ import { clusterApiUrl } from '@solana/web3.js';
 import '@solana/wallet-adapter-react-ui/styles.css';
 
 
-const network = clusterApiUrl('devnet'); // Usa 'mainnet-beta' per mainnet
+const network = clusterApiUrl('mainnet-beta'); // Usa 'mainnet-beta' per mainnet
 
 function App() {
   const wallets = [new PhantomWalletAdapter()];
@@ -20,7 +20,7 @@ function App() {
         <WalletModalProvider>
           <div className="min-h-screen flex flex-col items-center py-10 bg-gradient-to-br from-gray-900 to-black">
             <h1 className="text-5xl font-bold text-cyan-400 mb-8 tracking-wider animate-pulse">
-             
+            Casino of Meme
             </h1>
             <RewardsDashboard />
           </div>
