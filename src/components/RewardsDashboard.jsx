@@ -796,31 +796,10 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   const [trumpAnimation, setTrumpAnimation] = useState('Idle');
   const [isFloorReady, setIsFloorReady] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [loadError, setLoadError] = useState(null);
 
-  // Memoizza le texture per evitare ricaricamenti
-  const brickTexture = useMemo(() => {
-    try {
-      const texture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
-      return texture;
-    } catch (err) {
-      console.error('Error loading brickTexture:', err);
-      setLoadError('Failed to load floor texture.');
-      return null;
-    }
-  }, []);
-
-  const brickNormalTexture = useMemo(() => {
-    try {
-      const texture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
-      return texture;
-    } catch (err) {
-      console.error('Error loading brickNormalTexture:', err);
-      setLoadError('Failed to load floor normal texture.');
-      return null;
-    }
-  }, []);
-
+  // Parte del pavimento invariata (come nel tuo codice originale)
+  const brickTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
+  const brickNormalTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
   const floorMaterialRef = useRef(new THREE.MeshStandardMaterial({
     roughness: 0.3,
     metalness: 0.1,
@@ -833,20 +812,18 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Parte del pavimento invariata (come nel tuo codice originale)
   useEffect(() => {
-    if (brickTexture && brickNormalTexture && !loadError) {
-      // Configura le texture
+    if (brickTexture && brickNormalTexture) {
       brickTexture.wrapS = brickTexture.wrapT = THREE.RepeatWrapping;
-      brickTexture.repeat.set(isMobile ? 5 : 10);
+      brickTexture.repeat.set(10, 10);
       brickNormalTexture.wrapS = brickNormalTexture.wrapT = THREE.RepeatWrapping;
-      brickNormalTexture.repeat.set(isMobile ? 5 : 10);
+      brickNormalTexture.repeat.set(10, 10);
 
-      // Aggiorna il materiale con le texture
       floorMaterialRef.current.map = brickTexture;
       floorMaterialRef.current.normalMap = brickNormalTexture;
       floorMaterialRef.current.needsUpdate = true;
 
-      // Segnala che il pavimento è pronto
       setIsFloorReady(true);
     }
   }, [brickTexture, brickNormalTexture]);
@@ -878,42 +855,39 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     }
   }, [triggerWinEffect]);
 
-  if (loadError) {
-    return <Text position={[0, 0, 0]} fontSize={1} color="red">{loadError}</Text>;
-  }
-
   return (
     <>
-      <PerspectiveCamera makeDefault fov={isMobile ? 60 : 90} />
-      <ambientLight intensity={isMobile ? 0.4 : 0.6} />
+      <PerspectiveCamera makeDefault fov={isMobile ? 60 : 90} /> {/* Riduci FOV su mobile */}
+      <ambientLight intensity={isMobile ? 0.4 : 0.6} /> {/* Riduci intensità su mobile */}
       <directionalLight
         position={[10, 10, 5]}
-        intensity={isMobile ? 1 : 1.5}
-        castShadow={false}
-        shadow-mapSize={[isMobile ? 512 : 1024, isMobile ? 512 : 1024]}
+        intensity={isMobile ? 1 : 1.5} // Riduci intensità su mobile
+        castShadow={false} // Disattiva ombre su mobile
+        shadow-mapSize={[isMobile ? 512 : 1024, isMobile ? 512 : 1024]} // Riduci risoluzione ombre
       />
       <pointLight
         position={[0, 5, 0]}
         color={winLightColor}
-        intensity={isMobile ? 1 : 2}
+        intensity={isMobile ? 1 : 2} // Riduci intensità su mobile
         distance={20}
       />
-      {isMobile ? null : (
+      {isMobile ? null : ( // Disattiva seconda pointLight su mobile
         <pointLight position={[15, 5, 15]} color="blue" intensity={2} distance={20} />
       )}
 
       <Stars
         radius={100}
-        depth={isMobile ? 30 : 50}
+        depth={isMobile ? 30 : 50} // Riduci profondità su mobile
         count={isMobile ? 500 : 1000}
-        factor={isMobile ? 2 : 4}
+        factor={isMobile ? 2 : 4} // Riduci fattore su mobile
         saturation={0}
         fade
       />
 
+      {/* Parte del pavimento invariata (come nel tuo codice originale) */}
       {isFloorReady && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
-          <planeGeometry args={[isMobile ? 30 : 50, isMobile ? 30 : 50]} />
+          <planeGeometry args={[50, 50]} />
           <primitive object={floorMaterialRef.current} />
         </mesh>
       )}
@@ -955,16 +929,16 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       {showParticles && <Particles position={[0, 2, 0]} />}
 
       <OrbitControls
-        enablePan={true} // Riabilitato anche su mobile
-        enableZoom={true} // Riabilitato anche su mobile
-        enableRotate={true} // Riabilitato anche su mobile
+        enablePan={true}
+        enableZoom={true}
+        enableRotate={true}
         minDistance={isMobile ? 40 : 30} // Limita zoom massimo su mobile
         maxDistance={isMobile ? 80 : 100} // Limita zoom minimo su mobile
         rotateSpeed={isMobile ? 0.5 : 1} // Riduci sensibilità rotazione su mobile
         zoomSpeed={isMobile ? 0.5 : 1} // Riduci sensibilità zoom su mobile
       />
 
-      {isMobile ? null : (
+      {isMobile ? null : ( // Disattiva Bloom su mobile
         <EffectComposer>
           <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={isMobile ? 50 : 100} />
         </EffectComposer>
