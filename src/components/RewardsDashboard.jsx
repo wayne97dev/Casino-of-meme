@@ -3237,8 +3237,14 @@ const spinWheel = async (event) => {
   <button
     onClick={async () => {
       await fetchRewardsData();
-      console.log('DEBUG - Sync Data completed, refreshing page');
-      window.location.reload();
+      // Forza un aggiornamento dello stato invece di ricaricare la pagina
+      setTaxWalletBalance(prev => prev);
+      setRewardSol(prev => prev);
+      setRewardWbtc(prev => prev);
+      setRewardWeth(prev => prev);
+      setHolders(prev => [...prev]);
+      setUserRewards(prev => ({ ...prev }));
+      console.log('DEBUG - Data synced without reload');
     }}
     className="w-32 casino-button"
   >
