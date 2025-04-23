@@ -932,10 +932,10 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         enablePan={true}
         enableZoom={true}
         enableRotate={true}
-        minDistance={isMobile ? 40 : 30} // Limita zoom massimo su mobile
-        maxDistance={isMobile ? 80 : 100} // Limita zoom minimo su mobile
-        rotateSpeed={isMobile ? 0.5 : 1} // Riduci sensibilità rotazione su mobile
-        zoomSpeed={isMobile ? 0.5 : 1} // Riduci sensibilità zoom su mobile
+        minDistance={isMobile ? 20 : 15} // Limita zoom massimo su mobile
+        maxDistance={isMobile ? 100 : 120} // Limita zoom minimo su mobile
+        rotateSpeed={isMobile ? 0.8 : 1.3} // Riduci sensibilità rotazione su mobile
+        zoomSpeed={isMobile ? 0.8 : 1.3} // Riduci sensibilità zoom su mobile
       />
 
       {isMobile ? null : ( // Disattiva Bloom su mobile
