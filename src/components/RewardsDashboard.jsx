@@ -1659,7 +1659,8 @@ useEffect(() => {
       setPokerMessage(`Failed to join game: ${err.message}`);
     }
   };
-  
+
+
   const makePokerMove = async (move, amount = 0) => {
     if (!publicKey || !gameState) {
       setPokerMessage('Please connect your wallet and join a game!');
