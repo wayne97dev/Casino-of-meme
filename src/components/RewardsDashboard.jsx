@@ -1450,64 +1450,81 @@ useEffect(() => {
 
  
   // Modifica createAndSignTransaction
-const createAndSignTransaction = async (betAmount, gameType, additionalData = {}) => {
-  if (!connected || !publicKey || !signTransaction) {
-    throw new Error('Please connect your wallet to play!');
-  }
-
-  const validGameTypes = ['memeSlots', 'coinFlip', 'crazyWheel', 'solanaCardDuel'];
-  if (!validGameTypes.includes(gameType)) {
-    throw new Error(`Invalid gameType: ${gameType}`);
-  }
-
-  const roundedBetAmount = Math.round(betAmount * 1000000000) / 1000000000;
-
-  try {
-    const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-    const betInLamports = Math.round(roundedBetAmount * LAMPORTS_PER_SOL);
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: new PublicKey(TAX_WALLET_ADDRESS),
-        lamports: betInLamports,
-      })
-    );
-
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = publicKey;
-
-    const signedTransaction = await signTransaction(transaction);
-
-    const endpointMap = {
-      memeSlots: '/play-meme-slots',
-      coinFlip: '/play-coin-flip',
-      crazyWheel: '/play-crazy-wheel',
-      solanaCardDuel: '/play-solana-card-duel',
-    };
-
-    const response = await fetch(`${BACKEND_URL}${endpointMap[gameType]}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        playerAddress: publicKey.toString(),
-        betAmount: roundedBetAmount,
-        signedTransaction: signedTransaction.serialize().toString('base64'),
-        ...additionalData,
-      }),
-    });
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error);
+  const createAndSignTransaction = async (betAmount, gameType, additionalData = {}) => {
+    if (!connected || !publicKey || !signTransaction) {
+      throw new Error('Please connect your wallet to play!');
     }
-
-    return result;
-  } catch (err) {
-    console.error(`Failed to process transaction for ${gameType}:`, err);
-    throw err;
-  }
-};
+  
+    const validGameTypes = ['memeSlots', 'coinFlip', 'crazyWheel', 'solanaCardDuel'];
+    if (!validGameTypes.includes(gameType)) {
+      throw new Error(`Invalid gameType: ${gameType}`);
+    }
+  
+    const roundedBetAmount = Math.round(betAmount * 1000000000) / 1000000000;
+  
+    try {
+      const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+      const betInLamports = Math.round(roundedBetAmount * LAMPORTS_PER_SOL);
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: new PublicKey(TAX_WALLET_ADDRESS),
+          lamports: betInLamports,
+        })
+      );
+  
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+  
+      // Verifica se il wallet è Phantom
+      const isPhantom = window.solana && window.solana.isPhantom;
+      if (!isPhantom) {
+        throw new Error('Please use Phantom wallet for this dApp.');
+      }
+  
+      // Usa signAndSendTransaction di Phantom
+      const { signature } = await window.solana.signAndSendTransaction(transaction, {
+        skipPreflight: false,
+        commitment: 'confirmed',
+      });
+  
+      // Verifica la conferma della transazione
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      if (confirmation.value.err) {
+        throw new Error('Transaction failed');
+      }
+  
+      // Invia i dettagli al backend
+      const endpointMap = {
+        memeSlots: '/play-meme-slots',
+        coinFlip: '/play-coin-flip',
+        crazyWheel: '/play-crazy-wheel',
+        solanaCardDuel: '/play-solana-card-duel',
+      };
+  
+      const response = await fetch(`${BACKEND_URL}${endpointMap[gameType]}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerAddress: publicKey.toString(),
+          betAmount: roundedBetAmount,
+          transactionSignature: signature,
+          ...additionalData,
+        }),
+      });
+  
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+  
+      return result;
+    } catch (err) {
+      console.error(`Failed to process transaction for ${gameType}:`, err);
+      throw err;
+    }
+  };
 
  
 
@@ -1590,63 +1607,23 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
   
 
   const joinPokerGame = async () => {
-    if (!connected || !publicKey || !signTransaction) {
-      setPokerMessage('Connetti il tuo portafoglio per giocare!');
-      console.log('Join failed: Wallet not connected', { connected, publicKey });
-      return;
-    }
-  
-    const betError = validateBet(betAmount, 'Poker PvP');
-    if (betError) {
-      setPokerMessage(betError);
-      console.log('Join failed: Bet validation error', { betAmount, betError });
-      return;
-    }
-  
-    if (comBalance < betAmount) {
-      setPokerMessage('Saldo COM insufficiente.');
-      console.log('Join failed: Insufficient COM balance', { comBalance, betAmount });
+    if (!connected || !publicKey) {
+      setPokerMessage('Please connect your wallet to play!');
       return;
     }
   
     try {
-      console.log('Creating transaction for joining poker game...');
+      setPokerMessage('Joining game...');
       const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-      const userATA = await getAssociatedTokenAddress(
-        new PublicKey(MINT_ADDRESS),
-        publicKey
-      );
-      const casinoPublicKey = new PublicKey('2E1LhcV3pze6Q6P7MEsxUoNYK3KECm2rTS2D18eSRTn9');
-      const casinoATA = await getAssociatedTokenAddress(
-        new PublicKey(MINT_ADDRESS),
-        casinoPublicKey
-      );
+      const userATA = await getAssociatedTokenAddress(MINT_ADDRESS, publicKey);
+      const casinoATA = await getAssociatedTokenAddress(MINT_ADDRESS, TAX_WALLET_ADDRESS);
   
-      const transaction = new Transaction();
-      
-      // Verifica se l'ATA dell'utente esiste, altrimenti creala
-      let userAccountExists = false;
-      try {
-        await getAccount(connection, userATA);
-        userAccountExists = true;
-      } catch (err) {
-        transaction.add(
-          createAssociatedTokenAccountInstruction(
-            publicKey,
-            userATA,
-            publicKey,
-            new PublicKey(MINT_ADDRESS)
-          )
-        );
-      }
-  
-      // Aggiungi l'istruzione di trasferimento
-      transaction.add(
+      const transaction = new Transaction().add(
         createTransferInstruction(
           userATA,
           casinoATA,
           publicKey,
-          betAmount * 1e6 // Converti in token base
+          Math.round(betAmount * 1e6)
         )
       );
   
@@ -1654,119 +1631,54 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
   
-      console.log('Signing transaction...');
-      const signedTransaction = await signTransaction(transaction);
+      const { signature } = await window.solana.signAndSendTransaction(transaction, {
+        skipPreflight: false,
+        commitment: 'confirmed',
+      });
   
-      console.log('Sending joinGame request:', { playerAddress: publicKey.toString(), betAmount });
+      await connection.confirmTransaction(signature, 'confirmed');
+  
       const response = await fetch(`${BACKEND_URL}/join-poker-game`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           playerAddress: publicKey.toString(),
           betAmount,
-          signedTransaction: signedTransaction.serialize().toString('base64'),
+          transactionSignature: signature,
         }),
       });
+  
       const result = await response.json();
-      if (result.success) {
-        console.log('Transaction successful, emitting joinGame event...');
-        socket.emit('joinGame', {
-          playerAddress: publicKey.toString(),
-          betAmount,
-        }, (ack) => {
-          if (ack) {
-            console.log('joinGame event acknowledged by server:', ack);
-            setPokerMessage('Ti sei unito al gioco! In attesa di un altro giocatore...');
-            fetchComBalance(); // Aggiorna il saldo dopo la transazione
-          } else {
-            console.error('No acknowledgment received for joinGame event');
-            setPokerMessage('Errore: evento joinGame non confermato dal server.');
-          }
-        });
-      } else {
-        setPokerMessage(`Impossibile unirsi al gioco: ${result.error}`);
-        console.log('Join failed:', result.error);
+      if (!result.success) {
+        throw new Error(result.error);
       }
+  
+      setPokerMessage('Joined game successfully! Waiting for another player...');
     } catch (err) {
-      console.error('Errore in joinPokerGame:', err);
-      setPokerMessage('Impossibile unirsi al gioco: ' + err.message);
+      console.error('Failed to join poker game:', err);
+      setPokerMessage(`Failed to join game: ${err.message}`);
     }
   };
   
   const makePokerMove = async (move, amount = 0) => {
-    if (!connected || !publicKey || pokerStatus !== 'playing' || !signTransaction) {
-      setPokerMessage('Gioco non in corso o portafoglio non connesso!');
+    if (!publicKey || !gameState) {
+      setPokerMessage('Please connect your wallet and join a game!');
       return;
     }
   
-    const gameId = localStorage.getItem('currentGameId');
-    if (!gameId) {
-      setPokerMessage('Nessun gioco attivo trovato!');
-      return;
-    }
-  
-    if (currentTurn !== socket.id) {
-      setPokerMessage("Non è il tuo turno!");
-      return;
-    }
-  
-    if (move === 'raise' && validateBet(amount, 'Poker PvP')) {
-      setPokerMessage(validateBet(amount, 'Poker PvP'));
-      return;
-    }
-  
-    let additionalBet = 0;
-    if (move === 'call') {
-      additionalBet = currentBet - (playerBets[publicKey.toString()] || 0);
-    } else if (move === 'bet' || move === 'raise') {
-      additionalBet = amount - (playerBets[publicKey.toString()] || 0);
-    }
-  
-    if (additionalBet > 0) {
-      if (comBalance < additionalBet) {
-        setPokerMessage('Saldo COM insufficiente. Aggiungi fondi e riprova.');
-        return;
-      }
-  
-      try {
+    try {
+      let transactionSignature = null;
+      if (amount > 0) {
         const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-        const userATA = await getAssociatedTokenAddress(
-          new PublicKey(MINT_ADDRESS),
-          publicKey
-        );
-        const casinoPublicKey = new PublicKey('2E1LhcV3pze6Q6P7MEsxUoNYK3KECm2rTS2D18eSRTn9');
-        const casinoATA = await getAssociatedTokenAddress(
-          new PublicKey(MINT_ADDRESS),
-          casinoPublicKey
-        );
+        const userATA = await getAssociatedTokenAddress(MINT_ADDRESS, publicKey);
+        const casinoATA = await getAssociatedTokenAddress(MINT_ADDRESS, TAX_WALLET_ADDRESS);
   
-        const transaction = new Transaction();
-  
-        // Verifica se l'ATA dell'utente esiste, altrimenti creala
-        let userAccountExists = false;
-        try {
-          await getAccount(connection, userATA);
-          userAccountExists = true;
-        } catch (err) {
-          transaction.add(
-            createAssociatedTokenAccountInstruction(
-              publicKey,
-              userATA,
-              publicKey,
-              new PublicKey(MINT_ADDRESS)
-            )
-          );
-        }
-  
-        // Aggiungi l'istruzione di trasferimento
-        transaction.add(
+        const transaction = new Transaction().add(
           createTransferInstruction(
             userATA,
             casinoATA,
             publicKey,
-            additionalBet * 1e6 // Converti in token base
+            Math.round(amount * 1e6)
           )
         );
   
@@ -1774,38 +1686,37 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = publicKey;
   
-        console.log('Signing transaction for move:', move);
-        const signedTransaction = await signTransaction(transaction);
-  
-        console.log('Sending make-poker-move request:', { playerAddress: publicKey.toString(), gameId, move, amount: additionalBet });
-        const response = await fetch(`${BACKEND_URL}/make-poker-move`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            playerAddress: publicKey.toString(),
-            gameId,
-            move,
-            amount: additionalBet,
-            signedTransaction: signedTransaction.serialize().toString('base64'),
-          }),
+        const { signature } = await window.solana.signAndSendTransaction(transaction, {
+          skipPreflight: false,
+          commitment: 'confirmed',
         });
-        const result = await response.json();
-        if (!result.success) {
-          setPokerMessage(`Scommessa fallita: ${result.error}`);
-          return;
-        }
-        fetchComBalance();
-      } catch (err) {
-        console.error('Errore nella scommessa:', err);
-        setPokerMessage(`Scommessa fallita: ${err.message}`);
-        return;
-      }
-    }
   
-    console.log(`Emissione evento makeMove: gameId=${gameId}, move=${move}, amount=${amount}`);
-    socket.emit('makeMove', { gameId, move, amount });
+        await connection.confirmTransaction(signature, 'confirmed');
+        transactionSignature = signature;
+      }
+  
+      const response = await fetch(`${BACKEND_URL}/make-poker-move`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerAddress: publicKey.toString(),
+          gameId: gameState.gameId,
+          move,
+          amount,
+          transactionSignature,
+        }),
+      });
+  
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+  
+      setPokerMessage(`Move ${move} executed successfully!`);
+    } catch (err) {
+      console.error('Failed to make poker move:', err);
+      setPokerMessage(`Failed to make move: ${err.message}`);
+    }
   };
   
 
