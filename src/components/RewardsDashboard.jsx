@@ -1606,59 +1606,82 @@ useEffect(() => {
   }, []);
   
 
-  const joinPokerGame = async () => {
-    if (!connected || !publicKey) {
-      setPokerMessage('Please connect your wallet to play!');
-      return;
+
+
+const joinPokerGame = async () => {
+  if (!connected || !publicKey) {
+    setPokerMessage('Please connect your wallet to play!');
+    return;
+  }
+
+  try {
+    setPokerMessage('Joining game...');
+    const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+
+    console.log('DEBUG - publicKey:', publicKey);
+    console.log('DEBUG - TAX_WALLET_ADDRESS:', TAX_WALLET_ADDRESS);
+
+    // Assicurati che publicKey sia un oggetto PublicKey
+    const userPublicKey = publicKey instanceof PublicKey ? publicKey : new PublicKey(publicKey.toString());
+    console.log('DEBUG - userPublicKey:', userPublicKey.toBase58());
+
+    // Assicurati che TAX_WALLET_ADDRESS sia un oggetto PublicKey
+    const taxWalletPublicKey = new PublicKey(TAX_WALLET_ADDRESS);
+    console.log('DEBUG - taxWalletPublicKey:', taxWalletPublicKey.toBase58());
+
+    console.log('DEBUG - Getting user ATA...');
+    const userATA = await getAssociatedTokenAddress(MINT_ADDRESS, userPublicKey);
+    console.log('DEBUG - userATA:', userATA.toBase58());
+
+    console.log('DEBUG - Getting casino ATA...');
+    const casinoATA = await getAssociatedTokenAddress(MINT_ADDRESS, taxWalletPublicKey);
+    console.log('DEBUG - casinoATA:', casinoATA.toBase58());
+
+    console.log('DEBUG - Creating transaction...');
+    const transaction = new Transaction().add(
+      createTransferInstruction(
+        userATA,
+        casinoATA,
+        userPublicKey,
+        Math.round(betAmount * 1e6)
+      )
+    );
+
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = userPublicKey;
+
+    console.log('DEBUG - Signing and sending transaction...');
+    const { signature } = await window.solana.signAndSendTransaction(transaction, {
+      skipPreflight: false,
+      commitment: 'confirmed',
+    });
+
+    console.log('DEBUG - Confirming transaction with signature:', signature);
+    await connection.confirmTransaction(signature, 'confirmed');
+
+    console.log('DEBUG - Sending request to /join-poker-game...');
+    const response = await fetch(`${BACKEND_URL}/join-poker-game`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerAddress: userPublicKey.toString(),
+        betAmount,
+        transactionSignature: signature,
+      }),
+    });
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error);
     }
-  
-    try {
-      setPokerMessage('Joining game...');
-      const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-      const userATA = await getAssociatedTokenAddress(MINT_ADDRESS, publicKey);
-      const casinoATA = await getAssociatedTokenAddress(MINT_ADDRESS, TAX_WALLET_ADDRESS);
-  
-      const transaction = new Transaction().add(
-        createTransferInstruction(
-          userATA,
-          casinoATA,
-          publicKey,
-          Math.round(betAmount * 1e6)
-        )
-      );
-  
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = publicKey;
-  
-      const { signature } = await window.solana.signAndSendTransaction(transaction, {
-        skipPreflight: false,
-        commitment: 'confirmed',
-      });
-  
-      await connection.confirmTransaction(signature, 'confirmed');
-  
-      const response = await fetch(`${BACKEND_URL}/join-poker-game`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          playerAddress: publicKey.toString(),
-          betAmount,
-          transactionSignature: signature,
-        }),
-      });
-  
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-  
-      setPokerMessage('Joined game successfully! Waiting for another player...');
-    } catch (err) {
-      console.error('Failed to join poker game:', err);
-      setPokerMessage(`Failed to join game: ${err.message}`);
-    }
-  };
+
+    setPokerMessage('Joined game successfully! Waiting for another player...');
+  } catch (err) {
+    console.error('Failed to join poker game:', err);
+    setPokerMessage(`Failed to join game: ${err.message}`);
+  }
+};
 
 
   const makePokerMove = async (move, amount = 0) => {
