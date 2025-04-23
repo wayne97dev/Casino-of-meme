@@ -1148,9 +1148,10 @@ useEffect(() => {
 }, [connected, publicKey]);
 
 const validateBet = (amount, game = selectedGame) => {
-  if (isNaN(amount) || amount <= 0) return 'Bet must be a positive number.';
+  if (isNaN(amount) || amount <= 0) return 'Bet must be a valid positive number.';
   if (game === 'Poker PvP') {
     if (amount < MIN_BET_POKER) return `Bet must be at least ${MIN_BET_POKER.toFixed(2)} COM.`;
+    if (amount > comBalance) return 'Insufficient COM balance.';
   } else {
     if (amount < MIN_BET_OTHER) return `Bet must be at least ${MIN_BET_OTHER.toFixed(2)} SOL.`;
   }
@@ -1532,9 +1533,15 @@ useEffect(() => {
 
 
   const handleBetChange = (e) => {
-    const value = parseFloat(e.target.value);
-    setBetAmount(value);
-    setBetError(validateBet(value));
+    const value = e.target.value;
+    if (value === '' || isNaN(parseFloat(value))) {
+      setBetAmount(0); // Oppure usa minBet come fallback: setBetAmount(MIN_BET_POKER)
+      setBetError('Please enter a valid number.');
+    } else {
+      const parsedValue = parseFloat(value);
+      setBetAmount(parsedValue);
+      setBetError(validateBet(parsedValue));
+    }
   };
 
 
@@ -1607,16 +1614,29 @@ useEffect(() => {
     };
   }, []);
   
-  const joinPokerGame = async (betAmount) => {
-    if (!connected || !publicKey) {
-      throw new Error('Please connect your wallet to play!');
-    }
-  
-    try {
-      const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-      const betInBaseUnits = Math.round(betAmount * 1e6); // Converti in unità base (COM usa 6 decimali)
-      const userATA = await getAssociatedTokenAddress(new PublicKey(MINT_ADDRESS), publicKey);
-      const casinoATA = await getAssociatedTokenAddress(new PublicKey(MINT_ADDRESS), new PublicKey(TAX_WALLET_ADDRESS));
+ 
+
+const joinPokerGame = async (betAmount) => {
+  if (!connected || !publicKey) {
+    throw new Error('Please connect your wallet to play!');
+  }
+  if (isNaN(betAmount) || betAmount <= 0) {
+    setPokerMessage('Invalid bet amount. Please enter a valid number.');
+    throw new Error('Invalid bet amount');
+  }
+  if (betAmount < MIN_BET_POKER) {
+    setPokerMessage(`Bet must be at least ${MIN_BET_POKER.toFixed(2)} COM.`);
+    throw new Error(`Bet must be at least ${MIN_BET_POKER} COM`);
+  }
+  if (betAmount > comBalance) {
+    setPokerMessage('Insufficient COM balance. Please add funds.');
+    throw new Error('Insufficient COM balance');
+  }
+  try {
+    const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+    const betInBaseUnits = Math.round(betAmount * 1e6); // Converti in unità base (COM usa 6 decimali)
+    const userATA = await getAssociatedTokenAddress(new PublicKey(MINT_ADDRESS), publicKey);
+    const casinoATA = await getAssociatedTokenAddress(new PublicKey(MINT_ADDRESS), new PublicKey(TAX_WALLET_ADDRESS));
   
       const transaction = new Transaction();
   
@@ -1830,7 +1850,6 @@ useEffect(() => {
     const saved = loadAccumulatedRewards();
     setAccumulatedRewards(saved);
   }, []);
-
 
    
   // Fetch dei dati di reward
