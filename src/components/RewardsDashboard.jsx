@@ -1478,108 +1478,65 @@ useEffect(() => {
 
  
   // Modifica createAndSignTransaction
+const createAndSignTransaction = async (betAmount, gameType, additionalData = {}) => {
+  if (!connected || !publicKey || !signTransaction) {
+    throw new Error('Please connect your wallet to play!');
+  }
 
-  const { signMessage } = useWallet();
+  const validGameTypes = ['memeSlots', 'coinFlip', 'crazyWheel', 'solanaCardDuel'];
+  if (!validGameTypes.includes(gameType)) {
+    throw new Error(`Invalid gameType: ${gameType}`);
+  }
 
-  let authToken = null;
-  
-  const authenticateUser = async () => {
-    if (!connected || !publicKey || !signMessage) {
-      throw new Error('Please connect your wallet to authenticate!');
-    }
-  
-    try {
-      const message = `Authenticate with Casino of Meme at ${new Date().toISOString()}`;
-      const messageBytes = new TextEncoder().encode(message);
-      const signature = await signMessage(messageBytes);
-  
-      const authResponse = await fetch(`${BACKEND_URL}/authenticate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          playerAddress: publicKey.toString(),
-          message,
-          signature: Buffer.from(signature).toString('base64'),
-        }),
-      });
-  
-      const authResult = await authResponse.json();
-      if (!authResult.success) {
-        throw new Error(authResult.error);
-      }
-  
-      authToken = authResult.token;
-      console.log('User authenticated, token:', authToken);
-    } catch (err) {
-      console.error('Authentication failed:', err);
-      throw err;
-    }
-  };
+  const roundedBetAmount = Math.round(betAmount * 1000000000) / 1000000000;
 
-  const createAndSignTransaction = async (betAmount, gameType, additionalData = {}) => {
-    if (!connected || !publicKey || !signTransaction) {
-      throw new Error('Please connect your wallet to play!');
+  try {
+    const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+    const betInLamports = Math.round(roundedBetAmount * LAMPORTS_PER_SOL);
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: publicKey,
+        toPubkey: new PublicKey(TAX_WALLET_ADDRESS),
+        lamports: betInLamports,
+      })
+    );
+
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = publicKey;
+
+   
+        const signedTransaction = await signTransaction(transaction);
+
+    const endpointMap = {
+      memeSlots: '/play-meme-slots',
+      coinFlip: '/play-coin-flip',
+      crazyWheel: '/play-crazy-wheel',
+      solanaCardDuel: '/play-solana-card-duel',
+    };
+
+    const response = await fetch(`${BACKEND_URL}${endpointMap[gameType]}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerAddress: publicKey.toString(),
+        betAmount: roundedBetAmount,
+        signedTransaction: signedTransaction.serialize().toString('base64'),
+        ...additionalData,
+      }),
+    });
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error);
     }
-  
-    if (!authToken) {
-      await authenticateUser();
-    }
-  
-    const validGameTypes = ['memeSlots', 'coinFlip', 'crazyWheel', 'solanaCardDuel'];
-    if (!validGameTypes.includes(gameType)) {
-      throw new Error(`Invalid gameType: ${gameType}`);
-    }
-  
-    const roundedBetAmount = Math.round(betAmount * 1000000000) / 1000000000;
-  
-    try {
-      // Crea la transazione per trasferire SOL al tax wallet
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: new PublicKey('2E1LhcV3pze6Q6P7MEsxUoNYK3KECm2rTS2D18eSRTn9'), // Tax wallet address
-          lamports: Math.round(roundedBetAmount * LAMPORTS_PER_SOL),
-        })
-      );
-  
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = publicKey;
-  
-      const signedTransaction = await signTransaction(transaction);
-  
-      const endpointMap = {
-        memeSlots: '/play-meme-slots',
-        coinFlip: '/play-coin-flip',
-        crazyWheel: '/play-crazy-wheel',
-        solanaCardDuel: '/play-solana-card-duel',
-      };
-  
-      const response = await fetch(`${BACKEND_URL}${endpointMap[gameType]}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          playerAddress: publicKey.toString(),
-          betAmount: roundedBetAmount,
-          signedTransaction: signedTransaction.serialize().toString('base64'),
-          ...additionalData,
-        }),
-      });
-  
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-  
-      return result;
-    } catch (err) {
-      console.error(`Failed to process transaction for ${gameType}:`, err);
-      throw err;
-    }
-  };
+
+    return result;
+  } catch (err) {
+    console.error(`Failed to process transaction for ${gameType}:`, err);
+    throw err;
+  }
+};
 
  
 
@@ -2481,40 +2438,28 @@ const spinSlots = async () => {
 
   try {
     const result = await createAndSignTransaction(betAmount, 'memeSlots');
-
-    // Esegui l'animazione dei rulli
-    await new Promise((resolve) => {
-      animateReels(result.result, async () => {
-        setWinningLines(result.winningLines);
-        setWinningIndices(result.winningIndices);
-        if (result.totalWin > 0) {
-          setSlotStatus('won');
-          setSlotMessage(`Jackpot! You won ${result.totalWin.toFixed(3)} SOL!`);
-          setTriggerWinEffect(true);
-          playSound(winAudioRef);
-          setPlayerStats(prev => ({
-            ...prev,
-            totalWinnings: prev.totalWinnings + result.totalWin,
-          }));
-        } else {
-          setSlotStatus('lost');
-          setSlotMessage('No luck this time. Spin again!');
-        }
-        updateMissionProgress(1);
+    animateReels(result.result, () => {
+      setWinningLines(result.winningLines);
+      setWinningIndices(result.winningIndices);
+      if (result.totalWin > 0) {
+        setSlotStatus('won');
+        setSlotMessage(`Jackpot! You won ${result.totalWin.toFixed(3)} SOL!`);
+        setTriggerWinEffect(true);
+        playSound(winAudioRef);
         setPlayerStats(prev => ({
           ...prev,
-          spins: prev.spins + 1,
+          totalWinnings: prev.totalWinnings + result.totalWin,
         }));
-        resolve(); // Risolve la Promise quando l'animazione è completata
-      });
+      } else {
+        setSlotStatus('lost');
+        setSlotMessage('No luck this time. Spin again!');
+      }
+      updateMissionProgress(1);
+      setPlayerStats(prev => ({
+        ...prev,
+        spins: prev.spins + 1,
+      }));
     });
-
-    // Aggiorna il saldo SOL visualizzato dopo l'animazione
-    const newBalance = await connection.getBalance(publicKey);
-    setPlayerStats(prev => ({
-      ...prev,
-      solBalance: newBalance / LAMPORTS_PER_SOL,
-    }));
   } catch (err) {
     setSlotMessage(`Spin failed: ${err.message}`);
     setSlotStatus('idle');
