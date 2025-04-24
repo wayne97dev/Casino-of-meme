@@ -2481,28 +2481,40 @@ const spinSlots = async () => {
 
   try {
     const result = await createAndSignTransaction(betAmount, 'memeSlots');
-    animateReels(result.result, () => {
-      setWinningLines(result.winningLines);
-      setWinningIndices(result.winningIndices);
-      if (result.totalWin > 0) {
-        setSlotStatus('won');
-        setSlotMessage(`Jackpot! You won ${result.totalWin.toFixed(3)} SOL!`);
-        setTriggerWinEffect(true);
-        playSound(winAudioRef);
+
+    // Esegui l'animazione dei rulli
+    await new Promise((resolve) => {
+      animateReels(result.result, async () => {
+        setWinningLines(result.winningLines);
+        setWinningIndices(result.winningIndices);
+        if (result.totalWin > 0) {
+          setSlotStatus('won');
+          setSlotMessage(`Jackpot! You won ${result.totalWin.toFixed(3)} SOL!`);
+          setTriggerWinEffect(true);
+          playSound(winAudioRef);
+          setPlayerStats(prev => ({
+            ...prev,
+            totalWinnings: prev.totalWinnings + result.totalWin,
+          }));
+        } else {
+          setSlotStatus('lost');
+          setSlotMessage('No luck this time. Spin again!');
+        }
+        updateMissionProgress(1);
         setPlayerStats(prev => ({
           ...prev,
-          totalWinnings: prev.totalWinnings + result.totalWin,
+          spins: prev.spins + 1,
         }));
-      } else {
-        setSlotStatus('lost');
-        setSlotMessage('No luck this time. Spin again!');
-      }
-      updateMissionProgress(1);
-      setPlayerStats(prev => ({
-        ...prev,
-        spins: prev.spins + 1,
-      }));
+        resolve(); // Risolve la Promise quando l'animazione è completata
+      });
     });
+
+    // Aggiorna il saldo SOL visualizzato dopo l'animazione
+    const newBalance = await connection.getBalance(publicKey);
+    setPlayerStats(prev => ({
+      ...prev,
+      solBalance: newBalance / LAMPORTS_PER_SOL,
+    }));
   } catch (err) {
     setSlotMessage(`Spin failed: ${err.message}`);
     setSlotStatus('idle');
