@@ -1478,77 +1478,104 @@ useEffect(() => {
 
  
   // Modifica createAndSignTransaction
-  const createAndSignTransaction = async (betAmount, gameType, additionalData = {}) => {
-    if (!connected || !publicKey || !signTransaction) {
-      throw new Error('Please connect your wallet to play!');
+  let authToken = null;
+
+const authenticateUser = async () => {
+  if (!connected || !publicKey || !signTransaction) {
+    throw new Error('Please connect your wallet to authenticate!');
+  }
+
+  try {
+    const createResponse = await fetch(`${BACKEND_URL}/create-transaction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerAddress: publicKey.toString(),
+        betAmount: 0, // Transazione dummy
+        type: 'sol',
+      }),
+    });
+
+    const createResult = await createResponse.json();
+    if (!createResult.success) {
+      throw new Error(createResult.error);
     }
-  
-    const validGameTypes = ['memeSlots', 'coinFlip', 'crazyWheel', 'solanaCardDuel'];
-    if (!validGameTypes.includes(gameType)) {
-      throw new Error(`Invalid gameType: ${gameType}`);
+
+    const transactionBuffer = Buffer.from(createResult.transaction, 'base64');
+    const transaction = Transaction.from(transactionBuffer);
+
+    const signedTransaction = await signTransaction(transaction);
+
+    const authResponse = await fetch(`${BACKEND_URL}/authenticate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerAddress: publicKey.toString(),
+        signedTransaction: signedTransaction.serialize().toString('base64'),
+      }),
+    });
+
+    const authResult = await authResponse.json();
+    if (!authResult.success) {
+      throw new Error(authResult.error);
     }
-  
-    const roundedBetAmount = Math.round(betAmount * 1000000000) / 1000000000;
-  
-    try {
-      // 1. Richiedi al backend di creare la transazione
-      const createResponse = await fetch(`${BACKEND_URL}/create-transaction`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          playerAddress: publicKey.toString(),
-          betAmount: roundedBetAmount,
-          type: 'sol',
-        }),
-      });
-  
-      const createResult = await createResponse.json();
-      if (!createResult.success) {
-        throw new Error(createResult.error);
-      }
-  
-      // 2. Deserializza la transazione
-      const transactionBuffer = Buffer.from(createResult.transaction, 'base64');
-      const transaction = Transaction.from(transactionBuffer);
-  
-      // 3. Firma la transazione con Phantom
-      const signedTransaction = await signTransaction(transaction);
-  
-      // 4. Invia la transazione direttamente alla blockchain
-      const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-      await connection.confirmTransaction(signature, 'confirmed');
-  
-      // 5. Notifica il backend che la transazione è stata inviata
-      const endpointMap = {
-        memeSlots: '/play-meme-slots',
-        coinFlip: '/play-coin-flip',
-        crazyWheel: '/play-crazy-wheel',
-        solanaCardDuel: '/play-solana-card-duel',
-      };
-  
-      const response = await fetch(`${BACKEND_URL}${endpointMap[gameType]}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          playerAddress: publicKey.toString(),
-          betAmount: roundedBetAmount,
-          transactionSignature: signature,
-          ...additionalData,
-        }),
-      });
-  
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-  
-      return result;
-    } catch (err) {
-      console.error(`Failed to process transaction for ${gameType}:`, err);
-      throw err;
+
+    authToken = authResult.token;
+    console.log('User authenticated, token:', authToken);
+  } catch (err) {
+    console.error('Authentication failed:', err);
+    throw err;
+  }
+};
+
+const createAndSignTransaction = async (betAmount, gameType, additionalData = {}) => {
+  if (!connected || !publicKey) {
+    throw new Error('Please connect your wallet to play!');
+  }
+
+  if (!authToken) {
+    await authenticateUser();
+  }
+
+  const validGameTypes = ['memeSlots', 'coinFlip', 'crazyWheel', 'solanaCardDuel'];
+  if (!validGameTypes.includes(gameType)) {
+    throw new Error(`Invalid gameType: ${gameType}`);
+  }
+
+  const roundedBetAmount = Math.round(betAmount * 1000000000) / 1000000000;
+
+  try {
+    const endpointMap = {
+      memeSlots: '/play-meme-slots',
+      coinFlip: '/play-coin-flip',
+      crazyWheel: '/play-crazy-wheel',
+      solanaCardDuel: '/play-solana-card-duel',
+    };
+
+    const response = await fetch(`${BACKEND_URL}${endpointMap[gameType]}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        playerAddress: publicKey.toString(),
+        betAmount: roundedBetAmount,
+        ...additionalData,
+      }),
+    });
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error);
     }
-  };
+
+    return result;
+  } catch (err) {
+    console.error(`Failed to process transaction for ${gameType}:`, err);
+    throw err;
+  }
+};
 
  
 
