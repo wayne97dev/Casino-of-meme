@@ -2365,61 +2365,59 @@ const stand = async () => {
 
   
   // Aggiorna animateReels per sincronizzare correttamente
-const animateReels = (result, callback) => {
-  const spinDuration = 5000;
-  const intervalTime = 150;
-  let elapsedTime = 0;
-
-  console.log('DEBUG - animateReels started with result:', result.map(item => item ? item.name : 'null'));
-
-  const spinInterval = setInterval(() => {
-    elapsedTime += intervalTime;
-
-    if (elapsedTime >= spinDuration - 500) {
-      clearInterval(spinInterval);
-      setIsStopping(true);
-
-      console.log('DEBUG - Result before animation:', result.map(item => item ? item.name : 'null'));
-      setTimeout(() => {
-        console.log('DEBUG - Setting first column:', result.slice(0, 5).map(item => item ? item.name : 'null'));
-        setSlotReelsDisplay([...result.slice(0, 5), ...Array(20).fill(null)]);
-      }, 200);
-      setTimeout(() => {
-        console.log('DEBUG - Setting second column:', result.slice(0, 10).map(item => item ? item.name : 'null'));
-        setSlotReelsDisplay([...result.slice(0, 10), ...Array(15).fill(null)]);
-      }, 400);
-      setTimeout(() => {
-        console.log('DEBUG - Setting third column:', result.slice(0, 15).map(item => item ? item.name : 'null'));
-        setSlotReelsDisplay([...result.slice(0, 15), ...Array(10).fill(null)]);
-        // Debug specifico per [10, 11, 12]
-        console.log('DEBUG - Symbols at [10, 11, 12] after third column:', [
-          result[10]?.name || 'null',
-          result[11]?.name || 'null',
-          result[12]?.name || 'null'
-        ]);
-      }, 600);
-      setTimeout(() => {
-        console.log('DEBUG - Setting fourth column:', result.slice(0, 20).map(item => item ? item.name : 'null'));
-        setSlotReelsDisplay([...result.slice(0, 20), ...Array(5).fill(null)]);
-      }, 800);
-      setTimeout(() => {
-        console.log('DEBUG - Final result set:', result.map(item => item ? item.name : 'null'));
-        console.log('DEBUG - Symbols at [10, 11, 12] final:', [
-          result[10]?.name || 'null',
-          result[11]?.name || 'null',
-          result[12]?.name || 'null'
-        ]);
-        setSlotReelsDisplay([...result]); // Usa una copia per forzare l'aggiornamento
-        setIsStopping(false);
-        // Aspetta che lo stato sia aggiornato prima di chiamare evaluateResult
+  const animateReels = (result, callback) => {
+    const spinDuration = 3000; // Ridotto da 5000 ms a 3000 ms
+    const intervalTime = 100; // Ridotto da 150 ms a 100 ms per maggiore fluidità
+    let elapsedTime = 0;
+  
+    console.log('DEBUG - animateReels started with result:', result.map(item => item ? item.name : 'null'));
+  
+    const spinInterval = setInterval(() => {
+      elapsedTime += intervalTime;
+  
+      if (elapsedTime >= spinDuration - 300) { // Ridotto da 500 ms a 300 ms
+        clearInterval(spinInterval);
+        setIsStopping(true);
+  
+        console.log('DEBUG - Result before animation:', result.map(item => item ? item.name : 'null'));
         setTimeout(() => {
-          console.log('DEBUG - Calling evaluateResult with:', result.map(item => item ? item.name : 'null'));
-          callback();
-        }, 200); // Aumentato il ritardo per garantire sincronizzazione
-      }, 1200);
-    }
-  }, intervalTime);
-};
+          console.log('DEBUG - Setting first column:', result.slice(0, 5).map(item => item ? item.name : 'null'));
+          setSlotReelsDisplay([...result.slice(0, 5), ...Array(20).fill(null)]);
+        }, 120); // Ridotto da 200 ms a 120 ms
+        setTimeout(() => {
+          console.log('DEBUG - Setting second column:', result.slice(0, 10).map(item => item ? item.name : 'null'));
+          setSlotReelsDisplay([...result.slice(0, 10), ...Array(15).fill(null)]);
+        }, 240); // Ridotto da 400 ms a 240 ms
+        setTimeout(() => {
+          console.log('DEBUG - Setting third column:', result.slice(0, 15).map(item => item ? item.name : 'null'));
+          setSlotReelsDisplay([...result.slice(0, 15), ...Array(10).fill(null)]);
+          console.log('DEBUG - Symbols at [10, 11, 12] after third column:', [
+            result[10]?.name || 'null',
+            result[11]?.name || 'null',
+            result[12]?.name || 'null'
+          ]);
+        }, 360); // Ridotto da 600 ms a 360 ms
+        setTimeout(() => {
+          console.log('DEBUG - Setting fourth column:', result.slice(0, 20).map(item => item ? item.name : 'null'));
+          setSlotReelsDisplay([...result.slice(0, 20), ...Array(5).fill(null)]);
+        }, 480); // Ridotto da 800 ms a 480 ms
+        setTimeout(() => {
+          console.log('DEBUG - Final result set:', result.map(item => item ? item.name : 'null'));
+          console.log('DEBUG - Symbols at [10, 11, 12] final:', [
+            result[10]?.name || 'null',
+            result[11]?.name || 'null',
+            result[12]?.name || 'null'
+          ]);
+          setSlotReelsDisplay([...result]); // Usa una copia per forzare l'aggiornamento
+          setIsStopping(false);
+          setTimeout(() => {
+            console.log('DEBUG - Calling evaluateResult with:', result.map(item => item ? item.name : 'null'));
+            callback();
+          }, 120); // Ridotto da 200 ms a 120 ms
+        }, 720); // Ridotto da 1200 ms a 720 ms
+      }
+    }, intervalTime);
+  };
 
 // Modifica spinSlots
 const spinSlots = async () => {
