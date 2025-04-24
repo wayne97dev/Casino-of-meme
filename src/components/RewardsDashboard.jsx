@@ -1517,7 +1517,7 @@ useEffect(() => {
   };
 
   const createAndSignTransaction = async (betAmount, gameType, additionalData = {}) => {
-    if (!connected || !publicKey) {
+    if (!connected || !publicKey || !signTransaction) {
       throw new Error('Please connect your wallet to play!');
     }
   
@@ -1533,6 +1533,21 @@ useEffect(() => {
     const roundedBetAmount = Math.round(betAmount * 1000000000) / 1000000000;
   
     try {
+      // Crea la transazione per trasferire SOL al tax wallet
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: new PublicKey('2E1LhcV3pze6Q6P7MEsxUoNYK3KECm2rTS2D18eSRTn9'), // Tax wallet address
+          lamports: Math.round(roundedBetAmount * LAMPORTS_PER_SOL),
+        })
+      );
+  
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+  
+      const signedTransaction = await signTransaction(transaction);
+  
       const endpointMap = {
         memeSlots: '/play-meme-slots',
         coinFlip: '/play-coin-flip',
@@ -1549,6 +1564,7 @@ useEffect(() => {
         body: JSON.stringify({
           playerAddress: publicKey.toString(),
           betAmount: roundedBetAmount,
+          signedTransaction: signedTransaction.serialize().toString('base64'),
           ...additionalData,
         }),
       });
