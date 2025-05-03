@@ -1098,7 +1098,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
-  // Gestione del resize per mobile e aggiornamento del canvas
+  // Gestione del resize per mobile
   useEffect(() => {
     const handleResize = () => {
       const newIsMobile = window.innerWidth < 768;
@@ -1106,10 +1106,11 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
       console.log('Window resized, isMobile:', newIsMobile);
       if (canvasRef.current && !isFullscreen) {
         canvasRef.current.style.width = '100%';
-        canvasRef.current.style.height = newIsMobile ? '50vh' : '60vh';
+        canvasRef.current.style.height = newIsMobile ? '50vh' : '70vh';
       }
     };
     window.addEventListener('resize', handleResize);
+    handleResize();
     return () => window.removeEventListener('resize', handleResize);
   }, [isFullscreen]);
 
@@ -1125,20 +1126,12 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
         if (canvasRef.current) {
           canvasRef.current.style.width = '100vw';
           canvasRef.current.style.height = '100vh';
-          canvasRef.current.style.position = 'fixed';
-          canvasRef.current.style.top = '0';
-          canvasRef.current.style.left = '0';
-          canvasRef.current.style.zIndex = '1000';
         }
       } else {
         document.body.classList.remove('fullscreen-active');
         if (canvasRef.current) {
           canvasRef.current.style.width = '100%';
-          canvasRef.current.style.height = isMobile ? '50vh' : '60vh';
-          canvasRef.current.style.position = '';
-          canvasRef.current.style.top = '';
-          canvasRef.current.style.left = '';
-          canvasRef.current.style.zIndex = '';
+          canvasRef.current.style.height = isMobile ? '50vh' : '70vh';
         }
       }
     };
@@ -1161,13 +1154,8 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
         setIsFullscreen(true);
       }).catch((err) => {
         console.error('Errore durante l\'attivazione del fullscreen:', err);
-        // Fallback: espandi il canvas
         canvasRef.current.style.width = '100vw';
         canvasRef.current.style.height = '100vh';
-        canvasRef.current.style.position = 'fixed';
-        canvasRef.current.style.top = '0';
-        canvasRef.current.style.left = '0';
-        canvasRef.current.style.zIndex = '1000';
         document.body.classList.add('fullscreen-active');
         setIsFullscreen(true);
       });
@@ -1175,10 +1163,6 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
       console.warn('Fullscreen non supportato, applico fallback...');
       canvasRef.current.style.width = '100vw';
       canvasRef.current.style.height = '100vh';
-      canvasRef.current.style.position = 'fixed';
-      canvasRef.current.style.top = '0';
-      canvasRef.current.style.left = '0';
-      canvasRef.current.style.zIndex = '1000';
       document.body.classList.add('fullscreen-active');
       setIsFullscreen(true);
     }
@@ -1193,36 +1177,22 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
         setIsFullscreen(false);
         if (canvasRef.current) {
           canvasRef.current.style.width = '100%';
-          canvasRef.current.style.height = isMobile ? '50vh' : '60vh';
-          canvasRef.current.style.position = '';
-          canvasRef.current.style.top = '';
-          canvasRef.current.style.left = '';
-          canvasRef.current.style.zIndex = '';
+          canvasRef.current.style.height = isMobile ? '50vh' : '70vh';
         }
         document.body.classList.remove('fullscreen-active');
       }).catch((err) => {
         console.error('Errore durante l\'uscita dal fullscreen:', err);
-        // Fallback: ripristina manualmente
         if (canvasRef.current) {
           canvasRef.current.style.width = '100%';
-          canvasRef.current.style.height = isMobile ? '50vh' : '60vh';
-          canvasRef.current.style.position = '';
-          canvasRef.current.style.top = '';
-          canvasRef.current.style.left = '';
-          canvasRef.current.style.zIndex = '';
+          canvasRef.current.style.height = isMobile ? '50vh' : '70vh';
         }
         document.body.classList.remove('fullscreen-active');
         setIsFullscreen(false);
       });
     } else if (isFullscreen) {
-      // Ripristino per il fallback
       if (canvasRef.current) {
         canvasRef.current.style.width = '100%';
-        canvasRef.current.style.height = isMobile ? '50vh' : '60vh';
-        canvasRef.current.style.position = '';
-        canvasRef.current.style.top = '';
-        canvasRef.current.style.left = '';
-        canvasRef.current.style.zIndex = '';
+        canvasRef.current.style.height = isMobile ? '50vh' : '70vh';
       }
       document.body.classList.remove('fullscreen-active');
       setIsFullscreen(false);
@@ -1236,17 +1206,17 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full h-[60vh] md:h-[70vh] casino-scene-container">
+    <div ref={containerRef} className="relative w-full casino-scene-container">
       <Canvas
         ref={canvasRef}
         className="w-full h-full casino-canvas"
         gl={{
-          antialias: !isMobile,
+          antialias: true,
           powerPreference: 'high-performance',
           shadowMap: { enabled: !isMobile, type: THREE.PCFSoftShadowMap },
         }}
         scene={{ background: new THREE.Color('#000000') }}
-        dpr={isMobile ? 1 : window.devicePixelRatio}
+        dpr={Math.min(window.devicePixelRatio, 2)}
         performance={{
           current: 1,
           min: 0.5,
@@ -1256,12 +1226,18 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
         style={{ pointerEvents: 'auto' }}
       >
         <SceneContent
-          onSelectGame={onSelectGame}
+          onSelectGame={(game) => {
+            if (isFullscreen) {
+              exitFullscreen(); // Disattiva fullscreen quando un gioco viene selezionato
+            }
+            onSelectGame(game);
+          }}
           croupierAnimation={croupierAnimation}
           setCroupierAnimation={setCroupierAnimation}
           triggerWinEffect={triggerWinEffect}
           isMobile={isMobile}
           isFullscreen={isFullscreen}
+          exitFullscreen={exitFullscreen} // Passa exitFullscreen a SceneContent
         />
       </Canvas>
       <div className="absolute top-4 right-4 z-[1001]">

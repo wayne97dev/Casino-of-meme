@@ -72,14 +72,19 @@ body {
 
 /* Stili per la modalità fullscreen */
 .fullscreen-active {
-  overflow: hidden;
+  overflow: hidden; /* Blocca lo scroll solo in fullscreen */
+}
+
+/* Ripristina lo scroll quando non in fullscreen */
+body:not(.fullscreen-active) {
+  overflow-y: auto !important; /* Permette lo scroll */
 }
 
 /* Stili per il contenitore della scena del casinò */
 .casino-scene-container {
   position: relative;
   width: 100%;
-  height: 60vh; /* Altezza predefinita */
+  height: 60vh;
   max-height: 500px;
 }
 
@@ -88,12 +93,12 @@ body {
   display: block;
   width: 100% !important;
   height: 100% !important;
-  touch-action: auto !important; /* Permette eventi touch */
-  user-select: none; /* Evita selezione testo */
-  -webkit-user-select: none; /* Per Safari */
-  -webkit-tap-highlight-color: transparent; /* Rimuove highlight su tap */
+  touch-action: auto !important;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
   position: relative;
-  z-index: 9999; /* Assicura che il canvas sia sopra altri elementi */
+  z-index: 9999;
 }
 
 /* Stili per il canvas in modalità fullscreen */
@@ -108,8 +113,8 @@ body {
 
 /* Stili per i pulsanti in modalità fullscreen */
 .fullscreen-active .casino-button {
-  z-index: 10000; /* Sopra il canvas */
-  pointer-events: auto !important; /* Assicura che i pulsanti siano cliccabili */
+  z-index: 10000;
+  pointer-events: auto !important;
 }
 
 /* Animazione di pulsazione lenta per il pulsante */
@@ -151,7 +156,7 @@ body {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   will-change: transform, box-shadow;
-  z-index: 10000; /* Assicura che i pulsanti siano sopra il canvas */
+  z-index: 10000;
 }
 
 .casino-button:hover {
@@ -718,7 +723,7 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 10001; /* Sopra il canvas */
+  z-index: 10001;
   pointer-events: none;
 }
 
@@ -1070,4 +1075,4 @@ table {
     line-height: 1.2 !important;
     min-height: auto !important;
   }
-}
+} 
