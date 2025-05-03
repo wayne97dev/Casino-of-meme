@@ -61,7 +61,7 @@ body {
   margin: 0;
   padding: 40px;
   color: #f7f2f2;
-  background: url('/my-background.webp') no-repeat center center fixed, linear-gradient(135deg, #1a1a2e, #2a2a4e); /* Immagine con fallback */
+  background: url('/my-background.webp') no-repeat center center fixed, linear-gradient(135deg, #1a1a2e, #2a2a4e);
   background-size: cover;
   overflow-x: hidden;
 }
@@ -70,23 +70,57 @@ body {
   font-family: 'Aleo', sans-serif !important;
 }
 
-/* Stili per componenti React */
-canvas {
-  width: 100% !important;
-  height: 60vh; /* Altezza dinamica */
+/* Stili per la modalità fullscreen */
+.fullscreen-active {
+  overflow: hidden;
+}
+
+/* Stili per il contenitore della scena del casinò */
+.casino-scene-container {
+  position: relative;
+  width: 100%;
+  height: 60vh; /* Altezza predefinita */
   max-height: 500px;
 }
 
-@keyframes casinoBackground {
-  0% { background-position: 0% 0%; }
-  50% { background-position: 100% 100%; }
-  100% { background-position: 0% 0%; }
+/* Stili per il canvas */
+.casino-canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: auto !important; /* Permette eventi touch */
+  user-select: none; /* Evita selezione testo */
+  -webkit-user-select: none; /* Per Safari */
+  -webkit-tap-highlight-color: transparent; /* Rimuove highlight su tap */
+  position: relative;
+  z-index: 9999; /* Assicura che il canvas sia sopra altri elementi */
 }
 
-@keyframes neon-glow {
-  0% { box-shadow: 0 0 5px #00ffcc; }
-  50% { box-shadow: 0 0 10px #00ffcc; }
-  100% { box-shadow: 0 0 5px #00ffcc; }
+/* Stili per il canvas in modalità fullscreen */
+.fullscreen-active .casino-canvas {
+  width: 100vw !important;
+  height: 100vh !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 9999 !important;
+}
+
+/* Stili per i pulsanti in modalità fullscreen */
+.fullscreen-active .casino-button {
+  z-index: 10000; /* Sopra il canvas */
+  pointer-events: auto !important; /* Assicura che i pulsanti siano cliccabili */
+}
+
+/* Animazione di pulsazione lenta per il pulsante */
+.animate-pulse-slow {
+  animation: pulseSlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseSlow {
+  0% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 204, 0, 0.5); }
+  50% { transform: scale(1.03); box-shadow: 0 0 15px rgba(255, 204, 0, 0.8); }
+  100% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 204, 0, 0.5); }
 }
 
 /* Stile per le intestazioni */
@@ -116,7 +150,8 @@ canvas {
   overflow: hidden;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  will-change: transform, box-shadow; /* Ottimizza animazioni */
+  will-change: transform, box-shadow;
+  z-index: 10000; /* Assicura che i pulsanti siano sopra il canvas */
 }
 
 .casino-button:hover {
@@ -126,7 +161,7 @@ canvas {
 }
 
 .casino-button:active {
-  transform: scale(0.95); /* Feedback per tocco */
+  transform: scale(0.95);
   box-shadow: 0 0 15px rgba(255, 204, 0, 0.8);
 }
 
@@ -150,6 +185,12 @@ canvas {
 
 .casino-button:hover::before {
   left: 100%;
+}
+
+/* Stile per il pulsante Back to Dashboard più piccolo */
+.casino-button.text-sm {
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
 }
 
 /* Stile per le carte */
@@ -677,13 +718,13 @@ canvas {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 1000; /* Sopra tutti gli altri elementi */
-  pointer-events: none; /* Non interferisce con i click */
+  z-index: 10001; /* Sopra il canvas */
+  pointer-events: none;
 }
 
 /* Stile per l'immagine di vincita */
 .win-image {
-  width: 300px; /* Regola la dimensione come preferisci */
+  width: 300px;
   height: auto;
   opacity: 0;
   animation: winAnimation 3s ease-in-out;
@@ -691,22 +732,10 @@ canvas {
 
 /* Animazione per l'apparizione e scomparsa */
 @keyframes winAnimation {
-  0% {
-    opacity: 0;
-    transform: scale(0.5);
-  }
-  20% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  80% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0.5);
-  }
+  0% { opacity: 0; transform: scale(0.5); }
+  20% { opacity: 1; transform: scale(1); }
+  80% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.5); }
 }
 
 /* Mantieni il colore bianco per i testi dentro le tabelle */
@@ -714,7 +743,7 @@ table {
   color: #e0e0e0;
 }
 
-/* Media Queries per Mobile - Ottimizzazioni solo per Meme Slots */
+/* Media Queries per Mobile */
 @media (max-width: 768px) {
   body {
     padding: 20px;
@@ -722,8 +751,13 @@ table {
     background-size: cover;
   }
 
-  canvas {
+  .casino-scene-container {
     height: 50vh;
+    max-height: 400px;
+  }
+
+  .casino-canvas {
+    height: 100% !important;
     max-height: 400px;
   }
 
@@ -759,23 +793,22 @@ table {
     box-shadow: 0 6px 12px rgba(255, 204, 0, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.5);
   }
 
-  /* Ottimizzazioni per Meme Slots */
   .slot-machine {
     border: 2px solid #ffcc00;
     padding: 10px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
     max-width: 320px;
-    flex-direction: column; /* Griglia sopra, tabella sotto */
+    flex-direction: column;
     align-items: center;
   }
 
   .slot-reel {
-    width: 70px; /* Ridotto per mobile */
+    width: 70px;
     height: 70px;
     border-radius: 6px;
     border: 1px solid #ffcc00;
     box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
-    transition: background-image 0.05s ease-out; /* Rimossa transform per performance */
+    transition: background-image 0.05s ease-out;
   }
 
   .slot-reel.spinning {
@@ -797,7 +830,7 @@ table {
   }
 
   .slot-machine.winning .slot-reel {
-    animation: winningGlowMobile 0.7s infinite alternate; /* Rallentata per performance */
+    animation: winningGlowMobile 0.7s infinite alternate;
   }
 
   @keyframes winningGlowMobile {
@@ -821,8 +854,8 @@ table {
     border: 2px solid #ffcc00;
     padding: 10px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
-    transform: none; /* Rimossa prospettiva per performance */
-    margin: 12px auto; /* Spazio sopra e centrato */
+    transform: none;
+    margin: 12px auto;
     border-radius: 10px;
   }
 
@@ -942,6 +975,11 @@ table {
     padding: 10px;
   }
 
+  .casino-scene-container {
+    height: 50vh;
+    max-height: 350px;
+  }
+
   .header-box {
     padding: 6px 12px;
     font-size: 1rem;
@@ -957,15 +995,14 @@ table {
     height: 85px;
   }
 
-  /* Ottimizzazioni per Meme Slots */
   .slot-machine {
     max-width: 280px;
     padding: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.7); /* Ombra semplificata */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
   }
 
   .slot-reel {
-    width: 50px; /* Ulteriore riduzione per schermi piccoli */
+    width: 50px;
     height: 50px;
     border-radius: 4px;
     box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.5);
@@ -1025,5 +1062,12 @@ table {
   .presenter {
     width: 60px;
     height: 60px;
+  }
+
+  .music-button {
+    padding: 2px 4px !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    min-height: auto !important;
   }
 }

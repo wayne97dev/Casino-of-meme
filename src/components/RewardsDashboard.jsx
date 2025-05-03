@@ -789,15 +789,51 @@ const DonaldTrump = ({ position, currentAnimation = 'Idle' }) => {
 
 
 // Sottocomponente per la logica della scena
-const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, triggerWinEffect }) => {
-  const { camera } = useThree();
+
+
+
+
+const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, triggerWinEffect, isMobile, isFullscreen }) => {
+  const { camera, gl, invalidate, scene, raycaster, mouse } = useThree();
   const [showParticles, setShowParticles] = useState(false);
   const [winLightColor, setWinLightColor] = useState(new THREE.Color('red'));
   const [trumpAnimation, setTrumpAnimation] = useState('Idle');
   const [isFloorReady, setIsFloorReady] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const containerRef = useRef(null);
+  const orbitControlsRef = useRef(null);
 
-  // Parte del pavimento invariata (come nel tuo codice originale)
+  // Funzione di debouncing per limitare gli aggiornamenti
+  const debounce = (func, wait) => {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  };
+
+  // Aggiorna il renderer quando cambia la dimensione del canvas
+  useEffect(() => {
+    const handleResize = debounce(() => {
+      const width = isFullscreen ? window.innerWidth : containerRef.current.clientWidth;
+      const height = isFullscreen ? window.innerHeight : containerRef.current.clientHeight;
+      console.log('DEBUG - Resizing renderer:', { width, height, isFullscreen });
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      gl.setSize(width, height);
+      invalidate();
+    }, 100);
+
+    window.addEventListener('resize', handleResize);
+    document.addEventListener('fullscreenchange', handleResize);
+    handleResize(); // Esegui subito al montaggio
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      document.removeEventListener('fullscreenchange', handleResize);
+    };
+  }, [isMobile, isFullscreen, camera, gl, invalidate]);
+
+  // Parte del pavimento invariata
   const brickTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
   const brickNormalTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
   const floorMaterialRef = useRef(new THREE.MeshStandardMaterial({
@@ -805,14 +841,6 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     metalness: 0.1,
   }));
 
-  // Aggiungi gestione di isMobile
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Parte del pavimento invariata (come nel tuo codice originale)
   useEffect(() => {
     if (brickTexture && brickNormalTexture) {
       brickTexture.wrapS = brickTexture.wrapT = THREE.RepeatWrapping;
@@ -834,6 +862,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   }, [camera]);
 
   const handleSelectGame = (game) => {
+    console.log('DEBUG - Game selected:', game, 'Timestamp:', Date.now());
     setCroupierAnimation('Wave');
     setTrumpAnimation('Wave');
     onSelectGame(game);
@@ -841,6 +870,78 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       setTrumpAnimation('Idle');
     }, 2000);
   };
+
+  // Gestione del raycasting per i clic sugli oggetti 3D
+  const interactiveObjects = useRef([]);
+  const raycasterRef = useRef(raycaster);
+  const mouseRef = useRef(mouse);
+
+  // Registra gli oggetti interattivi
+  const registerInteractiveObject = (ref, game) => {
+    if (ref.current && !interactiveObjects.current.some(obj => obj.ref === ref.current)) {
+      const objects = [];
+      ref.current.traverse((child) => {
+        if (child.isMesh) {
+          objects.push(child);
+        }
+      });
+      interactiveObjects.current.push({ ref: ref.current, game, meshes: objects });
+      console.log('DEBUG - Registered interactive object:', game, objects.length, 'meshes');
+    }
+  };
+
+  // Gestore dei clic sul canvas
+  useEffect(() => {
+    const handleClick = (event) => {
+      event.preventDefault();
+      console.log('DEBUG - Canvas clicked', Date.now());
+
+      // Calcola le coordinate normalizzate del mouse
+      const rect = gl.domElement.getBoundingClientRect();
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      // Esegui il raycasting
+      raycasterRef.current.setFromCamera(mouseRef.current, camera);
+      const intersects = raycasterRef.current.intersectObjects(
+        interactiveObjects.current.flatMap(obj => obj.meshes),
+        true
+      );
+
+      if (intersects.length > 0) {
+        const intersectedObject = intersects[0].object;
+        const target = interactiveObjects.current.find(obj =>
+          obj.meshes.includes(intersectedObject)
+        );
+        if (target) {
+          console.log('DEBUG - Intersected object:', target.game, Date.now());
+          handleSelectGame(target.game);
+          // Disabilita temporaneamente OrbitControls per evitare conflitti
+          if (orbitControlsRef.current) {
+            orbitControlsRef.current.enabled = false;
+            setTimeout(() => {
+              orbitControlsRef.current.enabled = true;
+            }, 100);
+          }
+        }
+      }
+    };
+
+    const handleTouchStart = (event) => {
+      event.preventDefault();
+      console.log('DEBUG - Canvas touch started', Date.now());
+      if (event.touches.length > 0) {
+        handleClick(event.touches[0]); // Simula un clic con il primo tocco
+      }
+    };
+
+    gl.domElement.addEventListener('click', handleClick);
+    gl.domElement.addEventListener('touchstart', handleTouchStart);
+    return () => {
+      gl.domElement.removeEventListener('click', handleClick);
+      gl.domElement.removeEventListener('touchstart', handleTouchStart);
+    };
+  }, [gl, camera, handleSelectGame]);
 
   useEffect(() => {
     if (triggerWinEffect) {
@@ -855,36 +956,50 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     }
   }, [triggerWinEffect]);
 
+  // Riferimenti per gli oggetti interattivi
+  const pokerCardRef = useRef();
+  const slotMachineRef = useRef();
+  const coinFlipRef = useRef();
+  const crazyTimeWheelRef = useRef();
+  const blackjackTableRef = useRef();
+
+  useEffect(() => {
+    registerInteractiveObject(pokerCardRef, 'Solana Card Duel');
+    registerInteractiveObject(slotMachineRef, 'Meme Slots');
+    registerInteractiveObject(coinFlipRef, 'Coin Flip');
+    registerInteractiveObject(crazyTimeWheelRef, 'Crazy Wheel');
+    registerInteractiveObject(blackjackTableRef, 'Poker PvP');
+  }, []);
+
   return (
     <>
-      <PerspectiveCamera makeDefault fov={isMobile ? 60 : 90} /> {/* Riduci FOV su mobile */}
-      <ambientLight intensity={isMobile ? 0.4 : 0.6} /> {/* Riduci intensità su mobile */}
+      <PerspectiveCamera makeDefault fov={isMobile ? 60 : 90} />
+      <ambientLight intensity={isMobile ? 0.4 : 0.6} />
       <directionalLight
         position={[10, 10, 5]}
-        intensity={isMobile ? 1 : 1.5} // Riduci intensità su mobile
-        castShadow={false} // Disattiva ombre su mobile
-        shadow-mapSize={[isMobile ? 512 : 1024, isMobile ? 512 : 1024]} // Riduci risoluzione ombre
+        intensity={isMobile ? 1 : 1.5}
+        castShadow={false}
+        shadow-mapSize={[isMobile ? 512 : 1024, isMobile ? 512 : 1024]}
       />
       <pointLight
         position={[0, 5, 0]}
         color={winLightColor}
-        intensity={isMobile ? 1 : 2} // Riduci intensità su mobile
+        intensity={isMobile ? 1 : 2}
         distance={20}
       />
-      {isMobile ? null : ( // Disattiva seconda pointLight su mobile
+      {isMobile ? null : (
         <pointLight position={[15, 5, 15]} color="blue" intensity={2} distance={20} />
       )}
 
       <Stars
         radius={100}
-        depth={isMobile ? 30 : 50} // Riduci profondità su mobile
+        depth={isMobile ? 30 : 50}
         count={isMobile ? 500 : 1000}
-        factor={isMobile ? 2 : 4} // Riduci fattore su mobile
+        factor={isMobile ? 2 : 4}
         saturation={0}
         fade
       />
 
-      {/* Parte del pavimento invariata (come nel tuo codice originale) */}
       {isFloorReady && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
           <planeGeometry args={[50, 50]} />
@@ -896,28 +1011,48 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       <DonaldTrump position={[10, -1, 16]} currentAnimation={trumpAnimation} />
 
       <PokerCard
+        ref={pokerCardRef}
         position={[-17, 2.5, -15]}
         gameName="BlackJack"
-        onClick={() => handleSelectGame('Solana Card Duel')}
+        onClick={() => {
+          console.log('DEBUG - PokerCard clicked (BlackJack)', Date.now());
+          handleSelectGame('Solana Card Duel');
+        }}
       />
       <SlotMachine
+        ref={slotMachineRef}
         position={[18, -1, -15]}
         gameName="Meme Slots"
-        onClick={() => handleSelectGame('Meme Slots')}
+        onClick={() => {
+          console.log('DEBUG - SlotMachine clicked (Meme Slots)', Date.now());
+          handleSelectGame('Meme Slots');
+        }}
       />
       <CoinFlip
+        ref={coinFlipRef}
         position={[-12.5, 2.5, -15]}
         gameName="Coin Flip"
-        onClick={() => handleSelectGame('Coin Flip')}
+        onClick={() => {
+          console.log('DEBUG - CoinFlip clicked (Coin Flip)', Date.now());
+          handleSelectGame('Coin Flip');
+        }}
       />
       <CrazyTimeWheel
+        ref={crazyTimeWheelRef}
         position={[2, -1, -16]}
         gameName="Crazy Wheel"
-        onClick={() => handleSelectGame('Crazy Wheel')}
+        onClick={() => {
+          console.log('DEBUG - CrazyTimeWheel clicked (Crazy Wheel)', Date.now());
+          handleSelectGame('Crazy Wheel');
+        }}
       />
 
       <CasinoTable position={[-15, -1, -15]} />
-      <BlackjackTable position={[0, -1, 3]} onSelectGame={handleSelectGame} />
+      <BlackjackTable
+        ref={blackjackTableRef}
+        position={[0, -1, 3]}
+        onSelectGame={handleSelectGame}
+      />
       <RedCarpetModule position={[0, -1, 10]} />
       <CasinoSignWithBulb position={[0, 19, 24]} />
       
@@ -929,16 +1064,22 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       {showParticles && <Particles position={[0, 2, 0]} />}
 
       <OrbitControls
+        ref={orbitControlsRef}
         enablePan={true}
         enableZoom={true}
         enableRotate={true}
-        minDistance={isMobile ? 20 : 15} // Limita zoom massimo su mobile
-        maxDistance={isMobile ? 100 : 120} // Limita zoom minimo su mobile
-        rotateSpeed={isMobile ? 0.8 : 1.3} // Riduci sensibilità rotazione su mobile
-        zoomSpeed={isMobile ? 0.8 : 1.3} // Riduci sensibilità zoom su mobile
+        minDistance={isMobile ? 20 : 15}
+        maxDistance={isMobile ? 100 : 120}
+        rotateSpeed={isMobile ? 0.8 : 1.3}
+        zoomSpeed={isMobile ? 0.8 : 1.3}
+        enableDamping={true}
+        dampingFactor={0.05}
+        autoRotate={false}
+        onStart={() => console.log('DEBUG - OrbitControls interaction started', Date.now())}
+        onEnd={() => console.log('DEBUG - OrbitControls interaction ended', Date.now())}
       />
 
-      {isMobile ? null : ( // Disattiva Bloom su mobile
+      {isMobile ? null : (
         <EffectComposer>
           <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={isMobile ? 50 : 100} />
         </EffectComposer>
@@ -948,44 +1089,209 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 };
 
 
+
+
 const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
   const [croupierAnimation, setCroupierAnimation] = useState('Idle');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const canvasRef = useRef(null);
+  const containerRef = useRef(null);
 
+  // Gestione del resize per mobile e aggiornamento del canvas
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    const handleResize = () => {
+      const newIsMobile = window.innerWidth < 768;
+      setIsMobile(newIsMobile);
+      console.log('Window resized, isMobile:', newIsMobile);
+      if (canvasRef.current && !isFullscreen) {
+        canvasRef.current.style.width = '100%';
+        canvasRef.current.style.height = newIsMobile ? '50vh' : '60vh';
+      }
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, [isFullscreen]);
+
+  // Gestione del cambio di stato del fullscreen
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isNowFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isNowFullscreen);
+      console.log('Fullscreen changed:', isNowFullscreen, 'Canvas:', canvasRef.current);
+
+      if (isNowFullscreen) {
+        document.body.classList.add('fullscreen-active');
+        if (canvasRef.current) {
+          canvasRef.current.style.width = '100vw';
+          canvasRef.current.style.height = '100vh';
+          canvasRef.current.style.position = 'fixed';
+          canvasRef.current.style.top = '0';
+          canvasRef.current.style.left = '0';
+          canvasRef.current.style.zIndex = '1000';
+        }
+      } else {
+        document.body.classList.remove('fullscreen-active');
+        if (canvasRef.current) {
+          canvasRef.current.style.width = '100%';
+          canvasRef.current.style.height = isMobile ? '50vh' : '60vh';
+          canvasRef.current.style.position = '';
+          canvasRef.current.style.top = '';
+          canvasRef.current.style.left = '';
+          canvasRef.current.style.zIndex = '';
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [isMobile]);
+
+  // Funzione per entrare in modalità fullscreen
+  const enterFullscreen = () => {
+    if (!canvasRef.current) {
+      console.error('Canvas ref non disponibile');
+      return;
+    }
+
+    console.log('Attempting to enter fullscreen...');
+    if (document.fullscreenEnabled) {
+      canvasRef.current.requestFullscreen().then(() => {
+        console.log('Entered fullscreen successfully');
+        setIsFullscreen(true);
+      }).catch((err) => {
+        console.error('Errore durante l\'attivazione del fullscreen:', err);
+        // Fallback: espandi il canvas
+        canvasRef.current.style.width = '100vw';
+        canvasRef.current.style.height = '100vh';
+        canvasRef.current.style.position = 'fixed';
+        canvasRef.current.style.top = '0';
+        canvasRef.current.style.left = '0';
+        canvasRef.current.style.zIndex = '1000';
+        document.body.classList.add('fullscreen-active');
+        setIsFullscreen(true);
+      });
+    } else {
+      console.warn('Fullscreen non supportato, applico fallback...');
+      canvasRef.current.style.width = '100vw';
+      canvasRef.current.style.height = '100vh';
+      canvasRef.current.style.position = 'fixed';
+      canvasRef.current.style.top = '0';
+      canvasRef.current.style.left = '0';
+      canvasRef.current.style.zIndex = '1000';
+      document.body.classList.add('fullscreen-active');
+      setIsFullscreen(true);
+    }
+  };
+
+  // Funzione per uscire dal fullscreen
+  const exitFullscreen = () => {
+    console.log('Attempting to exit fullscreen...');
+    if (document.fullscreenElement) {
+      document.exitFullscreen().then(() => {
+        console.log('Exited fullscreen successfully');
+        setIsFullscreen(false);
+        if (canvasRef.current) {
+          canvasRef.current.style.width = '100%';
+          canvasRef.current.style.height = isMobile ? '50vh' : '60vh';
+          canvasRef.current.style.position = '';
+          canvasRef.current.style.top = '';
+          canvasRef.current.style.left = '';
+          canvasRef.current.style.zIndex = '';
+        }
+        document.body.classList.remove('fullscreen-active');
+      }).catch((err) => {
+        console.error('Errore durante l\'uscita dal fullscreen:', err);
+        // Fallback: ripristina manualmente
+        if (canvasRef.current) {
+          canvasRef.current.style.width = '100%';
+          canvasRef.current.style.height = isMobile ? '50vh' : '60vh';
+          canvasRef.current.style.position = '';
+          canvasRef.current.style.top = '';
+          canvasRef.current.style.left = '';
+          canvasRef.current.style.zIndex = '';
+        }
+        document.body.classList.remove('fullscreen-active');
+        setIsFullscreen(false);
+      });
+    } else if (isFullscreen) {
+      // Ripristino per il fallback
+      if (canvasRef.current) {
+        canvasRef.current.style.width = '100%';
+        canvasRef.current.style.height = isMobile ? '50vh' : '60vh';
+        canvasRef.current.style.position = '';
+        canvasRef.current.style.top = '';
+        canvasRef.current.style.left = '';
+        canvasRef.current.style.zIndex = '';
+      }
+      document.body.classList.remove('fullscreen-active');
+      setIsFullscreen(false);
+      console.log('Exited fullscreen (fallback)');
+    }
+  };
+
+  // Debug rendering del canvas
+  useEffect(() => {
+    console.log('Canvas rendered:', canvasRef.current);
   }, []);
 
   return (
-    <Canvas
-      className="w-full h-[50vh] md:h-[70vh]"
-      gl={{
-        antialias: !isMobile,
-        powerPreference: 'low-power',
-        shadowMap: { enabled: !isMobile, type: THREE.PCFSoftShadowMap },
-      }}
-      scene={{ background: new THREE.Color('#000000') }}
-      // Aggiungi queste opzioni per migliorare le prestazioni su mobile
-      dpr={isMobile ? 1 : window.devicePixelRatio} // Riduci il device pixel ratio su mobile
-      performance={{
-        current: 1,
-        min: 0.5,
-        max: 1,
-        debounce: 200,
-      }}
-    >
-      <SceneContent
-        onSelectGame={onSelectGame}
-        croupierAnimation={croupierAnimation}
-        setCroupierAnimation={setCroupierAnimation}
-        triggerWinEffect={triggerWinEffect}
-        isMobile={isMobile}
-      />
-    </Canvas>
+    <div ref={containerRef} className="relative w-full h-[60vh] md:h-[70vh] casino-scene-container">
+      <Canvas
+        ref={canvasRef}
+        className="w-full h-full casino-canvas"
+        gl={{
+          antialias: !isMobile,
+          powerPreference: 'high-performance',
+          shadowMap: { enabled: !isMobile, type: THREE.PCFSoftShadowMap },
+        }}
+        scene={{ background: new THREE.Color('#000000') }}
+        dpr={isMobile ? 1 : window.devicePixelRatio}
+        performance={{
+          current: 1,
+          min: 0.5,
+          max: 1,
+          debounce: 200,
+        }}
+        style={{ pointerEvents: 'auto' }}
+      >
+        <SceneContent
+          onSelectGame={onSelectGame}
+          croupierAnimation={croupierAnimation}
+          setCroupierAnimation={setCroupierAnimation}
+          triggerWinEffect={triggerWinEffect}
+          isMobile={isMobile}
+          isFullscreen={isFullscreen}
+        />
+      </Canvas>
+      <div className="absolute top-4 right-4 z-[1001]">
+        {isFullscreen ? (
+          <button
+            onClick={exitFullscreen}
+            className="casino-button text-sm py-2 px-4"
+            style={{ pointerEvents: 'auto', zIndex: 1002 }}
+          >
+            Exit Fullscreen
+          </button>
+        ) : (
+          <button
+            onClick={enterFullscreen}
+            className="casino-button text-sm py-2 px-4 animate-pulse-slow"
+            style={{ pointerEvents: 'auto', zIndex: 1002 }}
+          >
+            Go Fullscreen
+          </button>
+        )}
+      </div>
+    </div>
   );
 };
+
+
+
+
+
+
 
 
 
@@ -3191,53 +3497,50 @@ const spinWheel = async (event) => {
       <audio ref={audioRef} src={backgroundMusic} loop />
       <audio ref={spinAudioRef} src={spinSound} />
       <audio ref={winAudioRef} src={winSound} />
-
+  
       {showWinImage && (
-  <div className="win-image-container">
-    {console.log('DEBUG - Rendering win image')}
-    <img
-      src="/assets/win-image.png"
-      alt="You Win!"
-      className="win-image"
-      onError={(e) => console.error('DEBUG - Win image failed to load:', e)}
-      onLoad={() => console.log('DEBUG - Win image loaded successfully')}
-    />
-  </div>
-)}
-
-      {/* Header fisso in alto con solo la GIF */}
-      <header className="flex justify-center items-center m-0 p-0">
-        <img
-          src="/assets/footer-gif.gif"
-          alt="Header Animation"
-          className="object-contain m-0 p-0 -ml-4" // Manteniamo lo spostamento a sinistra
-          style={{ height: '64px', width: 'auto', marginLeft: '-20px' }} // Sposta di 20px a sinistra
-        />
-      </header>
-
-         {/* Pulsante per controllare la musica (più piccolo) */}
-         <div className="flex justify-end mt-4 mb-4">
+        <div className="win-image-container">
+          {console.log('DEBUG - Rendering win image')}
+          <img
+            src="/assets/win-image.png"
+            alt="You Win!"
+            className="win-image"
+            onError={(e) => console.error('DEBUG - Win image failed to load:', e)}
+            onLoad={() => console.log('DEBUG - Win image loaded successfully')}
+          />
+        </div>
+      )}
+  
+ {/* Header con GIF centrata e pulsante Play Music a destra */}
+<header className="relative flex justify-center items-center m-0 p-0">
+  {console.log('DEBUG - Rendering header with centered GIF and Play Music button')}
+  <img
+    src="/assets/footer-gif.gif"
+    alt="Header Animation"
+    className="object-contain m-0 p-0"
+    style={{ height: '64px', width: 'auto' }}
+  />
   <button
     onClick={toggleMusic}
-    className="casino-button text-xs py-0.5 px-1"
+    className="casino-button absolute right-0"
+    style={{ padding: '2px 4px', fontSize: '10px', lineHeight: '1.2', minHeight: 'auto' }}
   >
     {isMusicPlaying ? 'Mute Music' : 'Play Music'}
   </button>
+</header>
+  
+      {loading ? (
+        <p className="text-center text-orange-700 animate-pulse text-2xl">.</p>
+      ) : error ? (
+        <p className="text-center text-red-500 text-2xl">{error}</p>
+      ) : (
+        <>
+          {/* WalletMultiButton con margine superiore */}
+<div className="flex justify-end items-center mt-4 mb-8">
+  {console.log('DEBUG - Rendering WalletMultiButton with mt-4')}
+  <WalletMultiButton className="casino-button" />
 </div>
-
-      {/* Aggiungiamo un margine superiore al contenuto per evitare sovrapposizioni */}
-        {loading ? (
-          <p className="text-center text-orange-700 animate-pulse text-2xl">.</p>
-        ) : error ? (
-          <p className="text-center text-red-500 text-2xl">{error}</p>
-        ) : (
-          <>
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-5xl font-bold text-orange-700 tracking-wide header-box">{TOKEN_NAME}</h2>
-              <WalletMultiButton className="casino-button" />
-            </div>
-      
-
+  
           {connected && publicKey && (
             <div className="game-box p-6 mb-8">
               <p className="text-lg text-orange-700">
@@ -3251,9 +3554,24 @@ const spinWheel = async (event) => {
               <p className="text-lg text-orange-700">WETH Reward: {userRewards.weth.toFixed(8)}</p>
             </div>
           )}
-
-            {/* Pulsanti Show Info e Sync Data separati */}
-            <div className="flex justify-center gap-6 mb-6">
+  
+          {/* Casino Floor con titolo centrato */}
+          {!selectedGame && (
+            <>
+              <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box text-center">
+                Casino Floor
+              </h2>
+              <CasinoScene
+                onSelectGame={setSelectedGame}
+                triggerWinEffect={triggerWinEffect}
+                className="mb-20"
+              />
+            </>
+          )}
+  
+{/* Pulsanti Show Info e Sync Data */}
+<div style={{ marginTop: '96px' }} className="flex justify-center gap-6 mb-6">
+  {console.log('DEBUG - Rendering Sync Data/Show Info buttons with inline margin-top: 96px')}
   <button
     onClick={() => setShowInfo(!showInfo)}
     className="w-32 casino-button"
@@ -3263,7 +3581,6 @@ const spinWheel = async (event) => {
   <button
     onClick={async () => {
       await fetchRewardsData();
-      // Forza un aggiornamento dello stato invece di ricaricare la pagina
       setTaxWalletBalance(prev => prev);
       setRewardSol(prev => prev);
       setRewardWbtc(prev => prev);
@@ -3278,81 +3595,90 @@ const spinWheel = async (event) => {
   </button>
 </div>
 
-          {/* Tabelle collassabili */}
-          {showInfo && (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-    <div className="game-box p-6">
-      <p className="text-lg text-orange-700">Tax Wallet Balance</p>
-      <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
-    </div>
-    <div className="game-box p-6">
-      <p className="text-lg text-orange-700">SOL Rewards (Latest)</p>
-      <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
-      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.sol.toFixed(4)} SOL</p>
-    </div>
-    <div className="game-box p-6">
-      <p className="text-lg text-orange-700">WBTC Rewards (Latest)</p>
-      <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
-      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.wbtc.toFixed(8)} WBTC</p>
-    </div>
-    <div className="game-box p-6">
-      <p className="text-lg text-orange-700">WETH Rewards (Latest)</p>
-      <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
-      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.weth.toFixed(8)} WETH</p>
-    </div>
-  </div>
-)}
-      
-  
-        {/* Pulsante Holders accorciato e centrato */}
-        <div className="flex justify-center mb-6">
-          <button onClick={toggleHolders} className="w-32 casino-button">
-            {showHolders ? 'Hide Holders' : 'Show Holders'}
-          </button>
-        </div>
-  
-        {showHolders && holders.length > 0 ? (
-          <div className="game-box p-6 mb-10">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-gray-700 text-cyan-400">
-                    <th className="p-4 text-lg">Holder Address</th>
-                    <th className="p-4 text-lg">Amount ({TOKEN_SYMBOL})</th>
-                    <th className="p-4 text-lg">SOL Reward</th>
-                    <th className="p-4 text-lg">WBTC Reward</th>
-                    <th className="p-4 text-lg">WETH Reward</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentHolders.map((holder, index) => (
-                    <tr key={index} className="border-t border-gray-600 hover:bg-gray-600 transition-all">
-                      <td className="p-4 text-gray-200 font-mono">{holder.address}</td>
-                      <td className="p-4 text-gray-200">{holder.amount.toFixed(6)}</td>
-                      <td className="p-4 text-green-400">{holder.solReward.toFixed(6)}</td>
-                      <td className="p-4 text-yellow-400">{holder.wbtcReward.toFixed(8)}</td>
-                      <td className="p-4 text-purple-400">{holder.wethReward.toFixed(8)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="flex justify-between items-center mt-4">
-              <button onClick={prevPage} disabled={currentPage === 1} className="casino-button">
-                Previous
-              </button>
-              <p className="text-orange-700">Page {currentPage} of {totalPages}</p>
-              <button onClick={nextPage} disabled={currentPage === totalPages} className="casino-button">
-                Next
-              </button>
-            </div>
-          </div>
-        ) : showHolders ? (
-          <p className="text-center text-orange-700 mb-10 text-lg">
-            No holders detected in the network (excluding pool).
-          </p>
-        ) : null}
 
+
+
+
+
+
+
+  
+          {/* Tabelle e info spostate qui sotto */}
+          {showInfo && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+              <div className="game-box p-6">
+                <p className="text-lg text-orange-700">Tax Wallet Balance</p>
+                <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
+              </div>
+              <div className="game-box p-6">
+                <p className="text-lg text-orange-700">SOL Rewards (Latest)</p>
+                <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
+                <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.sol.toFixed(4)} SOL</p>
+              </div>
+              <div className="game-box p-6">
+                <p className="text-lg text-orange-700">WBTC Rewards (Latest)</p>
+                <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
+                <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.wbtc.toFixed(8)} WBTC</p>
+              </div>
+              <div className="game-box p-6">
+                <p className="text-lg text-orange-700">WETH Rewards (Latest)</p>
+                <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
+                <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.weth.toFixed(8)} WETH</p>
+              </div>
+            </div>
+          )}
+  
+{/* Pulsante Holders */}
+<div className="flex justify-center mt-24 mb-6">
+  {console.log('DEBUG - Rendering Show/Hide Holders button with mt-24')}
+  <button onClick={toggleHolders} className="w-32 casino-button">
+    {showHolders ? 'Hide Holders' : 'Show Holders'}
+  </button>
+</div>
+  
+          {showHolders && holders.length > 0 ? (
+            <div className="game-box p-6 mb-10">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-gray-700 text-cyan-400">
+                      <th className="p-4 text-lg">Holder Address</th>
+                      <th className="p-4 text-lg">Amount ({TOKEN_SYMBOL})</th>
+                      <th className="p-4 text-lg">SOL Reward</th>
+                      <th className="p-4 text-lg">WBTC Reward</th>
+                      <th className="p-4 text-lg">WETH Reward</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentHolders.map((holder, index) => (
+                      <tr key={index} className="border-t border-gray-600 hover:bg-gray-600 transition-all">
+                        <td className="p-4 text-gray-200 font-mono">{holder.address}</td>
+                        <td className="p-4 text-gray-200">{holder.amount.toFixed(6)}</td>
+                        <td className="p-4 text-green-400">{holder.solReward.toFixed(6)}</td>
+                        <td className="p-4 text-yellow-400">{holder.wbtcReward.toFixed(8)}</td>
+                        <td className="p-4 text-purple-400">{holder.wethReward.toFixed(8)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-between items-center mt-4">
+                <button onClick={prevPage} disabled={currentPage === 1} className="casino-button">
+                  Previous
+                </button>
+                <p className="text-orange-700">Page {currentPage} of {totalPages}</p>
+                <button onClick={nextPage} disabled={currentPage === totalPages} className="casino-button">
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : showHolders ? (
+            <p className="text-center text-orange-700 mb-10 text-lg">
+              No holders detected in the network (excluding pool).
+            </p>
+          ) : null}
+  
+          {/* Missions & Leaderboard */}
           <div className="mb-10">
             <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
               Missions & Leaderboard
@@ -3396,267 +3722,201 @@ const spinWheel = async (event) => {
               </div>
             </div>
           </div>
-
-          {!selectedGame ? (
+  
+          {/* Sezione giochi (quando un gioco è selezionato) */}
+          {selectedGame && (
             <>
-              <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
-                Casino Floor
-              </h2>
-              <CasinoScene
-                onSelectGame={setSelectedGame}
-                triggerWinEffect={triggerWinEffect}
-                className="mb-20" // Aggiunto margine inferiore
-/>
-              
-
-{/* Nuova sezione per Contract e Social Links con più spazio sopra */}
-<div className="game-box p-6 mt-30 mb-10 max-w-lg mx-auto"> {/* Aumentato da mt-10 a mt-20 */}
-      <div className="flex justify-center mb-4">
-        <p className="text-lg text-orange-700">
-          Contract: <span className="text-cyan-400">TBA (To Be Announced)</span>
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-20 justify-center">
-        <a
-          href="https://t.me/Casinofmeme" // Sostituisci con il tuo link
-          target="_blank"
-          rel="noopener noreferrer"
-          className="casino-button w-24 mx-6 text-center"
-        >
-          Telegram
-        </a>
-        <a
-          href="https://x.com/CasinofmemeSOL" // Sostituisci con il tuo link
-          target="_blank"
-          rel="noopener noreferrer"
-          className="casino-button w-24 mx-6 text-center"
-        >
-          Twitter
-        </a>
-        <a
-          href="https://www.dextools.io/app/your-pair" // Sostituisci con il tuo link
-          target="_blank"
-          rel="noopener noreferrer"
-          className="casino-button w-24 mx-6 text-center"
-        >
-          Dextools
-        </a>
-        <a
-          href="https://casinoofmemes-organization.gitbook.io/thesolanacasino" // Sostituisci con il tuo link
-          target="_blank"
-          rel="noopener noreferrer"
-          className="casino-button w-24 mx-6 text-center"
-        >
-          Gitbook
-        </a>
-      </div>
-    </div>
-  </>
-) : (
-
-          
-            <>
-          {selectedGame === 'Solana Card Duel' && (
-  <div>
-    <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
-      Blackjack
-    </h2>
-    <div className="mb-6 text-center">
-      <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
-      <input
-        type="number"
-        step="0.01"
-        value={betAmount}
-        onChange={handleBetChange}
-        className="bet-input"
-        placeholder="Enter bet (0.01 - 1 SOL)"
-      />
-      {betError && <p className="bet-error">{betError}</p>}
-    </div>
-    <div className="game-box p-6 mb-10">
-      <div className="mb-6">
-        <p className="text-lg text-orange-700 mb-2 text-center">Your Cards:</p>
-        <div className="flex gap-4 justify-center">
-          {playerCards.map((card, index) => (
-            <div
-              key={index}
-              className="card"
-              style={{
-                backgroundImage: card.image ? `url(${card.image})` : 'none',
-                backgroundColor: card.image ? 'transparent' : 'red',
-                backgroundSize: 'cover',
-                width: '100px',
-                height: '140px',
-              }}
-            />
-          ))}
-        </div>
-        {gameStatus !== 'idle' && (
-          <p className="text-lg text-orange-700 mt-2 text-center">
-            Score: {calculateScore(playerCards)}
-          </p>
-        )}
-      </div>
-      <div className="mb-6">
-        <p className="text-lg text-orange-700 mb-2 text-center">Dealer Cards:</p>
-        <div className="flex gap-4 justify-center">
-          {opponentCards.map((card, index) => {
-            const isVisible = gameStatus === 'finished' || index === 0; // Solo la prima carta è visibile inizialmente
-            return (
-              <div
-                key={index}
-                className="card"
-                style={{
-                  backgroundImage: isVisible ? `url(${card.image})` : `url(${CARD_BACK_IMAGE})`,
-                  backgroundSize: 'cover',
-                  width: '100px',
-                  height: '140px',
-                }}
-              />
-            );
-          })}
-        </div>
-        {gameStatus === 'finished' && (
-          <p className="text-lg text-orange-700 mt-2 text-center">
-            Dealer Score: {calculateScore(opponentCards)}
-          </p>
-        )}
-      </div>
-      <p className="text-center text-orange-700 mb-4 text-lg">{gameMessage}</p>
-      {gameStatus === 'idle' ? (
-        <button
-          onClick={startBlackjack}
-          className="w-full casino-button"
-          disabled={!!betError}
-        >
-          Start Blackjack (Bet {betAmount.toFixed(2)} SOL)
-        </button>
-      ) : gameStatus === 'playing' ? (
-        <div className="flex gap-4">
-          <button onClick={hit} className="flex-1 casino-button">
-            Hit
-          </button>
-          <button onClick={stand} className="flex-1 casino-button">
-            Stand
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={() => {
-            setGameStatus('idle');
-            setPlayerCards([]);
-            setOpponentCards([]);
-            setGameMessage('');
-          }}
-          className="w-full casino-button"
-          disabled={!!betError}
-        >
-          Play Again (Bet {betAmount.toFixed(2)} SOL)
-        </button>
-      )}
-      <button
-        onClick={() => setSelectedGame(null)}
-        className="w-full casino-button mt-4"
-      >
-        Back to Casino Floor
-      </button>
-    </div>
-  </div>
-)}
-
-
-
-{selectedGame === 'Meme Slots' && (
-  <div>
-    <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
-      Meme Slots
-    </h2>
-    <div className="mb-6 text-center">
-      <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
-      <input
-        type="number"
-        step="0.01"
-        value={betAmount}
-        onChange={handleBetChange}
-        className="bet-input"
-        placeholder="Enter bet (0.01 - 1 SOL)"
-      />
-      {betError && <p className="bet-error">{betError}</p>}
-    </div>
-    <div className="game-box p-6 mb-10 flex flex-row gap-6">
-      {/* Griglia della slot machine */}
-      <div className={`slot-machine ${slotStatus === 'won' ? 'winning' : ''}`}>
-        <div className="grid grid-cols-5 gap-1">
-          {slotReelsDisplay.map((meme, index) => {
-            console.log(`DEBUG - Rendering slotReelsDisplay[${index}]: ${meme ? meme.name : 'null'}`);
-            return (
-              <div
-                key={index}
-                className={`slot-reel ${slotStatus === 'spinning' ? 'spinning' : ''} ${isStopping && slotReelsDisplay[index] === slotReelsDisplay[index] ? 'stopping' : ''} ${winningIndices.includes(index) ? 'winning' : ''}`}
-                style={{
-                  backgroundImage: meme && meme.image ? `url(${meme.image})` : 'none',
-                  backgroundColor: !meme ? '#333' : 'transparent',
-                }}
-              >
-                {!meme && <span className="text-white">?</span>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      {/* Tabella dei pagamenti */}
-      <div className="payout-table bg-gray-800 rounded-lg p-4 text-orange-700">
-        <h3 className="text-xl font-bold mb-4">Payouts</h3>
-        <table className="w-full text-left">
-          <thead>
-            <tr className="bg-gray-700 text-cyan-400">
-              <th className="p-2">Symbols</th>
-              <th className="p-2">Payout</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-t border-gray-600">
-              <td className="p-2">3 Symbols</td>
-              <td className="p-2">0.5x Bet</td>
-            </tr>
-            <tr className="border-t border-gray-600">
-              <td className="p-2">4 Symbols</td>
-              <td className="p-2">3x Bet</td>
-            </tr>
-            <tr className="border-t border-gray-600">
-              <td className="p-2">5 Symbols</td>
-              <td className="p-2">10x Bet</td>
-            </tr>
-            <tr className="border-t border-gray-600">
-              <td className="p-2">BONUS</td>
-              <td className="p-2">Doubles the Win</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <p className="text-center text-orange-700 mb-4 text-lg">{slotMessage}</p>
-    <button
-      onClick={spinSlots}
-      className="w-full casino-button"
-      disabled={slotStatus === 'spinning' || !!betError}
-    >
-      {slotStatus === 'spinning'
-        ? 'Spinning...'
-        : `Spin (Bet ${betAmount.toFixed(2)} SOL)`}
-    </button>
-    <button
-      onClick={() => setSelectedGame(null)}
-      className="w-full casino-button mt-4"
-    >
-      Back to Casino Floor
-    </button>
-  </div>
-)}
-
-
-
-
+              {selectedGame === 'Solana Card Duel' && (
+                <div>
+                  <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
+                    Blackjack
+                  </h2>
+                  <div className="mb-6 text-center">
+                    <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={betAmount}
+                      onChange={handleBetChange}
+                      className="bet-input"
+                      placeholder="Enter bet (0.01 - 1 SOL)"
+                    />
+                    {betError && <p className="bet-error">{betError}</p>}
+                  </div>
+                  <div className="game-box p-6 mb-10">
+                    <div className="mb-6">
+                      <p className="text-lg text-orange-700 mb-2 text-center">Your Cards:</p>
+                      <div className="flex gap-4 justify-center">
+                        {playerCards.map((card, index) => (
+                          <div
+                            key={index}
+                            className="card"
+                            style={{
+                              backgroundImage: card.image ? `url(${card.image})` : 'none',
+                              backgroundColor: card.image ? 'transparent' : 'red',
+                              backgroundSize: 'cover',
+                              width: '100px',
+                              height: '140px',
+                            }}
+                          />
+                        ))}
+                      </div>
+                      {gameStatus !== 'idle' && (
+                        <p className="text-lg text-orange-700 mt-2 text-center">
+                          Score: {calculateScore(playerCards)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="mb-6">
+                      <p className="text-lg text-orange-700 mb-2 text-center">Dealer Cards:</p>
+                      <div className="flex gap-4 justify-center">
+                        {opponentCards.map((card, index) => {
+                          const isVisible = gameStatus === 'finished' || index === 0;
+                          return (
+                            <div
+                              key={index}
+                              className="card"
+                              style={{
+                                backgroundImage: isVisible ? `url(${card.image})` : `url(${CARD_BACK_IMAGE})`,
+                                backgroundSize: 'cover',
+                                width: '100px',
+                                height: '140px',
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                      {gameStatus === 'finished' && (
+                        <p className="text-lg text-orange-700 mt-2 text-center">
+                          Dealer Score: {calculateScore(opponentCards)}
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-center text-orange-700 mb-4 text-lg">{gameMessage}</p>
+                    {gameStatus === 'idle' ? (
+                      <button
+                        onClick={startBlackjack}
+                        className="w-full casino-button"
+                        disabled={!!betError}
+                      >
+                        Start Blackjack (Bet {betAmount.toFixed(2)} SOL)
+                      </button>
+                    ) : gameStatus === 'playing' ? (
+                      <div className="flex gap-4">
+                        <button onClick={hit} className="flex-1 casino-button">
+                          Hit
+                        </button>
+                        <button onClick={stand} className="flex-1 casino-button">
+                          Stand
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setGameStatus('idle');
+                          setPlayerCards([]);
+                          setOpponentCards([]);
+                          setGameMessage('');
+                        }}
+                        className="w-full casino-button"
+                        disabled={!!betError}
+                      >
+                        Play Again (Bet {betAmount.toFixed(2)} SOL)
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setSelectedGame(null)}
+                      className="w-full casino-button mt-4"
+                    >
+                      Back to Casino Floor
+                    </button>
+                  </div>
+                </div>
+              )}
+  
+              {selectedGame === 'Meme Slots' && (
+                <div>
+                  <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
+                    Meme Slots
+                  </h2>
+                  <div className="mb-6 text-center">
+                    <label className="text-lg text-orange-700 mr-2">Bet Amount (SOL):</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={betAmount}
+                      onChange={handleBetChange}
+                      className="bet-input"
+                      placeholder="Enter bet (0.01 - 1 SOL)"
+                    />
+                    {betError && <p className="bet-error">{betError}</p>}
+                  </div>
+                  <div className="game-box p-6 mb-10 flex flex-row gap-6">
+                    <div className={`slot-machine ${slotStatus === 'won' ? 'winning' : ''}`}>
+                      <div className="grid grid-cols-5 gap-1">
+                        {slotReelsDisplay.map((meme, index) => (
+                          <div
+                            key={index}
+                            className={`slot-reel ${slotStatus === 'spinning' ? 'spinning' : ''} ${isStopping && slotReelsDisplay[index] === slotReelsDisplay[index] ? 'stopping' : ''} ${winningIndices.includes(index) ? 'winning' : ''}`}
+                            style={{
+                              backgroundImage: meme && meme.image ? `url(${meme.image})` : 'none',
+                              backgroundColor: !meme ? '#333' : 'transparent',
+                            }}
+                          >
+                            {!meme && <span className="text-white">?</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="payout-table bg-gray-800 rounded-lg p-4 text-orange-700">
+                      <h3 className="text-xl font-bold mb-4">Payouts</h3>
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-gray-700 text-cyan-400">
+                            <th className="p-2">Symbols</th>
+                            <th className="p-2">Payout</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-t border-gray-600">
+                            <td className="p-2">3 Symbols</td>
+                            <td className="p-2">0.5x Bet</td>
+                          </tr>
+                          <tr className="border-t border-gray-600">
+                            <td className="p-2">4 Symbols</td>
+                            <td className="p-2">3x Bet</td>
+                          </tr>
+                          <tr className="border-t border-gray-600">
+                            <td className="p-2">5 Symbols</td>
+                            <td className="p-2">10x Bet</td>
+                          </tr>
+                          <tr className="border-t border-gray-600">
+                            <td className="p-2">BONUS</td>
+                            <td className="p-2">Doubles the Win</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <p className="text-center text-orange-700 mb-4 text-lg">{slotMessage}</p>
+                  <button
+                    onClick={spinSlots}
+                    className="w-full casino-button"
+                    disabled={slotStatus === 'spinning' || !!betError}
+                  >
+                    {slotStatus === 'spinning'
+                      ? 'Spinning...'
+                      : `Spin (Bet ${betAmount.toFixed(2)} SOL)`}
+                  </button>
+                  <button
+                    onClick={() => setSelectedGame(null)}
+                    className="w-full casino-button mt-4"
+                  >
+                    Back to Casino Floor
+                  </button>
+                </div>
+              )}
+  
               {selectedGame === 'Coin Flip' && (
                 <div>
                   <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
@@ -3718,302 +3978,285 @@ const spinWheel = async (event) => {
                   </div>
                 </div>
               )}
-
-
-
-{selectedGame === 'Poker PvP' && (
-  <div>
-    <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
-      Poker PvP
-    </h2>
-    <div className="game-box p-6 mb-10">
-      {/* Log per debug */}
-      {console.log({
-        waitingPlayersList,
-        pokerStatus,
-        pokerPlayers,
-        publicKey: publicKey?.toString(),
-        socketId: socket.id,
-        minBet,
-      })}
-
-        {/* Pulsante Leave Table */}
-        {pokerStatus === 'waiting' && waitingPlayersList.some(p => p.address === publicKey?.toString()) && (
-        <button
-          onClick={() => socket.emit('leaveWaitingList', { playerAddress: publicKey.toString() })}
-          className="w-full casino-button mb-2"
-        >
-          Leave Table
-        </button>
-      )}
-
-      {/* Input per la puntata (visibile sempre in stato 'waiting') */}
-      {pokerStatus === 'waiting' && (
-  <div className="text-center mb-6">
-    <label className="text-lg text-orange-700 mr-2">Bet Amount (COM):</label>
-    <input
-      type="number"
-      step="1000"
-      value={betAmount}
-      onChange={handleBetChange}
-      className="bet-input"
-      placeholder={`Enter bet (min ${minBet.toFixed(2)} COM)`}
-      min={minBet} // Imposta il valore minimo dell'input
-      disabled={pokerStatus !== 'waiting'}
-    />
-    <p className="text-sm text-orange-700 mt-2">
-      Minimum Bet: {minBet.toFixed(2)} COM
-    </p>
-    {betError && <p className="bet-error">{betError}</p>}
-    <p className="text-sm text-orange-700 mt-2">
-      Your COM Balance: {comBalance.toFixed(2)} COM {console.log(`COM Balance: ${comBalance} COM`)}
-    </p>
-  </div>
-)}
-
-      {/* Lista dei giocatori in attesa */}
-      {waitingPlayersList.length > 0 && pokerStatus === 'waiting' ? (
-        <div className="mb-6">
-          <p className="text-lg text-orange-700 mb-2 text-center">Players Waiting:</p>
-          <ul className="text-center">
-            {waitingPlayersList.map((player, index) => (
-              <li key={index} className="text-orange-700">
-                {player.address.slice(0, 8)}... (Bet: {player.bet.toFixed(2)} COM)
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : (
-        <p className="text-center text-orange-700 mb-4">
-          {pokerStatus === 'waiting' ? 'No players waiting yet...' : 'Game status: ' + pokerStatus}
-        </p>
-      )}
-
-      {/* Dettagli del gioco (visibile solo quando ci sono giocatori al tavolo) */}
-      {pokerPlayers.length > 0 && publicKey ? (
-        <>
-          {/* Informazioni sui giocatori al tavolo */}
-          <div className="mb-6">
-            <p className="text-lg text-orange-700 mb-2 text-center">Players at Table:</p>
-            <ul className="text-center">
-              {pokerPlayers.map((player, index) => (
-                <li key={index} className="text-orange-700">
-                  {player.address.slice(0, 8)}... (Bet: {player.bet.toFixed(2)} COM)
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Pot e puntata corrente */}
-          <p className="text-lg text-orange-700 mb-2 text-center">
-            Pot: {pokerPot ? pokerPot.toFixed(2) : '0.00'} COM
-          </p>
-          <p className="text-lg text-orange-700 mb-2 text-center">
-            Current Bet: {currentBet ? currentBet.toFixed(2) : '0.00'} COM
-          </p>
-
-          {/* Carte comuni */}
-          <p className="text-lg text-orange-700 mb-2 text-center">Community Cards:</p>
-          <div className="flex gap-4 justify-center">
-            {pokerTableCards && pokerTableCards.length > 0 ? (
-              pokerTableCards.map((card, index) => (
-                <div
-                  key={index}
-                  className="card"
-                  style={{
-                    backgroundImage: card.image ? `url(${card.image})` : 'none',
-                    backgroundSize: 'cover',
-                    width: '100px',
-                    height: '140px',
-                    backgroundColor: !card.image ? '#333' : 'transparent',
-                  }}
-                />
-              ))
-            ) : (
-              <p className="text-orange-700">No community cards yet</p>
-            )}
-          </div>
-
-          {/* Carte del giocatore */}
-          <p className="text-lg text-orange-700 mb-2 text-center">Your Cards:</p>
-          <div className="flex gap-4 justify-center">
-            {pokerPlayerCards[publicKey.toString()] &&
-            pokerPlayerCards[publicKey.toString()].length > 0 ? (
-              pokerPlayerCards[publicKey.toString()].map((card, index) => (
-                <div
-                  key={index}
-                  className="card"
-                  style={{
-                    backgroundImage: card.image ? `url(${card.image})` : 'none',
-                    backgroundSize: 'cover',
-                    width: '100px',
-                    height: '140px',
-                    backgroundColor: !card.image ? '#333' : 'transparent',
-                  }}
-                />
-              ))
-            ) : (
-              <p className="text-orange-700">No cards assigned yet</p>
-            )}
-          </div>
-
-          {/* Carte dell'avversario */}
-          <p className="text-lg text-orange-700 mb-2 text-center">Opponent's Cards:</p>
-          <div className="flex gap-4 justify-center">
-            {(() => {
-              const opponent = pokerPlayers.find(p => p.address !== publicKey.toString());
-              if (!opponent || !pokerPlayerCards[opponent?.address]) {
-                return <p className="text-orange-700">No opponent cards available</p>;
-              }
-              return pokerPlayerCards[opponent.address].map((card, index) => (
-                <div
-                  key={index}
-                  className="card"
-                  style={{
-                    backgroundImage: opponentCardsVisible && card.image
-                      ? `url(${card.image})`
-                      : `url(${CARD_BACK_IMAGE})`,
-                    backgroundSize: 'cover',
-                    width: '100px',
-                    height: '140px',
-                  }}
-                />
-              ));
-            })()}
-          </div>
-
-          {/* Messaggi di stato */}
-          <p className="text-center text-orange-700 mb-4 text-lg">
-            {pokerMessage || 'Waiting for game state...'}
-          </p>
-          {dealerMessage && (
-            <p className="text-center text-orange-700 mb-4 text-lg font-bold">{dealerMessage}</p>
-          )}
-          {pokerStatus === 'playing' && (
-            <p className="text-center text-orange-700 mb-4 text-lg font-bold">
-              Time Left: {timeLeft} seconds
-            </p>
-          )}
-
-          {/* Controlli di gioco */}
-          {pokerStatus === 'playing' && currentTurn === socket.id && (
-            <div className="flex flex-col gap-4">
-              {currentBet > (playerBets[publicKey.toString()] || 0) && (
-                <p className="text-center text-orange-700 mb-4 text-lg font-bold">
-                  You placed a bet. Click "Check" to pass the turn to your opponent.
-                </p>
+  
+              {selectedGame === 'Poker PvP' && (
+                <div>
+                  <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
+                    Poker PvP
+                  </h2>
+                  <div className="game-box p-6 mb-10">
+                    {console.log({
+                      waitingPlayersList,
+                      pokerStatus,
+                      pokerPlayers,
+                      publicKey: publicKey?.toString(),
+                      socketId: socket.id,
+                      minBet,
+                    })}
+  
+                    {pokerStatus === 'waiting' && waitingPlayersList.some(p => p.address === publicKey?.toString()) && (
+                      <button
+                        onClick={() => socket.emit('leaveWaitingList', { playerAddress: publicKey.toString() })}
+                        className="w-full casino-button mb-2"
+                      >
+                        Leave Table
+                      </button>
+                    )}
+  
+                    {pokerStatus === 'waiting' && (
+                      <div className="text-center mb-6">
+                        <label className="text-lg text-orange-700 mr-2">Bet Amount (COM):</label>
+                        <input
+                          type="number"
+                          step="1000"
+                          value={betAmount}
+                          onChange={handleBetChange}
+                          className="bet-input"
+                          placeholder={`Enter bet (min ${minBet.toFixed(2)} COM)`}
+                          min={minBet}
+                          disabled={pokerStatus !== 'waiting'}
+                        />
+                        <p className="text-sm text-orange-700 mt-2">
+                          Minimum Bet: {minBet.toFixed(2)} COM
+                        </p>
+                        {betError && <p className="bet-error">{betError}</p>}
+                        <p className="text-sm text-orange-700 mt-2">
+                          Your COM Balance: {comBalance.toFixed(2)} COM {console.log(`COM Balance: ${comBalance} COM`)}
+                        </p>
+                      </div>
+                    )}
+  
+                    {waitingPlayersList.length > 0 && pokerStatus === 'waiting' ? (
+                      <div className="mb-6">
+                        <p className="text-lg text-orange-700 mb-2 text-center">Players Waiting:</p>
+                        <ul className="text-center">
+                          {waitingPlayersList.map((player, index) => (
+                            <li key={index} className="text-orange-700">
+                              {player.address.slice(0, 8)}... (Bet: {player.bet.toFixed(2)} COM)
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="text-center text-orange-700 mb-4">
+                        {pokerStatus === 'waiting' ? 'No players waiting yet...' : 'Game status: ' + pokerStatus}
+                      </p>
+                    )}
+  
+                    {pokerPlayers.length > 0 && publicKey ? (
+                      <>
+                        <div className="mb-6">
+                          <p className="text-lg text-orange-700 mb-2 text-center">Players at Table:</p>
+                          <ul className="text-center">
+                            {pokerPlayers.map((player, index) => (
+                              <li key={index} className="text-orange-700">
+                                {player.address.slice(0, 8)}... (Bet: {player.bet.toFixed(2)} COM)
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+  
+                        <p className="text-lg text-orange-700 mb-2 text-center">
+                          Pot: {pokerPot ? pokerPot.toFixed(2) : '0.00'} COM
+                        </p>
+                        <p className="text-lg text-orange-700 mb-2 text-center">
+                          Current Bet: {currentBet ? currentBet.toFixed(2) : '0.00'} COM
+                        </p>
+  
+                        <p className="text-lg text-orange-700 mb-2 text-center">Community Cards:</p>
+                        <div className="flex gap-4 justify-center">
+                          {pokerTableCards && pokerTableCards.length > 0 ? (
+                            pokerTableCards.map((card, index) => (
+                              <div
+                                key={index}
+                                className="card"
+                                style={{
+                                  backgroundImage: card.image ? `url(${card.image})` : 'none',
+                                  backgroundSize: 'cover',
+                                  width: '100px',
+                                  height: '140px',
+                                  backgroundColor: !card.image ? '#333' : 'transparent',
+                                }}
+                              />
+                            ))
+                          ) : (
+                            <p className="text-orange-700">No community cards yet</p>
+                          )}
+                        </div>
+  
+                        <p className="text-lg text-orange-700 mb-2 text-center">Your Cards:</p>
+                        <div className="flex gap-4 justify-center">
+                          {pokerPlayerCards[publicKey.toString()] &&
+                          pokerPlayerCards[publicKey.toString()].length > 0 ? (
+                            pokerPlayerCards[publicKey.toString()].map((card, index) => (
+                              <div
+                                key={index}
+                                className="card"
+                                style={{
+                                  backgroundImage: card.image ? `url(${card.image})` : 'none',
+                                  backgroundSize: 'cover',
+                                  width: '100px',
+                                  height: '140px',
+                                  backgroundColor: !card.image ? '#333' : 'transparent',
+                                }}
+                              />
+                            ))
+                          ) : (
+                            <p className="text-orange-700">No cards assigned yet</p>
+                          )}
+                        </div>
+  
+                        <p className="text-lg text-orange-700 mb-2 text-center">Opponent's Cards:</p>
+                        <div className="flex gap-4 justify-center">
+                          {(() => {
+                            const opponent = pokerPlayers.find(p => p.address !== publicKey.toString());
+                            if (!opponent || !pokerPlayerCards[opponent?.address]) {
+                              return <p className="text-orange-700">No opponent cards available</p>;
+                            }
+                            return pokerPlayerCards[opponent.address].map((card, index) => (
+                              <div
+                                key={index}
+                                className="card"
+                                style={{
+                                  backgroundImage: opponentCardsVisible && card.image
+                                    ? `url(${card.image})`
+                                    : `url(${CARD_BACK_IMAGE})`,
+                                  backgroundSize: 'cover',
+                                  width: '100px',
+                                  height: '140px',
+                                }}
+                              />
+                            ));
+                          })()}
+                        </div>
+  
+                        <p className="text-center text-orange-700 mb-4 text-lg">
+                          {pokerMessage || 'Waiting for game state...'}
+                        </p>
+                        {dealerMessage && (
+                          <p className="text-center text-orange-700 mb-4 text-lg font-bold">{dealerMessage}</p>
+                        )}
+                        {pokerStatus === 'playing' && (
+                          <p className="text-center text-orange-700 mb-4 text-lg font-bold">
+                            Time Left: {timeLeft} seconds
+                          </p>
+                        )}
+  
+                        {pokerStatus === 'playing' && currentTurn === socket.id && (
+                          <div className="flex flex-col gap-4">
+                            {currentBet > (playerBets[publicKey.toString()] || 0) && (
+                              <p className="text-center text-orange-700 mb-4 text-lg font-bold">
+                                You placed a bet. Click "Check" to pass the turn to your opponent.
+                              </p>
+                            )}
+                            <div className="flex gap-4">
+                              {currentBet > (playerBets[publicKey.toString()] || 0) ? (
+                                <button
+                                  onClick={() => makePokerMove('call')}
+                                  className="flex-1 casino-button"
+                                  disabled={comBalance < currentBet - (playerBets[publicKey.toString()] || 0)}
+                                >
+                                  Call ({(currentBet - (playerBets[publicKey.toString()] || 0)).toFixed(2)} COM)
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => makePokerMove('check')}
+                                  className="flex-1 casino-button"
+                                >
+                                  Check
+                                </button>
+                              )}
+                              <button
+                                onClick={() => makePokerMove('fold')}
+                                className="flex-1 casino-button"
+                              >
+                                Fold
+                              </button>
+                            </div>
+                            <div className="flex gap-4">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min={minBet}
+                                max="1000"
+                                value={raiseAmount}
+                                onChange={(e) => setRaiseAmount(parseFloat(e.target.value) || 0)}
+                                className="bet-input flex-1"
+                                placeholder="Bet/Raise Amount (COM)"
+                              />
+                              <button
+                                onClick={() => makePokerMove('bet', raiseAmount)}
+                                className="flex-1 casino-button"
+                                disabled={raiseAmount < minBet || comBalance < raiseAmount}
+                              >
+                                Bet
+                              </button>
+                              <button
+                                onClick={() => makePokerMove('raise', raiseAmount)}
+                                className="flex-1 casino-button"
+                                disabled={raiseAmount < minBet || comBalance < raiseAmount}
+                              >
+                                Raise
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {pokerStatus === 'playing' && currentTurn !== socket.id && (
+                          <p className="text-center text-orange-700">
+                            Opponent's turn... (Time Left: {timeLeft} seconds)
+                          </p>
+                        )}
+                        {pokerStatus === 'finished' && (
+                          <button
+                            onClick={() => {
+                              setPokerStatus('waiting');
+                              setPokerPlayers([]);
+                              setPokerTableCards([]);
+                              setPokerPlayerCards({});
+                              setPokerMessage('Waiting for another player...');
+                              setPokerPot(0);
+                              setCurrentBet(0);
+                              setPlayerBets({});
+                              setGamePhase('pre-flop');
+                              setOpponentCardsVisible(false);
+                              setDealerMessage('');
+                              setTimeLeft(30);
+                              localStorage.removeItem('currentGameId');
+                            }}
+                            className="w-full casino-button"
+                            disabled={!!betError}
+                          >
+                            Play Again (Bet {betAmount.toFixed(2)} COM)
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-center text-orange-700 mb-4">
+                        {publicKey ? 'No players in game yet...' : 'Please connect your wallet to play!'}
+                      </p>
+                    )}
+  
+                    {pokerStatus === 'waiting' && (
+                      <button
+                        onClick={joinPokerGame}
+                        className="w-full casino-button mb-4"
+                        disabled={!!betError || !publicKey || comBalance < betAmount}
+                      >
+                        Join Game (Bet {betAmount.toFixed(2)} COM)
+                      </button>
+                    )}
+  
+                    <button
+                      onClick={() => setSelectedGame(null)}
+                      className="w-full casino-button mt-4"
+                    >
+                      Back to Casino Floor
+                    </button>
+                  </div>
+                </div>
               )}
-              <div className="flex gap-4">
-                {currentBet > (playerBets[publicKey.toString()] || 0) ? (
-                  <button
-                    onClick={() => makePokerMove('call')}
-                    className="flex-1 casino-button"
-                    disabled={comBalance < currentBet - (playerBets[publicKey.toString()] || 0)}
-                  >
-                    Call ({(currentBet - (playerBets[publicKey.toString()] || 0)).toFixed(2)} COM)
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => makePokerMove('check')}
-                    className="flex-1 casino-button"
-                  >
-                    Check
-                  </button>
-                )}
-                <button
-                  onClick={() => makePokerMove('fold')}
-                  className="flex-1 casino-button"
-                >
-                  Fold
-                </button>
-              </div>
-              <div className="flex gap-4">
-                <input
-                  type="number"
-                  step="0.01"
-                  min={minBet}
-                  max="1000"
-                  value={raiseAmount}
-                  onChange={(e) => setRaiseAmount(parseFloat(e.target.value) || 0)}
-                  className="bet-input flex-1"
-                  placeholder="Bet/Raise Amount (COM)"
-                />
-                <button
-                  onClick={() => makePokerMove('bet', raiseAmount)}
-                  className="flex-1 casino-button"
-                  disabled={raiseAmount < minBet || comBalance < raiseAmount}
-                >
-                  Bet
-                </button>
-                <button
-                  onClick={() => makePokerMove('raise', raiseAmount)}
-                  className="flex-1 casino-button"
-                  disabled={raiseAmount < minBet || comBalance < raiseAmount}
-                >
-                  Raise
-                </button>
-              </div>
-            </div>
-          )}
-          {pokerStatus === 'playing' && currentTurn !== socket.id && (
-            <p className="text-center text-orange-700">
-              Opponent's turn... (Time Left: {timeLeft} seconds)
-            </p>
-          )}
-          {pokerStatus === 'finished' && (
-            <button
-              onClick={() => {
-                setPokerStatus('waiting');
-                setPokerPlayers([]);
-                setPokerTableCards([]);
-                setPokerPlayerCards({});
-                setPokerMessage('Waiting for another player...');
-                setPokerPot(0);
-                setCurrentBet(0);
-                setPlayerBets({});
-                setGamePhase('pre-flop');
-                setOpponentCardsVisible(false);
-                setDealerMessage('');
-                setTimeLeft(30);
-                localStorage.removeItem('currentGameId');
-              }}
-              className="w-full casino-button"
-              disabled={!!betError}
-            >
-              Play Again (Bet {betAmount.toFixed(2)} COM)
-            </button>
-          )}
-        </>
-      ) : (
-        <p className="text-center text-orange-700 mb-4">
-          {publicKey ? 'No players in game yet...' : 'Please connect your wallet to play!'}
-        </p>
-      )}
-
-      {/* Pulsante "Join Game" visibile in stato 'waiting' */}
-      {pokerStatus === 'waiting' && (
-        <button
-          onClick={joinPokerGame}
-          className="w-full casino-button mb-4"
-          disabled={!!betError || !publicKey || comBalance < betAmount}
-        >
-          Join Game (Bet {betAmount.toFixed(2)} COM)
-        </button>
-      )}
-
-      <button
-        onClick={() => setSelectedGame(null)}
-        className="w-full casino-button mt-4"
-      >
-        Back to Casino Floor
-      </button>
-    </div>
-  </div>
-)}
-         
-
-             
-{selectedGame === 'Crazy Wheel' && (
+  
+              {selectedGame === 'Crazy Wheel' && (
                 <div>
                   <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
                     Crazy Wheel
@@ -4036,7 +4279,7 @@ const spinWheel = async (event) => {
                         {isMusicPlaying ? 'Mute Music' : 'Play Music'}
                       </button>
                     </div>
-
+  
                     <div className="mb-6 text-center">
                       <div className="presenter">
                         <img
@@ -4046,7 +4289,7 @@ const spinWheel = async (event) => {
                         />
                       </div>
                     </div>
-
+  
                     <div className="mb-6 text-center">
                       <p className="text-lg text-orange-700 mb-2">Top Slot:</p>
                       <div className="flex justify-center gap-4">
@@ -4058,20 +4301,19 @@ const spinWheel = async (event) => {
                         </div>
                       </div>
                     </div>
-
+  
                     <div className="mb-6 text-center">
                       <p className="text-lg text-orange-700 mb-2">Wheel Result:</p>
                       <div className="wheel-wrapper">
-                      <div className="wheel-container">
-  <svg
-    className="wheel"
-    style={{
-      transform: `rotate(${rotationAngle}deg)`,
-      transition: wheelStatus === 'spinning' ? 'transform 5s ease-out' : 'none',
-    }}
-    viewBox="0 0 500 500" // Mantieni il viewBox per proporzioni
-  >
-  
+                        <div className="wheel-container">
+                          <svg
+                            className="wheel"
+                            style={{
+                              transform: `rotate(${rotationAngle}deg)`,
+                              transition: wheelStatus === 'spinning' ? 'transform 5s ease-out' : 'none',
+                            }}
+                            viewBox="0 0 500 500"
+                          >
                             <g transform="translate(250, 250)">
                               <circle cx="0" cy="0" r="100" fill="#ff3333" stroke="#d4af37" strokeWidth="5" />
                               <text
@@ -4096,7 +4338,7 @@ const spinWheel = async (event) => {
                               >
                                 TIME
                               </text>
-
+  
                               {crazyTimeWheel.map((segment, index) => {
                                 const angle = (index * 360) / crazyTimeWheel.length;
                                 const rad = (angle * Math.PI) / 180;
@@ -4132,7 +4374,7 @@ const spinWheel = async (event) => {
                                       fontWeight="bold"
                                       textAnchor="middle"
                                       dominantBaseline="middle"
-                                      transform={`rotate(${textAngle}, ${textX}, ${textY})`} // Ruota il testo per allinearlo radialmente
+                                      transform={`rotate(${textAngle}, ${textX}, ${textY})`}
                                     >
                                       {segment.value}
                                     </text>
@@ -4155,7 +4397,7 @@ const spinWheel = async (event) => {
                         )}
                       </div>
                     </div>
-
+  
                     {wheelStatus === 'bonus' && bonusResult && (
                       <div className="mb-6 text-center">
                         <p className="text-lg text-orange-700 mb-2">Bonus Round: {bonusResult.type}</p>
@@ -4200,44 +4442,43 @@ const spinWheel = async (event) => {
                         ) : null}
                       </div>
                     )}
-
-<div className="mb-6">
-  <p className="text-lg text-orange-700 mb-2 text-center">Place Your Bets:</p>
-  <div className="flex gap-4 justify-center flex-wrap">
-    {['1', '2', '5', '10', 'Coin Flip', 'Pachinko', 'Cash Hunt', 'Crazy Time'].map(segment => (
-      <button
-        key={segment}
-        type="button"
-        onClick={(e) => handleBetSelection(segment, e)}
-        onTouchStart={(e) => e.preventDefault()}
-        className="casino-button"
-        style={{
-          background: bets[segment] > 0 ? 'linear-gradient(135deg, #00ff00, #008000)' : '',
-        }}
-      >
-        {segment} (Bet: {bets[segment].toFixed(2)} SOL)
-      </button>
-    ))}
-  </div>
-  {/* Nuovi pulsanti */}
-  <div className="flex gap-4 justify-center mt-4">
-    <button
-      onClick={cancelLastBet}
-      className="casino-button"
-      disabled={wheelStatus !== 'idle' || betHistory.length === 0}
-    >
-      Cancel Last Bet
-    </button>
-    <button
-      onClick={repeatLastBet}
-      className="casino-button"
-      disabled={wheelStatus !== 'idle' || !lastBets || Object.values(lastBets).every(bet => bet === 0)}
-    >
-      Repeat Last Spin
-    </button>
-  </div>
-</div>
-
+  
+                    <div className="mb-6">
+                      <p className="text-lg text-orange-700 mb-2 text-center">Place Your Bets:</p>
+                      <div className="flex gap-4 justify-center flex-wrap">
+                        {['1', '2', '5', '10', 'Coin Flip', 'Pachinko', 'Cash Hunt', 'Crazy Time'].map(segment => (
+                          <button
+                            key={segment}
+                            type="button"
+                            onClick={(e) => handleBetSelection(segment, e)}
+                            onTouchStart={(e) => e.preventDefault()}
+                            className="casino-button"
+                            style={{
+                              background: bets[segment] > 0 ? 'linear-gradient(135deg, #00ff00, #008000)' : '',
+                            }}
+                          >
+                            {segment} (Bet: {bets[segment].toFixed(2)} SOL)
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex gap-4 justify-center mt-4">
+                        <button
+                          onClick={cancelLastBet}
+                          className="casino-button"
+                          disabled={wheelStatus !== 'idle' || betHistory.length === 0}
+                        >
+                          Cancel Last Bet
+                        </button>
+                        <button
+                          onClick={repeatLastBet}
+                          className="casino-button"
+                          disabled={wheelStatus !== 'idle' || !lastBets || Object.values(lastBets).every(bet => bet === 0)}
+                        >
+                          Repeat Last Spin
+                        </button>
+                      </div>
+                    </div>
+  
                     <div className="mb-6 text-center">
                       <p className="text-lg text-orange-700 mb-2">Last Results:</p>
                       <div className="flex gap-2 justify-center flex-wrap">
@@ -4248,7 +4489,7 @@ const spinWheel = async (event) => {
                         ))}
                       </div>
                     </div>
-
+  
                     <div className="chat-box">
                       {chatMessages.map((message, index) => (
                         <p key={index} className="chat-message">
@@ -4256,7 +4497,7 @@ const spinWheel = async (event) => {
                         </p>
                       ))}
                     </div>
-
+  
                     <p className="text-center text-orange-700 mb-4 text-lg">{wheelMessage}</p>
                     {wheelStatus === 'idle' ? (
                       <button
@@ -4272,35 +4513,35 @@ const spinWheel = async (event) => {
                       </button>
                     ) : (
                       <button
-  onClick={() => {
-    setWheelStatus('idle');
-    setWheelResult(null);
-    setBonusResult(null);
-    setTopSlot({ segment: null, multiplier: 1 });
-    setBets({
-      1: 0,
-      2: 0,
-      5: 0,
-      10: 0,
-      'Coin Flip': 0,
-      'Pachinko': 0,
-      'Cash Hunt': 0,
-      'Crazy Time': 0,
-    });
-    setBetHistory([]); // Resetta la cronologia
-    setWheelMessage('');
-    setChatMessages([]);
-    setRotationAngle(0);
-  }}
-  className="w-full casino-button"
-  disabled={!!betError}
->
-  Play Again (Total Bet:{' '}
-  {Object.values(bets)
-    .reduce((sum, bet) => sum + bet, 0)
-    .toFixed(2)}{' '}
-  SOL)
-</button>
+                        onClick={() => {
+                          setWheelStatus('idle');
+                          setWheelResult(null);
+                          setBonusResult(null);
+                          setTopSlot({ segment: null, multiplier: 1 });
+                          setBets({
+                            1: 0,
+                            2: 0,
+                            5: 0,
+                            10: 0,
+                            'Coin Flip': 0,
+                            'Pachinko': 0,
+                            'Cash Hunt': 0,
+                            'Crazy Time': 0,
+                          });
+                          setBetHistory([]);
+                          setWheelMessage('');
+                          setChatMessages([]);
+                          setRotationAngle(0);
+                        }}
+                        className="w-full casino-button"
+                        disabled={!!betError}
+                      >
+                        Play Again (Total Bet:{' '}
+                        {Object.values(bets)
+                          .reduce((sum, bet) => sum + bet, 0)
+                          .toFixed(2)}{' '}
+                        SOL)
+                      </button>
                     )}
                     <button
                       onClick={() => setSelectedGame(null)}
@@ -4312,6 +4553,51 @@ const spinWheel = async (event) => {
                 </div>
               )}
             </>
+          )}
+  
+          {/* Nuova sezione per Contract e Social Links */}
+          {!selectedGame && (
+            <div className="game-box p-6 mt-20 mb-10 max-w-lg mx-auto">
+              <div className="flex justify-center mb-4">
+                <p className="text-lg text-orange-700">
+                  Contract: <span className="text-cyan-400">TBA (To Be Announced)</span>
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-20 justify-center">
+                <a
+                  href="https://t.me/Casinofmeme"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="casino-button w-24 mx-6 text-center"
+                >
+                  Telegram
+                </a>
+                <a
+                  href="https://x.com/CasinofmemeSOL"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="casino-button w-24 mx-6 text-center"
+                >
+                  Twitter
+                </a>
+                <a
+                  href="https://www.dextools.io/app/your-pair"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="casino-button w-24 mx-6 text-center"
+                >
+                  Dextools
+                </a>
+                <a
+                  href="https://casinoofmemes-organization.gitbook.io/thesolanacasino"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="casino-button w-24 mx-6 text-center"
+                >
+                  Gitbook
+                </a>
+              </div>
+            </div>
           )}
         </>
       )}
