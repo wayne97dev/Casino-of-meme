@@ -80,6 +80,37 @@ body:not(.fullscreen-active) {
   overflow-y: auto !important; /* Permette lo scroll */
 }
 
+/* Header container per allineare Casino Floor e Connect */
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+/* Centra il favicon e posiziona il pulsante Play Music sotto */
+.favicon-mobile {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Stile per il pulsante Play Music su mobile */
+.music-button-mobile {
+  width: 120px; /* Più corto */
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  margin: 0.5rem auto;
+  display: block;
+}
+
+/* Stile per il tasto Connect su mobile */
+.connect-button-mobile {
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  min-height: 40px;
+}
+
 /* Stili per il contenitore della scena del casinò */
 .casino-scene-container {
   position: relative;
@@ -750,6 +781,11 @@ table {
 
 /* Media Queries per Mobile */
 @media (max-width: 768px) {
+  /* Rimuovi il padding del body in modalità fullscreen */
+  .fullscreen-active body {
+    padding: 0 !important;
+  }
+
   body {
     padding: 20px;
     background: url('/my-background.webp') no-repeat center center fixed, linear-gradient(135deg, #1a1a2e, #2a2a4e);
@@ -766,24 +802,47 @@ table {
     max-height: 400px;
   }
 
+  .fullscreen-active .casino-canvas {
+    width: 100vw !important;
+    height: 100vh !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 9999 !important;
+  }
+
+  /* Assicura che i pulsanti siano cliccabili */
+  .fullscreen-active .casino-button {
+    z-index: 10000;
+    pointer-events: auto;
+    touch-action: manipulation;
+  }
+
+  .header-container {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
   .header-box {
     padding: 8px 16px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
     font-size: clamp(1.25rem, 5vw, 2.5rem);
   }
 
-  .casino-button {
-    padding: 10px 20px;
-    font-size: clamp(0.9rem, 3vw, 1.25rem);
-    box-shadow: 0 0 8px rgba(255, 204, 0, 0.5), inset 0 0 4px rgba(255, 255, 255, 0.3);
-    min-height: 44px;
-    width: 100%;
-    max-width: 300px;
-    margin: 0.5rem auto;
+  .connect-button-mobile {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    min-height: 36px;
   }
 
-  .casino-button:hover {
-    box-shadow: 0 0 15px rgba(255, 204, 0, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.5);
+  .music-button-mobile {
+    width: 100px; /* Più corto */
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    margin: 0.5rem auto;
   }
 
   .card {
@@ -976,6 +1035,11 @@ table {
 }
 
 @media (max-width: 480px) {
+  /* Rimuovi il padding del body in modalità fullscreen */
+  .fullscreen-active body {
+    padding: 0 !important;
+  }
+
   body {
     padding: 10px;
   }
@@ -985,14 +1049,29 @@ table {
     max-height: 350px;
   }
 
+  .header-container {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
   .header-box {
     padding: 6px 12px;
     font-size: 1rem;
   }
 
-  .casino-button {
-    padding: 6px 12px;
-    font-size: 0.85rem;
+  .connect-button-mobile {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    min-height: 32px;
+  }
+
+  .music-button-mobile {
+    width: 90px;
+    padding: 5px 10px;
+    font-size: 0.8rem;
   }
 
   .card {
@@ -1075,4 +1154,4 @@ table {
     line-height: 1.2 !important;
     min-height: auto !important;
   }
-} 
+}
