@@ -3468,12 +3468,15 @@ const spinWheel = async (event) => {
     }
   };
 
+
+  
+
   return (
     <div className="w-full max-w-6xl bg-gray-900 bg-opacity-80 rounded-xl p-8 shadow-lg animate-neon-glow">
       <audio ref={audioRef} src={backgroundMusic} loop />
       <audio ref={spinAudioRef} src={spinSound} />
       <audio ref={winAudioRef} src={winSound} />
-  
+
       {showWinImage && (
         <div className="win-image-container">
           {console.log('DEBUG - Rendering win image')}
@@ -3486,37 +3489,52 @@ const spinWheel = async (event) => {
           />
         </div>
       )}
-  
- {/* Header con GIF centrata e pulsante Play Music a destra */}
-<header className="relative flex justify-center items-center m-0 p-0">
-  {console.log('DEBUG - Rendering header with centered GIF and Play Music button')}
-  <img
-    src="/assets/footer-gif.gif"
-    alt="Header Animation"
-    className="object-contain m-0 p-0"
-    style={{ height: '64px', width: 'auto' }}
-  />
-  <button
-    onClick={toggleMusic}
-    className="casino-button absolute right-0"
-    style={{ padding: '2px 4px', fontSize: '10px', lineHeight: '1.2', minHeight: 'auto' }}
-  >
-    {isMusicPlaying ? 'Mute Music' : 'Play Music'}
-  </button>
-</header>
-  
+
+      {/* Barra di navigazione con tasto Connect Wallet più grande e distanziato dal bordo */}
+      <div className="w-full bg-[#1a1a2e] rounded-[40px] py-2 px-4 flex justify-between items-center mb-6">
+        {/* Lato sinistro: GIF e Play Music */}
+        <div className="flex items-center gap-3">
+          <img
+            src="/assets/footer-gif.gif"
+            alt="Header Animation"
+            className="object-contain"
+            style={{ height: '40px', width: 'auto' }}
+          />
+          <button
+            onClick={toggleMusic}
+            className="casino-button text-sm py-2 px-4"
+            style={{ padding: '2px 4px', fontSize: '10px', lineHeight: '1.2', minHeight: 'auto' }}
+          >
+            {isMusicPlaying ? 'Mute Music' : 'Play Music'}
+          </button>
+        </div>
+        {/* Lato destro: Connect Wallet (leggermente più grande, distanziato dal bordo) */}
+        <WalletMultiButton
+          className="text-[8px] py-0.5 px-2 rounded-full"
+          style={{
+            padding: '1px 4px', // Padding leggermente aumentato per ingrandire il contenitore
+            fontSize: '8px', // Testo riportato a 8px
+            lineHeight: '1.2',
+            minHeight: 'auto',
+            height: '20px', // Altezza leggermente aumentata per ingrandire il tasto
+            background: '#6B21A8', // Colore viola
+            color: '#FFFFFF', // Testo bianco per contrasto
+            border: 'none', // Rimuove eventuali bordi predefiniti
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: '10px', // Distanzia il tasto dal bordo destro
+            zIndex: 1000, // Assicura che il tasto sia sopra altri elementi
+          }}
+        />
+      </div>
+
       {loading ? (
         <p className="text-center text-orange-700 animate-pulse text-2xl">.</p>
       ) : error ? (
         <p className="text-center text-red-500 text-2xl">{error}</p>
       ) : (
         <>
-          {/* WalletMultiButton con margine superiore */}
-<div className="flex justify-end items-center mt-4 mb-8">
-  {console.log('DEBUG - Rendering WalletMultiButton with mt-4')}
-  <WalletMultiButton className="casino-button" />
-</div>
-  
           {connected && publicKey && (
             <div className="game-box p-6 mb-8">
               <p className="text-lg text-orange-700">
@@ -3530,8 +3548,8 @@ const spinWheel = async (event) => {
               <p className="text-lg text-orange-700">WETH Reward: {userRewards.weth.toFixed(8)}</p>
             </div>
           )}
-  
-          {/* Casino Floor con titolo centrato */}
+
+          {/* Casino Floor con titolo centrato e margine inferiore aumentato */}
           {!selectedGame && (
             <>
               <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box text-center">
@@ -3540,12 +3558,13 @@ const spinWheel = async (event) => {
               <CasinoScene
                 onSelectGame={setSelectedGame}
                 triggerWinEffect={triggerWinEffect}
-                className="mb-20"
+                className="mb-32"
+                style={{ zIndex: 1 }} // Assicura che la scena 3D abbia un z-index basso
               />
             </>
           )}
-  
-{/* Pulsanti Show Info e Sync Data */}
+
+        {/* Pulsanti Show Info e Sync Data */}
 <div style={{ marginTop: '96px' }} className="flex justify-center gap-6 mb-6">
   {console.log('DEBUG - Rendering Sync Data/Show Info buttons with inline margin-top: 96px')}
   <button
@@ -3571,16 +3590,8 @@ const spinWheel = async (event) => {
   </button>
 </div>
 
-
-
-
-
-
-
-
-  
-          {/* Tabelle e info spostate qui sotto */}
-          {showInfo && (
+         {/* Tabelle e info spostate qui sotto */}
+         {showInfo && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
               <div className="game-box p-6">
                 <p className="text-lg text-orange-700">Tax Wallet Balance</p>

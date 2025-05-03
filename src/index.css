@@ -129,7 +129,7 @@ body:not(.fullscreen-active) {
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
   position: relative;
-  z-index: 9999;
+  z-index: 1; /* z-index basso per il canvas */
 }
 
 /* Stili per il canvas in modalità fullscreen */
@@ -187,7 +187,7 @@ body:not(.fullscreen-active) {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   will-change: transform, box-shadow;
-  z-index: 10000;
+  z-index: 1; /* z-index basso per i pulsanti */
 }
 
 .casino-button:hover {
@@ -457,6 +457,7 @@ body:not(.fullscreen-active) {
   position: relative;
   overflow: hidden;
   padding: 15px;
+  z-index: 1; /* z-index basso per i box dei giochi */
 }
 
 .game-box::before {
@@ -516,6 +517,7 @@ body:not(.fullscreen-active) {
   width: 500px;
   height: 500px;
   margin: 0 auto;
+  z-index: 1; /* z-index basso per la ruota */
 }
 
 .wheel {
@@ -777,6 +779,19 @@ body:not(.fullscreen-active) {
 /* Mantieni il colore bianco per i testi dentro le tabelle */
 table {
   color: #e0e0e0;
+}
+
+/* Stile per il modal del WalletMultiButton (per metterlo in primo piano) */
+.ui-wallet-adapter-modal {
+  z-index: 9999 !important; /* Assicura che il modal sia sopra tutti gli altri elementi */
+}
+
+.ui-wallet-adapter-modal-wrapper {
+  z-index: 9999 !important; /* Assicura che il wrapper del modal sia sopra tutti gli altri elementi */
+}
+
+.ui-wallet-adapter-modal-overlay {
+  z-index: 9998 !important; /* Assicura che il backdrop del modal sia appena sotto il modal ma sopra gli altri elementi */
 }
 
 /* Media Queries per Mobile */
