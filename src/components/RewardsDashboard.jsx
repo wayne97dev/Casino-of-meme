@@ -924,7 +924,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         if (target) {
           console.log('DEBUG - Intersected object:', target.game, Date.now());
           handleSelectGame(target.game);
-          // Breve disabilitazione di OrbitControls solo su desktop per evitare conflitti
+          // Disabilita temporaneamente OrbitControls solo su desktop
           if (!isMobile && orbitControlsRef.current) {
             orbitControlsRef.current.enabled = false;
             setTimeout(() => {
@@ -940,27 +940,25 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     };
   
     const handleTouchStart = (event) => {
-      event.preventDefault();
       console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length);
   
       if (isMobile && event.touches.length === 1) {
         // Toccho singolo: gestisci come clic
+        event.preventDefault(); // Impedisci il comportamento predefinito solo per tocchi singoli
         handleClick(event.touches[0]);
       }
-      // Tocchi multipli: OrbitControls gestisce zoom/rotazione automaticamente
+      // Tocchi multipli: OrbitControls gestisce zoom/rotazione
     };
   
     const handleTouchMove = (event) => {
-      // Impedisci lo scroll/pan del browser durante i gesti multi-touch
       if (isMobile && event.touches.length > 1) {
-        event.preventDefault();
         console.log('DEBUG - Multi-touch detected, allowing OrbitControls', Date.now());
+        // Non chiamare preventDefault per consentire a OrbitControls di gestire i gesti
       }
     };
   
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (event) => {
       console.log('DEBUG - Canvas touch ended', Date.now());
-      // Assicurati che OrbitControls sia attivo
       if (isMobile && orbitControlsRef.current) {
         orbitControlsRef.current.enabled = true;
       }
@@ -1266,21 +1264,23 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
         }}
         style={{ pointerEvents: 'auto' }}
       >
-        <SceneContent
-          onSelectGame={(game) => {
-            console.log('DEBUG - CasinoScene onSelectGame called:', game, Date.now());
-            if (isFullscreen) {
-              exitFullscreen();
-            }
-            setSelectedGame(game);
-            onSelectGame(game); // Propaga al genitore
-          }}
-          croupierAnimation={croupierAnimation}
-          setCroupierAnimation={setCroupierAnimation}
-          triggerWinEffect={triggerWinEffect}
-          isMobile={isMobile}
-          isFullscreen={isFullscreen}
-        />
+   <SceneContent
+  onSelectGame={(game) => {
+    console.log('DEBUG - CasinoScene onSelectGame called:', game, Date.now());
+    if (isFullscreen) {
+      console.log('DEBUG - Exiting fullscreen before selecting game');
+      exitFullscreen();
+    }
+    setSelectedGame(game); // Stato locale per debug
+    onSelectGame(game); // Propaga al genitore
+    console.log('DEBUG - Selected game set in CasinoScene:', game);
+  }}
+  croupierAnimation={croupierAnimation}
+  setCroupierAnimation={setCroupierAnimation}
+  triggerWinEffect={triggerWinEffect}
+  isMobile={isMobile}
+  isFullscreen={isFullscreen}
+/>
       </Canvas>
       <div className="absolute top-4 right-4 z-[1001]">
         {isFullscreen ? (
@@ -3600,11 +3600,14 @@ const spinWheel = async (event) => {
                 Casino Floor
               </h2>
               <CasinoScene
-                onSelectGame={setSelectedGame}
-                triggerWinEffect={triggerWinEffect}
-                className="mb-32"
-                style={{ zIndex: 1 }} // Assicura che la scena 3D abbia un z-index basso
-              />
+  onSelectGame={(game) => {
+    console.log('DEBUG - RewardsDashboard setSelectedGame:', game, Date.now());
+    setSelectedGame(game);
+  }}
+  triggerWinEffect={triggerWinEffect}
+  className="mb-32"
+  style={{ zIndex: 1 }}
+/>
             </>
           )}
 
