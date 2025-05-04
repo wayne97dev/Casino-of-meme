@@ -789,11 +789,6 @@ const DonaldTrump = ({ position, currentAnimation = 'Idle' }) => {
 
 
 // Sottocomponente per la logica della scena
-
-
-
-
-// Sottocomponente per la logica della scena
 // Sottocomponente per la logica della scena
 const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, triggerWinEffect, isMobile, isFullscreen }) => {
   const { camera, gl, invalidate, scene, raycaster, mouse } = useThree();
@@ -885,10 +880,16 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       ref.current.traverse((child) => {
         if (child.isMesh) {
           objects.push(child);
+          child.updateMatrixWorld(true);
         }
       });
       interactiveObjects.current.push({ ref: ref.current, game, meshes: objects });
-      console.log('DEBUG - Registered interactive object:', game, objects.length, 'meshes', objects.map(m => m.name));
+      console.log('DEBUG - Registered interactive object:', game, {
+        meshCount: objects.length,
+        meshNames: objects.map(m => m.name),
+        meshPositions: objects.map(m => m.position.toArray()),
+        meshScales: objects.map(m => m.scale.toArray())
+      });
     }
   };
 
@@ -911,11 +912,16 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       });
 
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
+      raycasterRef.current.near = 0.1; // Migliora precisione su mobile
+      raycasterRef.current.far = 1000;
       const intersects = raycasterRef.current.intersectObjects(
         interactiveObjects.current.flatMap(obj => obj.meshes),
         true
       );
-      console.log('DEBUG - Click raycast intersects:', intersects.length, intersects.map(i => i.object.name));
+      console.log('DEBUG - Click raycast intersects:', intersects.length, intersects.map(i => ({
+        objectName: i.object.name,
+        game: interactiveObjects.current.find(obj => obj.meshes.includes(i.object))?.game
+      })));
 
       if (intersects.length > 0) {
         const intersectedObject = intersects[0].object;
@@ -961,11 +967,16 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         }
 
         raycasterRef.current.setFromCamera(mouseRef.current, camera);
+        raycasterRef.current.near = 0.1; // Migliora precisione su mobile
+        raycasterRef.current.far = 1000;
         const intersects = raycasterRef.current.intersectObjects(
           interactiveObjects.current.flatMap(obj => obj.meshes),
           true
         );
-        console.log('DEBUG - Touch raycast intersects:', intersects.length, intersects.map(i => i.object.name));
+        console.log('DEBUG - Touch raycast intersects:', intersects.length, intersects.map(i => ({
+          objectName: i.object.name,
+          game: interactiveObjects.current.find(obj => obj.meshes.includes(i.object))?.game
+        })));
 
         if (intersects.length > 0) {
           const intersectedObject = intersects[0].object;
@@ -989,21 +1000,17 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           }
         }, 100);
       } else if (event.touches.length === 2) {
-        // Gesto multi-touch (es. pizzicata per zoom)
         console.log('DEBUG - Multi-touch detected for zoom', Date.now(), 'Touches:', event.touches.length);
-        // Previeni lo zoom della pagina
         event.preventDefault();
       }
     };
 
     const handleTouchMove = (event) => {
       if (event.touches.length === 2) {
-        // Gesto di pizzicata o rotazione
         console.log('DEBUG - Multi-touch move detected', Date.now(), 'Touches:', event.touches.length, {
           touch1: { x: event.touches[0].clientX, y: event.touches[0].clientY },
           touch2: { x: event.touches[1].clientX, y: event.touches[1].clientY }
         });
-        // Previeni lo zoom della pagina
         event.preventDefault();
       }
     };
@@ -1103,12 +1110,13 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
       <PokerCard
         ref={pokerCardRef}
-        position={[-17, 2.5, -15]}
+        position={[-10, 2.5, -10]}
         gameName="BlackJack"
         onClick={() => {
           console.log('DEBUG - PokerCard clicked (BlackJack)', Date.now());
           handleSelectGame('Solana Card Duel');
         }}
+        scale={[0.2, 0.2, 0.2]} // Aumentata scala
       />
       <SlotMachine
         ref={slotMachineRef}
@@ -1121,12 +1129,13 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       />
       <CoinFlip
         ref={coinFlipRef}
-        position={[-12.5, 2.5, -15]}
+        position={[-5, 2.5, -10]}
         gameName="Coin Flip"
         onClick={() => {
           console.log('DEBUG - CoinFlip clicked (Coin Flip)', Date.now());
           handleSelectGame('Coin Flip');
         }}
+        scale={[0.05, 0.05, 0.05]} // Aumentata scala
       />
       <CrazyTimeWheel
         ref={crazyTimeWheelRef}
@@ -1160,11 +1169,13 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         enableZoom={true}
         enableRotate={true}
         minDistance={isMobile ? 15 : 15}
-        maxDistance={isMobile ? 150 : 120}
+        maxDistance={isMobile ? 100 : 120} // Ridotto per evitare zoom estremi
         rotateSpeed={isMobile ? 1.2 : 1.3}
-        zoomSpeed={isMobile ? 1.2 : 1.3} // Aumentata sensibilità zoom su mobile
+        zoomSpeed={isMobile ? 0.8 : 1.3} // Ridotta sensibilità zoom
         enableDamping={true}
-        dampingFactor={isMobile ? 0.1 : 0.05}
+        dampingFactor={isMobile ? 0.15 : 0.05} // Smorzamento più pronunciato
+        minPolarAngle={Math.PI / 4}
+        maxPolarAngle={Math.PI / 2}
         autoRotate={false}
         onStart={() => console.log('DEBUG - OrbitControls interaction started', Date.now())}
         onEnd={() => console.log('DEBUG - OrbitControls interaction ended', Date.now())}
@@ -1178,6 +1189,10 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     </>
   );
 };
+
+
+
+
 
 
 
