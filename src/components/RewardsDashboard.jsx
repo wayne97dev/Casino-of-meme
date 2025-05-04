@@ -887,17 +887,17 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   };
 
   // Gestore degli eventi touch e click
-    useEffect(() => {
-      let touchStartTime = 0;
-      let touchMoved = false;
-
+  useEffect(() => {
+    let touchStartTime = 0;
+    let touchMoved = false;
+  
     const handleClick = (event) => {
       event.preventDefault();
       console.log('DEBUG - Canvas clicked', Date.now(), 'Event type:', event.type, 'Coordinates:', {
         clientX: event.clientX,
         clientY: event.clientY,
       });
-
+  
       const rect = gl.domElement.getBoundingClientRect();
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -906,14 +906,14 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         y: mouseRef.current.y,
         rect
       });
-
+  
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
       const intersects = raycasterRef.current.intersectObjects(
         interactiveObjects.current.flatMap(obj => obj.meshes),
         true
       );
       console.log('DEBUG - Click raycast intersects:', intersects.length, intersects.map(i => i.object.name));
-
+  
       if (intersects.length > 0) {
         const intersectedObject = intersects[0].object;
         const target = interactiveObjects.current.find(obj =>
@@ -928,106 +928,84 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
               orbitControlsRef.current.enabled = true;
             }, 100);
           }
-        } else {
-          console.log('DEBUG - No target found for click intersected object:', intersectedObject.name);
         }
-      } else {
-        console.log('DEBUG - No click intersections found');
       }
     };
-
   
-    
-      const handleTouchStart = (event) => {
-        console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length, 'Target:', event.target.tagName);
-    
-        touchStartTime = Date.now();
-        touchMoved = false;
-    
-        if (event.touches.length === 1) {
-          // Toccho singolo: prepara per selezione o rotazione
-          const touch = event.touches[0];
-          const rect = gl.domElement.getBoundingClientRect();
-          mouseRef.current.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
-          mouseRef.current.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
-          console.log('DEBUG - Normalized touch coordinates:', {
-            x: mouseRef.current.x,
-            y: mouseRef.current.y,
-            clientX: touch.clientX,
-            clientY: touch.clientY,
-            rect
-          });
-        } else if (event.touches.length === 2) {
-          // Due tocchi: lascia che OrbitControls gestisca il pinch-to-zoom
-          console.log('DEBUG - Pinch-to-zoom detected', Date.now());
-          if (orbitControlsRef.current) {
-            orbitControlsRef.current.enabled = true; // Assicura che i controlli siano attivi
-          }
-        }
-      };
-    
-      const handleTouchMove = (event) => {
-        touchMoved = true;
-        if (event.touches.length === 1) {
-          // Toccho singolo: permetti la rotazione/panning
-          console.log('DEBUG - Single touch move detected, allowing OrbitControls', Date.now());
-          if (orbitControlsRef.current) {
-            orbitControlsRef.current.enabled = true;
-          }
-        } else if (event.touches.length === 2) {
-          // Due tocchi: pinch-to-zoom
-          console.log('DEBUG - Multi-touch move detected, allowing OrbitControls', Date.now());
-          if (orbitControlsRef.current) {
-            orbitControlsRef.current.enabled = true;
-          }
-        }
-      };
-    
-      const handleTouchEnd = (event) => {
-        console.log('DEBUG - Canvas touch ended', Date.now());
-        const touchDuration = Date.now() - touchStartTime;
-    
-        if (event.changedTouches.length === 1 && !touchMoved && touchDuration < 300) {
-          // Toccho singolo breve: esegui il raycasting per la selezione
-          console.log('DEBUG - Short single touch, performing raycast', Date.now());
-          raycasterRef.current.setFromCamera(mouseRef.current, camera);
-          const intersects = raycasterRef.current.intersectObjects(
-            interactiveObjects.current.flatMap(obj => obj.meshes),
-            true
-          );
-          console.log('DEBUG - Touch raycast intersects:', intersects.length, intersects.map(i => i.object.name));
-    
-          if (intersects.length > 0) {
-            const intersectedObject = intersects[0].object;
-            const target = interactiveObjects.current.find(obj =>
-              obj.meshes.includes(intersectedObject)
-            );
-            if (target) {
-              console.log('DEBUG - Touch intersected object:', target.game, Date.now());
-              handleSelectGame(target.game);
-              event.preventDefault();
-            }
-          }
-        }
-    
-        // Riabilita OrbitControls
+    const handleTouchStart = (event) => {
+      console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length, 'Target:', event.target.tagName);
+      touchStartTime = Date.now();
+      touchMoved = false;
+  
+      if (event.touches.length === 1) {
+        const touch = event.touches[0];
+        const rect = gl.domElement.getBoundingClientRect();
+        mouseRef.current.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+        mouseRef.current.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+        console.log('DEBUG - Normalized touch coordinates:', {
+          x: mouseRef.current.x,
+          y: mouseRef.current.y,
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+          rect
+        });
+      } else if (event.touches.length === 2) {
+        console.log('DEBUG - Pinch-to-zoom detected', Date.now());
         if (orbitControlsRef.current) {
           orbitControlsRef.current.enabled = true;
         }
-      };
-    
-      gl.domElement.addEventListener('click', handleClick, { passive: false });
-      gl.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
-      gl.domElement.addEventListener('touchmove', handleTouchMove, { passive: false });
-      gl.domElement.addEventListener('touchend', handleTouchEnd, { passive: false });
-    
-      return () => {
-        gl.domElement.removeEventListener('click', handleClick);
-        gl.domElement.removeEventListener('touchstart', handleTouchStart);
-        gl.domElement.removeEventListener('touchmove', handleTouchMove);
-        gl.domElement.removeEventListener('touchend', handleTouchEnd);
-      };
-    }, [gl, camera, handleSelectGame, isMobile]);
+      }
+    };
+  
+    const handleTouchMove = (event) => {
+      touchMoved = true;
+      // Non chiamare preventDefault per consentire lo scroll
+      console.log('DEBUG - Touch move detected, allowing scroll', Date.now());
+    };
+  
+    const handleTouchEnd = (event) => {
+      console.log('DEBUG - Canvas touch ended', Date.now());
+      const touchDuration = Date.now() - touchStartTime;
+  
+      if (event.changedTouches.length === 1 && !touchMoved && touchDuration < 300) {
+        console.log('DEBUG - Short single touch, performing raycast', Date.now());
+        raycasterRef.current.setFromCamera(mouseRef.current, camera);
+        const intersects = raycasterRef.current.intersectObjects(
+          interactiveObjects.current.flatMap(obj => obj.meshes),
+          true
+        );
+        console.log('DEBUG - Touch raycast intersects:', intersects.length, intersects.map(i => i.object.name));
+  
+        if (intersects.length > 0) {
+          const intersectedObject = intersects[0].object;
+          const target = interactiveObjects.current.find(obj =>
+            obj.meshes.includes(intersectedObject)
+          );
+          if (target) {
+            console.log('DEBUG - Touch intersected object:', target.game, Date.now());
+            handleSelectGame(target.game);
+          }
+        }
+      }
+  
+      if (orbitControlsRef.current) {
+        orbitControlsRef.current.enabled = true;
+      }
+    };
+  
+    gl.domElement.addEventListener('click', handleClick, { passive: true });
+    gl.domElement.addEventListener('touchstart', handleTouchStart, { passive: true });
+    gl.domElement.addEventListener('touchmove', handleTouchMove, { passive: true });
+    gl.domElement.addEventListener('touchend', handleTouchEnd, { passive: true });
+  
+    return () => {
+      gl.domElement.removeEventListener('click', handleClick);
+      gl.domElement.removeEventListener('touchstart', handleTouchStart);
+      gl.domElement.removeEventListener('touchmove', handleTouchMove);
+      gl.domElement.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [gl, camera, handleSelectGame, isMobile]);
+
 
   useEffect(() => {
     if (triggerWinEffect) {
