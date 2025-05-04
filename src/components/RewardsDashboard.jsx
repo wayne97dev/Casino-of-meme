@@ -895,19 +895,19 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     const handleClick = (event) => {
       event.preventDefault();
       console.log('DEBUG - Canvas clicked', Date.now());
-
+  
       // Calcola le coordinate normalizzate del mouse
       const rect = gl.domElement.getBoundingClientRect();
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
+  
       // Esegui il raycasting
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
       const intersects = raycasterRef.current.intersectObjects(
         interactiveObjects.current.flatMap(obj => obj.meshes),
         true
       );
-
+  
       if (intersects.length > 0) {
         const intersectedObject = intersects[0].object;
         const target = interactiveObjects.current.find(obj =>
@@ -926,22 +926,36 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         }
       }
     };
-
+  
     const handleTouchStart = (event) => {
       event.preventDefault();
       console.log('DEBUG - Canvas touch started', Date.now());
       if (event.touches.length > 0) {
+        // Disabilita OrbitControls su mobile durante il touch
+        if (isMobile && orbitControlsRef.current) {
+          orbitControlsRef.current.enabled = false;
+        }
         handleClick(event.touches[0]); // Simula un clic con il primo tocco
       }
     };
-
+  
+    const handleTouchEnd = () => {
+      // Riattiva OrbitControls dopo il touch su mobile
+      if (isMobile && orbitControlsRef.current) {
+        orbitControlsRef.current.enabled = true;
+      }
+      console.log('DEBUG - Canvas touch ended', Date.now());
+    };
+  
     gl.domElement.addEventListener('click', handleClick);
     gl.domElement.addEventListener('touchstart', handleTouchStart);
+    gl.domElement.addEventListener('touchend', handleTouchEnd); // Aggiunto per riattivare OrbitControls
     return () => {
       gl.domElement.removeEventListener('click', handleClick);
       gl.domElement.removeEventListener('touchstart', handleTouchStart);
+      gl.domElement.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [gl, camera, handleSelectGame]);
+  }, [gl, camera, handleSelectGame, isMobile]); // Aggiungi isMobile alle dipendenze
 
   useEffect(() => {
     if (triggerWinEffect) {
@@ -1250,15 +1264,18 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
             Exit Fullscreen
           </button>
         ) : (
-          <button
-            onClick={enterFullscreen}
-            className="casino-button text-sm py-2 px-4 animate-pulse-slow"
-            style={{ pointerEvents: 'auto', zIndex: 1002 }}
-          >
-            Go Fullscreen
-          </button>
-        )}
-      </div>
+         // Aggiungi la condizione !isMobile per mostrare il pulsante solo su desktop
+    !isMobile && (
+      <button
+        onClick={enterFullscreen}
+        className="casino-button text-sm py-2 px-4 animate-pulse-slow"
+        style={{ pointerEvents: 'auto', zIndex: 1002 }}
+      >
+        Go Fullscreen
+      </button>
+    )
+  )}
+</div>
     </div>
   );
 };
