@@ -72,7 +72,7 @@ body {
 
 /* Stili per la modalità fullscreen */
 .fullscreen-active {
-  overflow: hidden; /* Blocca lo scroll solo in fullscreen */
+  overflow: hidden; /* Blocca lo scroll solo infullscreen */
 }
 
 /* Ripristina lo scroll quando non in fullscreen */
@@ -345,7 +345,7 @@ body:not(.fullscreen-active) {
 .payout-table {
   min-width: 200px;
   max-width: 300px;
-  background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
+  background: #850000; /* Colore di Casino Floor */
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 15px;
@@ -385,6 +385,7 @@ body:not(.fullscreen-active) {
   width: 100%;
   border-collapse: collapse;
   color: #e0e0e0;
+  background: #850000; /* Colore di Casino Floor */
 }
 
 .payout-table th,
@@ -395,7 +396,7 @@ body:not(.fullscreen-active) {
 }
 
 .payout-table th {
-  background: #2a2a4e;
+  background: #850000; /* Colore di Casino Floor */
   color: #00f7ff;
   font-weight: 700;
   text-transform: uppercase;
@@ -412,7 +413,7 @@ body:not(.fullscreen-active) {
 }
 
 .payout-table tr:hover {
-  background: rgba(255, 204, 0, 0.1);
+  background: rgba(255, 204, 0, 0.2);
 }
 
 /* Stile per la moneta di Coin Flip */
@@ -448,7 +449,7 @@ body:not(.fullscreen-active) {
 
 /* Stile per i box dei giochi */
 .game-box {
-  background: linear-gradient(135deg, #2a4066, #1e1e2f);
+  background: #850000; /* Colore di Casino Floor */
   border: 3px solid #ffcc00;
   border-radius: 16px;
   transform: perspective(1000px) rotateX(5deg);
@@ -623,7 +624,7 @@ body:not(.fullscreen-active) {
 
 /* Stile per il round bonus Pachinko */
 .pachinko-board {
-  background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
+  background: #850000; /* Colore di Casino Floor */
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 20px;
@@ -684,7 +685,7 @@ body:not(.fullscreen-active) {
 
 /* Stile per il round bonus Cash Hunt */
 .cash-hunt-board {
-  background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
+  background: #850000; /* Colore di Casino Floor */
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 20px;
@@ -699,7 +700,7 @@ body:not(.fullscreen-active) {
 
 /* Stile per il round bonus Crazy Time */
 .crazy-time-board {
-  background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
+  background: #850000; /* Colore di Casino Floor */
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 20px;
@@ -714,7 +715,7 @@ body:not(.fullscreen-active) {
 
 /* Stile per la chat simulata */
 .chat-box {
-  background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
+  background: #850000; /* Colore di Casino Floor */
   border: 1px solid #ffcc00;
   border-radius: 8px;
   padding: 10px;
@@ -779,6 +780,7 @@ body:not(.fullscreen-active) {
 /* Mantieni il colore bianco per i testi dentro le tabelle */
 table {
   color: #e0e0e0;
+  background: #850000; /* Colore di Casino Floor */
 }
 
 /* Stile per il modal del WalletMultiButton (per metterlo in primo piano) */
@@ -792,6 +794,64 @@ table {
 
 .ui-wallet-adapter-modal-overlay {
   z-index: 9998 !important; /* Assicura che il backdrop del modal sia appena sotto il modal ma sopra gli altri elementi */
+}
+
+/* Stile per il contenitore dei pulsanti dei giochi */
+.game-buttons-container {
+  background: #850000; /* Colore di Casino Floor */
+  border: 3px solid #ffcc00;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7);
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+/* Stile per i pulsanti dei giochi */
+.game-buttons-container .casino-button {
+  width: 100%;
+  max-width: 200px;
+  font-size: 1rem;
+  padding: 10px;
+}
+
+/* Assicura che i margini e lo spazio siano rispettati */
+.social-links-section {
+  margin-top: 12rem !important; /* Forza il margine superiore */
+  margin-bottom: 3rem !important; /* Forza il margine inferiore */
+}
+
+/* Assicura che lo spazio vuoto sia rispettato */
+.h-48 {
+  height: 12rem !important; /* Forza l'altezza dello spazio vuoto */
+}
+
+/* Assicura che il contenitore genitore non limiti i margini */
+body, html {
+  min-height: 100vh;
+  overflow-y: auto !important; /* Forza lo scorrimento verticale */
+}
+
+/* Media Queries per Mobile */
+@media (max-width: 768px) {
+  .social-links-section {
+    margin-top: 8rem !important; /* Riduci leggermente su mobile */
+  }
+
+  .h-48 {
+    height: 8rem !important; /* Riduci leggermente su mobile */
+  }
+}
+
+@media (max-width: 480px) {
+  .social-links-section {
+    margin-top: 6rem !important; /* Ancora più piccolo su schermi piccoli */
+  }
+
+  .h-48 {
+    height: 6rem !important; /* Ancora più piccolo su schermi piccoli */
+  }
 }
 
 /* Media Queries per Mobile */
@@ -1049,23 +1109,150 @@ table {
   }
 
   /* Stile per il contenitore dei pulsanti dei giochi */
-.game-buttons-container {
-  background: linear-gradient(135deg, #2a4066, #1e1e2f);
-  border: 3px solid #ffcc00;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7);
-  width: 100%;
-  max-width: 300px;
-  margin: 0 auto;
+  .game-buttons-container {
+    padding: 15px;
+    max-width: 280px;
+  }
+
+  .game-buttons-container .casino-button {
+    max-width: 180px;
+    font-size: 0.9rem;
+    padding: 8px;
+  }
 }
 
-/* Stile per i pulsanti dei giochi */
-.game-buttons-container .casino-button {
-  width: 100%;
-  max-width: 200px;
-  font-size: 1rem;
-  padding: 10px;
+@media (max-width: 480px) {
+  /* Rimuovi il padding del body in modalità fullscreen */
+  .fullscreen-active body {
+    padding: 0 !important;
+  }
+
+  body {
+    padding: 10px;
+  }
+
+  .casino-scene-container {
+    height: 50vh;
+    max-height: 350px;
+  }
+
+  .header-container {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .header-box {
+    padding: 6px 12px;
+    font-size: 1rem;
+  }
+
+  .connect-button-mobile {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    min-height: 32px;
+  }
+
+  .music-button-mobile {
+    width: 90px;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+  }
+
+  .card {
+    width: 60px;
+    height: 85px;
+  }
+
+  .slot-machine {
+    max-width: 280px;
+    padding: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
+  }
+
+  .slot-reel {
+    width: 50px;
+    height: 50px;
+    border-radius: 4px;
+    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.5);
+  }
+
+  .payout-table {
+    max-width: 240px;
+    padding: 8px;
+    border-radius: 8px;
+    margin: 10px auto;
+  }
+
+  .payout-table h3 {
+    font-size: 1.1rem;
+  }
+
+  .payout-table table {
+    font-size: 0.8rem;
+  }
+
+  .payout-table th,
+  .payout-table td {
+    padding: 4px;
+  }
+
+  .coin {
+    width: 60px;
+    height: 60px;
+    font-size: 0.9rem;
+  }
+
+  .wheel-container {
+    width: 250px;
+    height: 250px;
+  }
+
+  .pachinko-board {
+    max-width: 250px;
+    height: 180px;
+  }
+
+  .pachinko-board .slot {
+    width: 40px;
+    height: 25px;
+    font-size: 0.8rem;
+  }
+
+  @keyframes fallDisc {
+    0% { top: 0; }
+    100% { top: 140px; }
+  }
+
+  .chat-box {
+    max-height: 80px;
+  }
+
+  .presenter {
+    width: 60px;
+    height: 60px;
+  }
+
+  .music-button {
+    padding: 2px 4px !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    min-height: auto !important;
+  }
+
+  /* Stile per il contenitore dei pulsanti dei giochi */
+  .game-buttons-container {
+    padding: 10px;
+    max-width: 260px;
+  }
+
+  .game-buttons-container .casino-button {
+    max-width: 160px;
+    font-size: 0.85rem;
+    padding: 6px;
+  }
 }
 
 /* Media Queries per Mobile */
@@ -1094,7 +1281,7 @@ table {
     padding: 6px;
   }
 }
-}
+
 
 @media (max-width: 480px) {
   /* Rimuovi il padding del body in modalità fullscreen */

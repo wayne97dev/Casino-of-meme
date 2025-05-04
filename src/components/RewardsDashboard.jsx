@@ -1461,7 +1461,7 @@ const RewardsDashboard = () => {
   const [betHistory, setBetHistory] = useState([]); // Cronologia delle scommesse
 const [lastBets, setLastBets] = useState(null); // Ultima combinazione di scommesse valida
 const [hasSeenWarning, setHasSeenWarning] = useState(false); // Stato per tracciare se l'utente ha visto l'avviso
-
+const [showLeaderboard, setShowLeaderboard] = useState(false);
 
 
 
@@ -1556,7 +1556,9 @@ const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
 
 
 
-
+  const toggleLeaderboard = () => {
+    setShowLeaderboard(!showLeaderboard);
+  };
   
 
   // Stato per la paginazione
@@ -3730,152 +3732,201 @@ const spinWheel = async (event) => {
             </>
           )}
 
-        {/* Pulsanti Show Info e Sync Data */}
-<div style={{ marginTop: '96px' }} className="flex justify-center gap-6 mb-6">
-  {console.log('DEBUG - Rendering Sync Data/Show Info buttons with inline margin-top: 96px')}
-  <button
-    onClick={() => setShowInfo(!showInfo)}
-    className="w-32 casino-button"
-  >
-    {showInfo ? 'Hide Info' : 'Show Info'}
-  </button>
-  <button
-    onClick={async () => {
-      await fetchRewardsData();
-      setTaxWalletBalance(prev => prev);
-      setRewardSol(prev => prev);
-      setRewardWbtc(prev => prev);
-      setRewardWeth(prev => prev);
-      setHolders(prev => [...prev]);
-      setUserRewards(prev => ({ ...prev }));
-      console.log('DEBUG - Data synced without reload');
-    }}
-    className="w-32 casino-button"
-  >
-    Sync Data
-  </button>
+<div className="content-wrapper">
+  {/* Sezione Show Info */}
+  {showInfo && (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10" style={{ marginTop: '96px' }}>
+      <div className="game-box p-6">
+        <p className="text-lg text-orange-700">Tax Wallet Balance</p>
+        <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
+      </div>
+      <div className="game-box p-6">
+        <p className="text-lg text-orange-700">SOL Rewards (Latest)</p>
+        <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
+        <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.sol.toFixed(4)} SOL</p>
+      </div>
+      <div className="game-box p-6">
+        <p className="text-lg text-orange-700">WBTC Rewards (Latest)</p>
+        <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
+        <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.wbtc.toFixed(8)} WBTC</p>
+      </div>
+      <div className="game-box p-6">
+        <p className="text-lg text-orange-700">WETH Rewards (Latest)</p>
+        <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
+        <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.weth.toFixed(8)} WETH</p>
+      </div>
+    </div>
+  )}
+
+  {/* Sezione Holders */}
+  {showHolders && holders.length > 0 ? (
+    <div className="game-box p-6 mb-12 holders-table">
+      <div className="overflow-x-auto">
+        <table className="w-full text-center">
+          <thead>
+            <tr className="text-cyan-400">
+              <th className="p-4 text-lg">Holder Address</th>
+              <th className="p-4 text-lg">Amount ({TOKEN_SYMBOL})</th>
+              <th className="p-4 text-lg">SOL Reward</th>
+              <th className="p-4 text-lg">WBTC Reward</th>
+              <th className="p-4 text-lg">WETH Reward</th>
+            </tr>
+          </thead>
+          <tbody>
+            {currentHolders.map((holder, index) => (
+              <tr key={index} className="border-t border-gray-600 hover:bg-opacity-10 transition-all">
+                <td className="p-4 text-gray-200 font-mono">{holder.address}</td>
+                <td className="p-4 text-gray-200">{holder.amount.toFixed(6)}</td>
+                <td className="p-4 text-green-400">{holder.solReward.toFixed(6)}</td>
+                <td className="p-4 text-yellow-400">{holder.wbtcReward.toFixed(8)}</td>
+                <td className="p-4 text-purple-400">{holder.wethReward.toFixed(8)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex justify-between items-center mt-4">
+        <button onClick={prevPage} disabled={currentPage === 1} className="casino-button">
+          Previous
+        </button>
+        <p className="text-orange-700">Page {currentPage} of {totalPages}</p>
+        <button onClick={nextPage} disabled={currentPage === totalPages} className="casino-button">
+          Next
+        </button>
+      </div>
+    </div>
+  ) : showHolders ? (
+    <p className="text-center text-orange-700 mb-12 text-lg">
+      No holders detected in the network (excluding pool).
+    </p>
+  ) : null}
+
+  {/* Missions & Leaderboard */}
+  <div className="mb-12 missions-leaderboard" style={{ marginTop: '96px' }}>
+    <h2 className="text-3xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box text-center">
+      Missions & Leaderboard
+    </h2>
+    <div className="grid grid-cols-1 gap-8">
+      <div className="game-box p-4">
+        <h3 className="text-xl font-bold text-orange-700 mb-3 text-center">Daily Missions</h3>
+        {missions.map(mission => (
+          <div key={mission.id} className="mb-3 text-center">
+            <p className="text-base text-orange-700">{mission.description}</p>
+            <p className="text-sm text-orange-700">Progress: {mission.current}/{mission.target}</p>
+            <p className="text-sm text-orange-700">Reward: {mission.reward} SOL</p>
+            {mission.completed && <p className="text-green-400 text-sm">Completed!</p>}
+          </div>
+        ))}
+      </div>
+    </div>
+    <div className="flex justify-center mt-6 mb-6 gap-4">
+      {console.log('DEBUG - Rendering Show Leaderboard/Show Info/Show Holders buttons')}
+      <button onClick={toggleLeaderboard} className="casino-button text-sm py-2 px-4">
+        {showLeaderboard ? 'Hide Leaderboard' : 'Show Leaderboard'}
+      </button>
+      <button
+        onClick={() => setShowInfo(!showInfo)}
+        className="casino-button text-sm py-2 px-4"
+      >
+        {showInfo ? 'Hide Info' : 'Show Info'}
+      </button>
+      <button
+        onClick={toggleHolders}
+        className="casino-button text-sm py-2 px-4"
+      >
+        {showHolders ? 'Hide Holders' : 'Show Holders'}
+      </button>
+    </div>
+    {showLeaderboard && (
+      <div className="game-box p-6">
+        <h3 className="text-xl font-bold text-orange-700 mb-3 text-center">Leaderboard</h3>
+        {leaderboard.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-center">
+              <thead>
+                <tr className="text-cyan-400">
+                  <th className="p-4 text-lg">Rank</th>
+                  <th className="p-4 text-lg">Address</th>
+                  <th className="p-4 text-lg">Total Winnings (COM)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.map((player, index) => (
+                  <tr key={index} className="border-t border-gray-600 hover:bg-opacity-10 transition-all">
+                    <td className="p-4 text-gray-200">{index + 1}</td>
+                    <td className="p-4 text-gray-200 font-mono">{player.address.slice(0, 8)}...</td>
+                    <td className="p-4 text-green-400">{player.totalWinnings.toFixed(2)} COM</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-orange-700 text-lg text-center">Play some games to appear on the leaderboard!</p>
+        )}
+      </div>
+    )}
+  </div>
+
+  
+   {/* Aggiungi la GIF sotto i pulsanti e sopra la sezione dei social links */}
+   <div className="flex justify-center mt-6 mb-6">
+      <img src="/assets/footer-gif.gif" alt="Footer Animated GIF" className="gif-spacer" />
+    </div>
+  
+
+  {/* Sezione Social Links */}
+  {!selectedGame && (
+    <div className="mb-12 max-w-lg mx-auto">
+      <div className="flex justify-center mb-4">
+        <p className="text-lg text-orange-700">
+          Contract: <span className="text-cyan-400">TBA (To Be Announced)</span>
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-4 justify-center">
+        <a
+          href="https://t.me/Casinofmeme"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="casino-button text-sm py-2 px-4"
+        >
+          Telegram
+        </a>
+        <a
+          href="https://x.com/CasinofmemeSOL"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="casino-button text-sm py-2 px-4"
+        >
+          Twitter
+        </a>
+        <a
+          href="https://www.dextools.io/app/your-pair"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="casino-button text-sm py-2 px-4"
+        >
+          Dextools
+        </a>
+        <a
+          href="https://casinoofmemes-organization.gitbook.io/thesolanacasino"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="casino-button text-sm py-2 px-4"
+        >
+          Gitbook
+        </a>
+      </div>
+    </div>
+  )}
 </div>
 
-         {/* Tabelle e info spostate qui sotto */}
-         {showInfo && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-              <div className="game-box p-6">
-                <p className="text-lg text-orange-700">Tax Wallet Balance</p>
-                <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
-              </div>
-              <div className="game-box p-6">
-                <p className="text-lg text-orange-700">SOL Rewards (Latest)</p>
-                <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
-                <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.sol.toFixed(4)} SOL</p>
-              </div>
-              <div className="game-box p-6">
-                <p className="text-lg text-orange-700">WBTC Rewards (Latest)</p>
-                <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
-                <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.wbtc.toFixed(8)} WBTC</p>
-              </div>
-              <div className="game-box p-6">
-                <p className="text-lg text-orange-700">WETH Rewards (Latest)</p>
-                <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
-                <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.weth.toFixed(8)} WETH</p>
-              </div>
-            </div>
-          )}
-  
-{/* Pulsante Holders */}
-<div className="flex justify-center mt-24 mb-6">
-  {console.log('DEBUG - Rendering Show/Hide Holders button with mt-24')}
-  <button onClick={toggleHolders} className="w-32 casino-button">
-    {showHolders ? 'Hide Holders' : 'Show Holders'}
-  </button>
-</div>
-  
-          {showHolders && holders.length > 0 ? (
-            <div className="game-box p-6 mb-10">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-gray-700 text-cyan-400">
-                      <th className="p-4 text-lg">Holder Address</th>
-                      <th className="p-4 text-lg">Amount ({TOKEN_SYMBOL})</th>
-                      <th className="p-4 text-lg">SOL Reward</th>
-                      <th className="p-4 text-lg">WBTC Reward</th>
-                      <th className="p-4 text-lg">WETH Reward</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentHolders.map((holder, index) => (
-                      <tr key={index} className="border-t border-gray-600 hover:bg-gray-600 transition-all">
-                        <td className="p-4 text-gray-200 font-mono">{holder.address}</td>
-                        <td className="p-4 text-gray-200">{holder.amount.toFixed(6)}</td>
-                        <td className="p-4 text-green-400">{holder.solReward.toFixed(6)}</td>
-                        <td className="p-4 text-yellow-400">{holder.wbtcReward.toFixed(8)}</td>
-                        <td className="p-4 text-purple-400">{holder.wethReward.toFixed(8)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex justify-between items-center mt-4">
-                <button onClick={prevPage} disabled={currentPage === 1} className="casino-button">
-                  Previous
-                </button>
-                <p className="text-orange-700">Page {currentPage} of {totalPages}</p>
-                <button onClick={nextPage} disabled={currentPage === totalPages} className="casino-button">
-                  Next
-                </button>
-              </div>
-            </div>
-          ) : showHolders ? (
-            <p className="text-center text-orange-700 mb-10 text-lg">
-              No holders detected in the network (excluding pool).
-            </p>
-          ) : null}
-  
-          {/* Missions & Leaderboard */}
-          <div className="mb-10">
-            <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
-              Missions & Leaderboard
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="game-box p-6">
-                <h3 className="text-2xl font-bold text-orange-700 mb-4">Daily Missions</h3>
-                {missions.map(mission => (
-                  <div key={mission.id} className="mb-4">
-                    <p className="text-lg text-orange-700">{mission.description}</p>
-                    <p className="text-orange-700">Progress: {mission.current}/{mission.target}</p>
-                    <p className="text-orange-700">Reward: {mission.reward} SOL</p>
-                    {mission.completed && <p className="text-green-400">Completed!</p>}
-                  </div>
-                ))}
-              </div>
-              <div className="game-box p-6">
-                <h3 className="text-2xl font-bold text-orange-700 mb-4">Leaderboard (Top 5)</h3>
-                {leaderboard.length > 0 ? (
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-gray-700 text-cyan-400">
-                        <th className="p-4 text-lg">Rank</th>
-                        <th className="p-4 text-lg">Address</th>
-                        <th className="p-4 text-lg">Total Winnings (COM)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {leaderboard.map((player, index) => (
-                        <tr key={index} className="border-t border-gray-600 hover:bg-gray-600 transition-all">
-                          <td className="p-4 text-gray-200">{index + 1}</td>
-                          <td className="p-4 text-gray-200 font-mono">{player.address.slice(0, 8)}...</td>
-                          <td className="p-4 text-green-400">{player.totalWinnings.toFixed(2)} COM </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="text-orange-700">Play some games to appear on the leaderboard!</p>
-                )}
-              </div>
-            </div>
-          </div>
-  
+
+
+
+
+
+
           {/* Sezione giochi (quando un gioco è selezionato) */}
           {selectedGame && (
             <>
@@ -4708,50 +4759,10 @@ const spinWheel = async (event) => {
             </>
           )}
   
-          {/* Nuova sezione per Contract e Social Links */}
-          {!selectedGame && (
-            <div className="game-box p-6 mt-20 mb-10 max-w-lg mx-auto">
-              <div className="flex justify-center mb-4">
-                <p className="text-lg text-orange-700">
-                  Contract: <span className="text-cyan-400">TBA (To Be Announced)</span>
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-20 justify-center">
-                <a
-                  href="https://t.me/Casinofmeme"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="casino-button w-24 mx-6 text-center"
-                >
-                  Telegram
-                </a>
-                <a
-                  href="https://x.com/CasinofmemeSOL"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="casino-button w-24 mx-6 text-center"
-                >
-                  Twitter
-                </a>
-                <a
-                  href="https://www.dextools.io/app/your-pair"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="casino-button w-24 mx-6 text-center"
-                >
-                  Dextools
-                </a>
-                <a
-                  href="https://casinoofmemes-organization.gitbook.io/thesolanacasino"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="casino-button w-24 mx-6 text-center"
-                >
-                  Gitbook
-                </a>
-              </div>
-            </div>
-          )}
+
+
+
+
         </>
       )}
     </div>
