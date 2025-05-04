@@ -943,11 +943,9 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length, 'Target:', event.target.tagName);
 
       if (event.touches.length === 1) {
-        // Toccho singolo: gestisci come selezione
         const touch = event.touches[0];
         const rect = gl.domElement.getBoundingClientRect();
 
-        // Calcolo delle coordinate normalizzate
         mouseRef.current.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
         mouseRef.current.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
         console.log('DEBUG - Normalized touch coordinates:', {
@@ -958,12 +956,10 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           rect
         });
 
-        // Disabilita temporaneamente OrbitControls
         if (orbitControlsRef.current) {
           orbitControlsRef.current.enabled = false;
         }
 
-        // Esegui il raycasting
         raycasterRef.current.setFromCamera(mouseRef.current, camera);
         const intersects = raycasterRef.current.intersectObjects(
           interactiveObjects.current.flatMap(obj => obj.meshes),
@@ -979,7 +975,6 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           if (target) {
             console.log('DEBUG - Touch intersected object:', target.game, Date.now());
             handleSelectGame(target.game);
-            // Impedisci il comportamento predefinito solo se un oggetto è stato selezionato
             event.preventDefault();
           } else {
             console.log('DEBUG - No target found for touch intersected object:', intersectedObject.name);
@@ -988,38 +983,43 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           console.log('DEBUG - No touch intersections found');
         }
 
-        // Riabilita OrbitControls dopo un breve ritardo
         setTimeout(() => {
           if (orbitControlsRef.current) {
             orbitControlsRef.current.enabled = true;
           }
         }, 100);
-      } else {
-        // Tocchi multipli: lascia che OrbitControls gestisca zoom/rotazione
-        console.log('DEBUG - Multi-touch detected, allowing OrbitControls', Date.now());
+      } else if (event.touches.length === 2) {
+        // Gesto multi-touch (es. pizzicata per zoom)
+        console.log('DEBUG - Multi-touch detected for zoom', Date.now(), 'Touches:', event.touches.length);
+        // Previeni lo zoom della pagina
+        event.preventDefault();
       }
     };
 
     const handleTouchMove = (event) => {
-      if (event.touches.length > 1) {
-        console.log('DEBUG - Multi-touch move detected, allowing OrbitControls', Date.now());
+      if (event.touches.length === 2) {
+        // Gesto di pizzicata o rotazione
+        console.log('DEBUG - Multi-touch move detected', Date.now(), 'Touches:', event.touches.length, {
+          touch1: { x: event.touches[0].clientX, y: event.touches[0].clientY },
+          touch2: { x: event.touches[1].clientX, y: event.touches[1].clientY }
+        });
+        // Previeni lo zoom della pagina
+        event.preventDefault();
       }
     };
 
     const handleTouchEnd = (event) => {
-      console.log('DEBUG - Canvas touch ended', Date.now());
+      console.log('DEBUG - Canvas touch ended', Date.now(), 'Remaining touches:', event.touches.length);
       if (orbitControlsRef.current) {
         orbitControlsRef.current.enabled = true;
       }
     };
 
-    // Aggiungi listener per clic e touch
     gl.domElement.addEventListener('click', handleClick, { passive: false });
     gl.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
-    gl.domElement.addEventListener('touchmove', handleTouchMove, { passive: true });
+    gl.domElement.addEventListener('touchmove', handleTouchMove, { passive: false });
     gl.domElement.addEventListener('touchend', handleTouchEnd, { passive: true });
 
-    // Pulizia dei listener
     return () => {
       gl.domElement.removeEventListener('click', handleClick);
       gl.domElement.removeEventListener('touchstart', handleTouchStart);
@@ -1159,22 +1159,24 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         enablePan={true}
         enableZoom={true}
         enableRotate={true}
-        minDistance={isMobile ? 20 : 15}
-        maxDistance={isMobile ? 100 : 120}
-        rotateSpeed={isMobile ? 1.3 : 1.3}
-        zoomSpeed={isMobile ? 1.3 : 1.3}
+        minDistance={isMobile ? 15 : 15}
+        maxDistance={isMobile ? 150 : 120}
+        rotateSpeed={isMobile ? 1.2 : 1.3}
+        zoomSpeed={isMobile ? 1.2 : 1.3} // Aumentata sensibilità zoom su mobile
         enableDamping={true}
-        dampingFactor={0.1}
+        dampingFactor={isMobile ? 0.1 : 0.05}
+        minPolarAngle={Math.PI / 4}
+        maxPolarAngle={Math.PI / 2}
         autoRotate={false}
         onStart={() => console.log('DEBUG - OrbitControls interaction started', Date.now())}
         onEnd={() => console.log('DEBUG - OrbitControls interaction ended', Date.now())}
+        onChange={() => {
+          console.log('DEBUG - OrbitControls changed', {
+            target: orbitControlsRef.current?.target,
+            position: camera.position
+          });
+        }}
       />
-
-      {isMobile ? null : (
-        <EffectComposer>
-          <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={isMobile ? 50 : 100} />
-        </EffectComposer>
-      )}
     </>
   );
 };
