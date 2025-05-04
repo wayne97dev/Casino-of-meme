@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definizione delle varianti di Aleo */
+/* Definizione delle varianti di Aleo (ridotte per performance) */
 @font-face {
   font-family: 'Aleo';
   src: url('/fonts/Aleo-Regular.ttf') format('truetype');
@@ -51,19 +51,13 @@
   font-display: swap;
 }
 
-/* Applica Aleo agli elementi principali */
-body, button, input, select, textarea {
-  font-family: 'Aleo', sans-serif !important;
-}
-
+/* Applica Aleo globalmente */
 html, body {
-  overscroll-behavior: auto !important; /* Consenti scroll naturale */
-  min-height: 100vh;
-  overflow-y: auto !important; /* Forza scroll verticale */
-  touch-action: auto !important; /* Consenti interazioni touch */
+  overscroll-behavior: auto !important; /* Consenti comportamento naturale dello scroll */
 }
 
 body {
+  font-family: 'Aleo', sans-serif;
   margin: 0;
   padding: 40px;
   color: #f7f2f2;
@@ -72,7 +66,21 @@ body {
   overflow-x: hidden;
 }
 
-/* Header container */
+* {
+  font-family: 'Aleo', sans-serif !important;
+}
+
+/* Stili per la modalità fullscreen */
+.fullscreen-active {
+  overflow: hidden; /* Blocca lo scroll solo in fullscreen */
+}
+
+/* Ripristina lo scroll quando non in fullscreen */
+body:not(.fullscreen-active) {
+  overflow-y: auto !important; /* Permette lo scroll */
+}
+
+/* Header container per allineare Casino Floor e Connect */
 .header-container {
   display: flex;
   justify-content: space-between;
@@ -89,7 +97,7 @@ body {
 
 /* Stile per il pulsante Play Music su mobile */
 .music-button-mobile {
-  width: 120px;
+  width:  120px; /* Più corto */
   padding: 8px 16px;
   font-size: 0.9rem;
   margin: 0.5rem auto;
@@ -109,12 +117,8 @@ body {
   width: 100%;
   height: 60vh;
   max-height: 500px;
-  overflow-y: auto !important;
-  touch-action: auto !important;
-  -webkit-overflow-scrolling: touch;
 }
 
-/* Stili per il canvas */
 .casino-canvas {
   display: block;
   width: 100% !important;
@@ -124,7 +128,7 @@ body {
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
   position: relative;
-  z-index: 100;
+  z-index: 1;
 }
 
 /* Disattiva eventi touch sul canvas quando non attivo */
@@ -133,9 +137,24 @@ body {
   touch-action: auto !important;
 }
 
+/* Stili per il canvas in modalità fullscreen */
+.fullscreen-active .casino-canvas {
+  width: 100vw !important;
+  height: 100vh !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 9999 !important;
+}
+
+/* Stili per i pulsanti in modalità fullscreen */
+.fullscreen-active .casino-button {
+  z-index: 10000;
+  pointer-events: auto !important;
+}
+
 /* Animazione di pulsazione lenta per il pulsante */
 .animate-pulse-slow {
-  will-change: transform, box-shadow;
   animation: pulseSlow 2s ease-in-out infinite;
 }
 
@@ -172,15 +191,14 @@ body {
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
   will-change: transform, box-shadow;
-  z-index: 200;
-  touch-action: auto !important;
-  overscroll-behavior: auto !important;
+  z-index: 1; /* z-index basso per i pulsanti */
 }
 
+/* Su mobile, rimuovi touch-action: manipulation per evitare conflitti con lo scroll */
 @media (max-width: 768px) {
   .casino-button {
-    touch-action: auto !important;
-    overscroll-behavior: auto !important;
+    touch-action: auto !important; /* Permette lo scroll normale */
+    overscroll-behavior: auto !important; /* Permette lo scroll normale */
   }
 }
 
@@ -339,7 +357,7 @@ body {
 .payout-table {
   min-width: 200px;
   max-width: 300px;
-  background: #850000;
+  background: #850000; /* Colore di Casino Floor */
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 15px;
@@ -379,7 +397,7 @@ body {
   width: 100%;
   border-collapse: collapse;
   color: #e0e0e0;
-  background: #850000;
+  background: #850000; /* Colore di Casino Floor */
 }
 
 .payout-table th,
@@ -390,7 +408,7 @@ body {
 }
 
 .payout-table th {
-  background: #850000;
+  background: #850000; /* Colore di Casino Floor */
   color: #00f7ff;
   font-weight: 700;
   text-transform: uppercase;
@@ -450,10 +468,10 @@ body {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7);
   position: relative;
-  overflow-y: auto !important;
-  overscroll-behavior-y: auto !important;
-  touch-action: auto !important;
-  -webkit-overflow-scrolling: touch;
+  overflow-y: auto !important; /* Consenti scroll verticale */
+  overscroll-behavior-y: auto !important; /* Consenti comportamento naturale */
+  touch-action: auto !important; /* Consenti interazioni touch */
+  -webkit-overflow-scrolling: touch; /* Migliora lo scroll su iOS */
   padding: 15px;
   z-index: 1;
 }
@@ -487,7 +505,7 @@ body {
   transition: all 0.3s ease;
   width: 150px;
   text-align: center;
-  touch-action: auto !important;
+  touch-action: auto !important; /* Permette il tocco senza interferire con lo scroll */
 }
 
 .bet-input:hover,
@@ -509,7 +527,6 @@ body {
   text-align: center;
 }
 
-/* Stile per la ruota di Crazy Time */
 .wheel-container {
   position: relative;
   display: inline-block;
@@ -519,8 +536,8 @@ body {
   z-index: 1;
   touch-action: auto !important;
   overscroll-behavior-y: auto !important;
-  overflow: visible !important;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible !important; /* Evita che il contenitore blocchi lo scroll */
+  -webkit-overflow-scrolling: touch; /* Migliora lo scroll su iOS */
 }
 
 .wheel {
@@ -626,7 +643,7 @@ body {
 
 /* Stile per il round bonus Pachinko */
 .pachinko-board {
-  background: #850000;
+  background: #850000; /* Colore di Casino Floor */
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 20px;
@@ -687,7 +704,7 @@ body {
 
 /* Stile per il round bonus Cash Hunt */
 .cash-hunt-board {
-  background: #850000;
+  background: #850000; /* Colore di Casino Floor */
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 20px;
@@ -702,7 +719,7 @@ body {
 
 /* Stile per il round bonus Crazy Time */
 .crazy-time-board {
-  background: #850000;
+  background: #850000; /* Colore di Casino Floor */
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 20px;
@@ -717,7 +734,7 @@ body {
 
 /* Stile per la chat simulata */
 .chat-box {
-  background: #850000;
+  background: #850000; /* Colore di Casino Floor */
   border: 1px solid #ffcc00;
   border-radius: 8px;
   padding: 10px;
@@ -725,7 +742,6 @@ body {
   color: #e0e0e0;
   max-height: 150px;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .chat-message {
@@ -760,7 +776,7 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 1200;
+  z-index: 10001;
   pointer-events: none;
 }
 
@@ -783,25 +799,25 @@ body {
 /* Mantieni il colore bianco per i testi dentro le tabelle */
 table {
   color: #e0e0e0;
-  background: #850000;
+  background: #850000; /* Colore di Casino Floor */
 }
 
-/* Stile per il modal del WalletMultiButton */
+/* Stile per il modal del WalletMultiButton (per metterlo in primo piano) */
 .ui-wallet-adapter-modal {
-  z-index: 2000 !important;
+  z-index: 9999 !important; /* Assicura che il modal sia sopra tutti gli altri elementi */
 }
 
 .ui-wallet-adapter-modal-wrapper {
-  z-index: 2000 !important;
+  z-index: 9999 !important; /* Assicura che il wrapper del modal sia sopra tutti gli altri elementi */
 }
 
 .ui-wallet-adapter-modal-overlay {
-  z-index: 1999 !important;
+  z-index: 9998 !important; /* Assicura che il backdrop del modal sia appena sotto il modal ma sopra gli altri elementi */
 }
 
 /* Stile per il contenitore dei pulsanti dei giochi */
 .game-buttons-container {
-  background: #850000;
+  background: #850000; /* Colore di Casino Floor */
   border: 3px solid #ffcc00;
   border-radius: 16px;
   padding: 20px;
@@ -809,8 +825,6 @@ table {
   width: 100%;
   max-width: 300px;
   margin: 0 auto;
-  overflow-y: auto !important;
-  touch-action: auto !important;
 }
 
 /* Stile per i pulsanti dei giochi */
@@ -821,25 +835,38 @@ table {
   padding: 10px;
 }
 
-/* Assicura che i margini e lo spazio siano rispettati */
-.social-links-section {
-  margin-top: 12rem !important;
-  margin-bottom: 3rem !important;
-}
-
-/* Assicura che lo spazio vuoto sia rispettato */
-.h-48 {
-  height: 12rem !important;
+/* Assicura che il contenitore genitore non limiti i margini */
+body, html {
+  min-height: 100vh;
+  overflow-y: auto !important; /* Forza lo scorrimento verticale */
 }
 
 /* Media Queries per Mobile */
 @media (max-width: 768px) {
   .social-links-section {
-    margin-top: 8rem !important;
+    margin-top: 8rem !important; /* Riduci leggermente su mobile */
   }
 
   .h-48 {
-    height: 8rem !important;
+    height: 8rem !important; /* Riduci leggermente su mobile */
+  }
+}
+
+@media (max-width: 480px) {
+  .social-links-section {
+    margin-top: 6rem !important; /* Ancora più piccolo su schermi piccoli */
+  }
+
+  .h-48 {
+    height: 6rem !important; /* Ancora più piccolo su schermi piccoli */
+  }
+}
+
+/* Media Queries per Mobile */
+@media (max-width: 768px) {
+  /* Rimuovi il padding del body in modalità fullscreen */
+  .fullscreen-active body {
+    padding: 0 !important;
   }
 
   body {
@@ -851,14 +878,27 @@ table {
   .casino-scene-container {
     height: 50vh;
     max-height: 400px;
-    overflow-y: auto !important;
-    touch-action: auto !important;
-    -webkit-overflow-scrolling: touch;
   }
 
   .casino-canvas {
     height: 100% !important;
     max-height: 400px;
+  }
+
+  .fullscreen-active .casino-canvas {
+    width: 100vw !important;
+    height: 100vh !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 9999 !important;
+  }
+
+  /* Assicura che i pulsanti siano cliccabili */
+  .fullscreen-active .casino-button {
+    z-index: 10000;
+    pointer-events: auto;
+    touch-action: auto !important;
   }
 
   .header-container {
@@ -882,7 +922,7 @@ table {
   }
 
   .music-button-mobile {
-    width: 100px;
+    width: 100px; /* Più corto */
     padding: 6px 12px;
     font-size: 0.85rem;
     margin: 0.5rem auto;
@@ -1003,11 +1043,6 @@ table {
     transform: none;
     flex-direction: column;
     align-items: center;
-    overflow-y: auto !important;
-    overscroll-behavior-y: auto !important;
-    touch-action: auto !important;
-    -webkit-overflow-scrolling: touch;
-    max-height: none;
   }
 
   .bet-input {
@@ -1028,10 +1063,6 @@ table {
   .wheel-container {
     width: 300px;
     height: 300px;
-    overflow: visible !important;
-    touch-action: auto !important;
-    overscroll-behavior-y: auto !important;
-    -webkit-overflow-scrolling: touch;
   }
 
   .wheel {
@@ -1086,6 +1117,7 @@ table {
     height: 80px;
   }
 
+  /* Stile per il contenitore dei pulsanti dei giochi */
   .game-buttons-container {
     padding: 15px;
     max-width: 280px;
@@ -1099,12 +1131,9 @@ table {
 }
 
 @media (max-width: 480px) {
-  .social-links-section {
-    margin-top: 6rem !important;
-  }
-
-  .h-48 {
-    height: 6rem !important;
+  /* Rimuovi il padding del body in modalità fullscreen */
+  .fullscreen-active body {
+    padding: 0 !important;
   }
 
   body {
@@ -1222,6 +1251,34 @@ table {
     min-height: auto !important;
   }
 
+  /* Stile per il contenitore dei pulsanti dei giochi */
+  .game-buttons-container {
+    padding: 10px;
+    max-width: 260px;
+  }
+
+  .game-buttons-container .casino-button {
+    max-width: 160px;
+    font-size: 0.85rem;
+    padding: 6px;
+  }
+}
+
+/* Media Queries per Mobile */
+@media (max-width: 768px) {
+  .game-buttons-container {
+    padding: 15px;
+    max-width: 280px;
+  }
+
+  .game-buttons-container .casino-button {
+    max-width: 180px;
+    font-size: 0.9rem;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
   .game-buttons-container {
     padding: 10px;
     max-width: 260px;
