@@ -3656,7 +3656,7 @@ const spinWheel = async (event) => {
       )}
 
       {/* Barra di navigazione con tasto Connect Wallet più grande e distanziato dal bordo */}
-      <div className="w-full bg-[#1a1a2e] rounded-[40px] py-2 px-4 flex justify-between items-center mb-6">
+      <div className="w-full bg-[#850000] rounded-[40px] py-2 px-4 flex justify-between items-center mb-6">
         {/* Lato sinistro: GIF e Play Music */}
         <div className="flex items-center gap-3">
           <img
