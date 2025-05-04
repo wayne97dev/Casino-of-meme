@@ -894,20 +894,28 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   useEffect(() => {
     const handleClick = (event) => {
       event.preventDefault();
-      console.log('DEBUG - Canvas clicked', Date.now());
-  
+      console.log('DEBUG - Canvas clicked', Date.now(), 'Event type:', event.type, 'Coordinates:', {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    
       // Calcola le coordinate normalizzate del mouse
       const rect = gl.domElement.getBoundingClientRect();
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-  
+      console.log('DEBUG - Normalized mouse coordinates:', {
+        x: mouseRef.current.x,
+        y: mouseRef.current.y,
+      });
+    
       // Esegui il raycasting
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
       const intersects = raycasterRef.current.intersectObjects(
         interactiveObjects.current.flatMap(obj => obj.meshes),
         true
       );
-  
+      console.log('DEBUG - Raycast intersects:', intersects.length, intersects.map(i => i.object.name));
+    
       if (intersects.length > 0) {
         const intersectedObject = intersects[0].object;
         const target = interactiveObjects.current.find(obj =>
@@ -916,46 +924,50 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         if (target) {
           console.log('DEBUG - Intersected object:', target.game, Date.now());
           handleSelectGame(target.game);
-          // Disabilita temporaneamente OrbitControls per evitare conflitti
+          // Breve disabilitazione di OrbitControls per evitare conflitti su desktop
           if (orbitControlsRef.current) {
             orbitControlsRef.current.enabled = false;
             setTimeout(() => {
               orbitControlsRef.current.enabled = true;
             }, 100);
           }
+        } else {
+          console.log('DEBUG - No target found for intersected object:', intersectedObject.name);
         }
+      } else {
+        console.log('DEBUG - No intersections found');
       }
     };
   
     const handleTouchStart = (event) => {
       event.preventDefault();
-      console.log('DEBUG - Canvas touch started', Date.now());
-      if (event.touches.length > 0) {
-        // Disabilita OrbitControls su mobile durante il touch
-        if (isMobile && orbitControlsRef.current) {
-          orbitControlsRef.current.enabled = false;
-        }
-        handleClick(event.touches[0]); // Simula un clic con il primo tocco
+      console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length);
+  
+      if (isMobile && event.touches.length === 1) {
+        // Toccho singolo: gestisci come clic
+        handleClick(event.touches[0]);
       }
+      // Tocchi multipli: lascia che OrbitControls gestisca zoom/rotazione
+      // Non disabilitiamo OrbitControls qui per consentire gesti multi-touch
     };
   
     const handleTouchEnd = () => {
-      // Riattiva OrbitControls dopo il touch su mobile
+      console.log('DEBUG - Canvas touch ended', Date.now());
+      // Assicurati che OrbitControls sia attivo
       if (isMobile && orbitControlsRef.current) {
         orbitControlsRef.current.enabled = true;
       }
-      console.log('DEBUG - Canvas touch ended', Date.now());
     };
   
     gl.domElement.addEventListener('click', handleClick);
     gl.domElement.addEventListener('touchstart', handleTouchStart);
-    gl.domElement.addEventListener('touchend', handleTouchEnd); // Aggiunto per riattivare OrbitControls
+    gl.domElement.addEventListener('touchend', handleTouchEnd);
     return () => {
       gl.domElement.removeEventListener('click', handleClick);
       gl.domElement.removeEventListener('touchstart', handleTouchStart);
       gl.domElement.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [gl, camera, handleSelectGame, isMobile]); // Aggiungi isMobile alle dipendenze
+  }, [gl, camera, handleSelectGame, isMobile]);
 
   useEffect(() => {
     if (triggerWinEffect) {
@@ -978,11 +990,16 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   const blackjackTableRef = useRef();
 
   useEffect(() => {
+    console.log('DEBUG - Registering interactive objects');
     registerInteractiveObject(pokerCardRef, 'Solana Card Duel');
     registerInteractiveObject(slotMachineRef, 'Meme Slots');
     registerInteractiveObject(coinFlipRef, 'Coin Flip');
     registerInteractiveObject(crazyTimeWheelRef, 'Crazy Wheel');
     registerInteractiveObject(blackjackTableRef, 'Poker PvP');
+    console.log('DEBUG - Interactive objects registered:', interactiveObjects.current.map(obj => ({
+      game: obj.game,
+      meshCount: obj.meshes.length,
+    })));
   }, []);
 
   return (
