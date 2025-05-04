@@ -1085,7 +1085,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       <Stars
         radius={100}
         depth={isMobile ? 30 : 50}
-        count={isMobile ? 500 : 1000}
+        count={isMobile ? 300 : 1000}
         factor={isMobile ? 2 : 4}
         saturation={0}
         fade
@@ -1161,10 +1161,10 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         enableRotate={true}
         minDistance={isMobile ? 20 : 15}
         maxDistance={isMobile ? 100 : 120}
-        rotateSpeed={isMobile ? 0.8 : 1.3}
-        zoomSpeed={isMobile ? 0.8 : 1.3}
+        rotateSpeed={isMobile ? 1.3 : 1.3}
+        zoomSpeed={isMobile ? 1.3 : 1.3}
         enableDamping={true}
-        dampingFactor={0.05}
+        dampingFactor={0.1}
         autoRotate={false}
         onStart={() => console.log('DEBUG - OrbitControls interaction started', Date.now())}
         onEnd={() => console.log('DEBUG - OrbitControls interaction ended', Date.now())}
