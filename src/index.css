@@ -97,7 +97,7 @@ body:not(.fullscreen-active) {
 
 /* Stile per il pulsante Play Music su mobile */
 .music-button-mobile {
-  width: 120px; /* Più corto */
+  width:  120px; /* Più corto */
   padding: 8px 16px;
   font-size: 0.9rem;
   margin: 0.5rem auto;
@@ -184,10 +184,17 @@ body:not(.fullscreen-active) {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   will-change: transform, box-shadow;
   z-index: 1; /* z-index basso per i pulsanti */
+}
+
+/* Su mobile, rimuovi touch-action: manipulation per evitare conflitti con lo scroll */
+@media (max-width: 768px) {
+  .casino-button {
+    touch-action: auto !important; /* Permette lo scroll normale */
+    overscroll-behavior: auto !important; /* Permette lo scroll normale */
+  }
 }
 
 .casino-button:hover {
@@ -490,7 +497,7 @@ body:not(.fullscreen-active) {
   transition: all 0.3s ease;
   width: 150px;
   text-align: center;
-  touch-action: auto; /* Permette il tocco senza interferire con lo scroll */
+  touch-action: auto !important; /* Permette il tocco senza interferire con lo scroll */
 }
 
 .bet-input:hover,
@@ -893,7 +900,7 @@ body, html {
   .fullscreen-active .casino-button {
     z-index: 10000;
     pointer-events: auto;
-    touch-action: manipulation;
+    touch-action: auto !important;
   }
 
   .header-container {
@@ -1047,7 +1054,7 @@ body, html {
     max-width: 150px;
     margin: 0.5rem auto;
     display: block;
-    touch-action: auto !important; /* Permette lo scroll su mobile */
+    touch-action: auto !important;
   }
 
   .bet-input:hover,
@@ -1283,128 +1290,5 @@ body, html {
     max-width: 160px;
     font-size: 0.85rem;
     padding: 6px;
-  }
-}
-
-/* Media Queries per Mobile */
-@media (max-width: 480px) {
-  /* Rimuovi il padding del body in modalità fullscreen */
-  .fullscreen-active body {
-    padding: 0 !important;
-  }
-
-  body {
-    padding: 10px;
-  }
-
-  .casino-scene-container {
-    height: 50vh;
-    max-height: 350px;
-  }
-
-  .header-container {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 0.75rem;
-    margin-bottom: 1rem;
-  }
-
-  .header-box {
-    padding: 6px 12px;
-    font-size: 1rem;
-  }
-
-  .connect-button-mobile {
-    padding: 5px 10px;
-    font-size: 0.8rem;
-    min-height: 32px;
-  }
-
-  .music-button-mobile {
-    width: 90px;
-    padding: 5px 10px;
-    font-size: 0.8rem;
-  }
-
-  .card {
-    width: 60px;
-    height: 85px;
-  }
-
-  .slot-machine {
-    max-width: 280px;
-    padding: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
-  }
-
-  .slot-reel {
-    width: 50px;
-    height: 50px;
-    border-radius: 4px;
-    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.5);
-  }
-
-  .payout-table {
-    max-width: 240px;
-    padding: 8px;
-    border-radius: 8px;
-    margin: 10px auto;
-  }
-
-  .payout-table h3 {
-    font-size: 1.1rem;
-  }
-
-  .payout-table table {
-    font-size: 0.8rem;
-  }
-
-  .payout-table th,
-  .payout-table td {
-    padding: 4px;
-  }
-
-  .coin {
-    width: 60px;
-    height: 60px;
-    font-size: 0.9rem;
-  }
-
-  .wheel-container {
-    width: 250px;
-    height: 250px;
-  }
-
-  .pachinko-board {
-    max-width: 250px;
-    height: 180px;
-  }
-
-  .pachinko-board .slot {
-    width: 40px;
-    height: 25px;
-    font-size: 0.8rem;
-  }
-
-  @keyframes fallDisc {
-    0% { top: 0; }
-    100% { top: 140px; }
-  }
-
-  .chat-box {
-    max-height: 80px;
-  }
-
-  .presenter {
-    width: 60px;
-    height: 60px;
-  }
-
-  .music-button {
-    padding: 2px 4px !important;
-    font-size: 10px !important;
-    line-height: 1.2 !important;
-    min-height: auto !important;
   }
 }
