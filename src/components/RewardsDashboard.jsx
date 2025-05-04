@@ -793,6 +793,7 @@ const DonaldTrump = ({ position, currentAnimation = 'Idle' }) => {
 
 
 
+// Sottocomponente per la logica della scena
 const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, triggerWinEffect, isMobile, isFullscreen }) => {
   const { camera, gl, invalidate, scene, raycaster, mouse } = useThree();
   const [showParticles, setShowParticles] = useState(false);
@@ -890,7 +891,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     }
   };
 
-  // Gestore dei clic sul canvas
+  // Gestore degli eventi touch e click
   useEffect(() => {
     const handleClick = (event) => {
       event.preventDefault();
@@ -898,8 +899,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         clientX: event.clientX,
         clientY: event.clientY,
       });
-  
-      // Calcola le coordinate normalizzate del mouse
+
       const rect = gl.domElement.getBoundingClientRect();
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -907,15 +907,14 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         x: mouseRef.current.x,
         y: mouseRef.current.y,
       });
-  
-      // Esegui il raycasting
+
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
       const intersects = raycasterRef.current.intersectObjects(
         interactiveObjects.current.flatMap(obj => obj.meshes),
         true
       );
       console.log('DEBUG - Raycast intersects:', intersects.length, intersects.map(i => i.object.name));
-  
+
       if (intersects.length > 0) {
         const intersectedObject = intersects[0].object;
         const target = interactiveObjects.current.find(obj =>
@@ -924,7 +923,6 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         if (target) {
           console.log('DEBUG - Intersected object:', target.game, Date.now());
           handleSelectGame(target.game);
-          // Disabilita temporaneamente OrbitControls solo su desktop
           if (!isMobile && orbitControlsRef.current) {
             orbitControlsRef.current.enabled = false;
             setTimeout(() => {
@@ -938,36 +936,80 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         console.log('DEBUG - No intersections found');
       }
     };
-  
+
     const handleTouchStart = (event) => {
       console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length);
-  
-      if (isMobile && event.touches.length === 1) {
+
+      if (event.touches.length === 1) {
         // Toccho singolo: gestisci come clic
         event.preventDefault(); // Impedisci il comportamento predefinito solo per tocchi singoli
-        handleClick(event.touches[0]);
-      }
-      // Tocchi multipli: OrbitControls gestisce zoom/rotazione
-    };
-  
-    const handleTouchMove = (event) => {
-      if (isMobile && event.touches.length > 1) {
+        const touch = event.touches[0];
+        const rect = gl.domElement.getBoundingClientRect();
+        
+        // Calcolo preciso delle coordinate normalizzate
+        mouseRef.current.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+        mouseRef.current.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+        console.log('DEBUG - Normalized touch coordinates:', {
+          x: mouseRef.current.x,
+          y: mouseRef.current.y,
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+          rect
+        });
+
+        raycasterRef.current.setFromCamera(mouseRef.current, camera);
+        const intersects = raycasterRef.current.intersectObjects(
+          interactiveObjects.current.flatMap(obj => obj.meshes),
+          true
+        );
+        console.log('DEBUG - Touch raycast intersects:', intersects.length, intersects.map(i => i.object.name));
+
+        if (intersects.length > 0) {
+          const intersectedObject = intersects[0].object;
+          const target = interactiveObjects.current.find(obj =>
+            obj.meshes.includes(intersectedObject)
+          );
+          if (target) {
+            console.log('DEBUG - Touch intersected object:', target.game, Date.now());
+            handleSelectGame(target.game);
+            // Disabilita temporaneamente OrbitControls
+            if (orbitControlsRef.current) {
+              orbitControlsRef.current.enabled = false;
+              setTimeout(() => {
+                orbitControlsRef.current.enabled = true;
+              }, 100);
+            }
+          } else {
+            console.log('DEBUG - No target found for touch intersected object:', intersectedObject.name);
+          }
+        } else {
+          console.log('DEBUG - No touch intersections found');
+        }
+      } else {
+        // Tocchi multipli: lascia che OrbitControls gestisca zoom/rotazione
         console.log('DEBUG - Multi-touch detected, allowing OrbitControls', Date.now());
+      }
+    };
+
+    const handleTouchMove = (event) => {
+      if (event.touches.length > 1) {
+        console.log('DEBUG - Multi-touch move detected, allowing OrbitControls', Date.now());
         // Non chiamare preventDefault per consentire a OrbitControls di gestire i gesti
       }
     };
-  
+
     const handleTouchEnd = (event) => {
       console.log('DEBUG - Canvas touch ended', Date.now());
-      if (isMobile && orbitControlsRef.current) {
+      if (orbitControlsRef.current) {
         orbitControlsRef.current.enabled = true;
       }
     };
-  
+
     gl.domElement.addEventListener('click', handleClick);
-    gl.domElement.addEventListener('touchstart', handleTouchStart);
-    gl.domElement.addEventListener('touchmove', handleTouchMove);
-    gl.domElement.addEventListener('touchend', handleTouchEnd);
+    gl.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+    gl.domElement.addEventListener('touchmove', handleTouchMove, { passive: true });
+    gl.domElement.addEventListener('touchend', handleTouchEnd, { passive: true });
+
     return () => {
       gl.domElement.removeEventListener('click', handleClick);
       gl.domElement.removeEventListener('touchstart', handleTouchStart);
@@ -975,7 +1017,6 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       gl.domElement.removeEventListener('touchend', handleTouchEnd);
     };
   }, [gl, camera, handleSelectGame, isMobile]);
- 
 
   useEffect(() => {
     if (triggerWinEffect) {
