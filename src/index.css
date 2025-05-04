@@ -52,8 +52,8 @@
 }
 
 /* Applica Aleo globalmente */
-html, body, .game-box, .slot-machine, .wheel-container {
-  overscroll-behavior-y: none; /* Previene pull-to-refresh */
+html, body {
+  overscroll-behavior-y: none; /* Previene pull-to-refresh solo su html e body */
 }
 
 body {
@@ -72,7 +72,7 @@ body {
 
 /* Stili per la modalità fullscreen */
 .fullscreen-active {
-  overflow: hidden; /* Blocca lo scroll solo infullscreen */
+  overflow: hidden; /* Blocca lo scroll solo in fullscreen */
 }
 
 /* Ripristina lo scroll quando non in fullscreen */
@@ -490,6 +490,7 @@ body:not(.fullscreen-active) {
   transition: all 0.3s ease;
   width: 150px;
   text-align: center;
+  touch-action: auto; /* Permette il tocco senza interferire con lo scroll */
 }
 
 .bet-input:hover,
@@ -519,6 +520,8 @@ body:not(.fullscreen-active) {
   height: 500px;
   margin: 0 auto;
   z-index: 1; /* z-index basso per la ruota */
+  touch-action: auto !important; /* Permette lo scroll su mobile */
+  overscroll-behavior-y: auto !important; /* Permette lo scroll normale */
 }
 
 .wheel {
@@ -1044,6 +1047,7 @@ body, html {
     max-width: 150px;
     margin: 0.5rem auto;
     display: block;
+    touch-action: auto !important; /* Permette lo scroll su mobile */
   }
 
   .bet-input:hover,
@@ -1282,7 +1286,7 @@ body, html {
   }
 }
 
-
+/* Media Queries per Mobile */
 @media (max-width: 480px) {
   /* Rimuovi il padding del body in modalità fullscreen */
   .fullscreen-active body {
