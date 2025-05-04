@@ -794,6 +794,7 @@ const DonaldTrump = ({ position, currentAnimation = 'Idle' }) => {
 
 
 // Sottocomponente per la logica della scena
+// Sottocomponente per la logica della scena
 const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, triggerWinEffect, isMobile, isFullscreen }) => {
   const { camera, gl, invalidate, scene, raycaster, mouse } = useThree();
   const [showParticles, setShowParticles] = useState(false);
@@ -887,7 +888,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         }
       });
       interactiveObjects.current.push({ ref: ref.current, game, meshes: objects });
-      console.log('DEBUG - Registered interactive object:', game, objects.length, 'meshes');
+      console.log('DEBUG - Registered interactive object:', game, objects.length, 'meshes', objects.map(m => m.name));
     }
   };
 
@@ -906,6 +907,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       console.log('DEBUG - Normalized mouse coordinates:', {
         x: mouseRef.current.x,
         y: mouseRef.current.y,
+        rect
       });
 
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
@@ -913,7 +915,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         interactiveObjects.current.flatMap(obj => obj.meshes),
         true
       );
-      console.log('DEBUG - Raycast intersects:', intersects.length, intersects.map(i => i.object.name));
+      console.log('DEBUG - Click raycast intersects:', intersects.length, intersects.map(i => i.object.name));
 
       if (intersects.length > 0) {
         const intersectedObject = intersects[0].object;
@@ -921,7 +923,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           obj.meshes.includes(intersectedObject)
         );
         if (target) {
-          console.log('DEBUG - Intersected object:', target.game, Date.now());
+          console.log('DEBUG - Click intersected object:', target.game, Date.now());
           handleSelectGame(target.game);
           if (!isMobile && orbitControlsRef.current) {
             orbitControlsRef.current.enabled = false;
@@ -930,23 +932,22 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
             }, 100);
           }
         } else {
-          console.log('DEBUG - No target found for intersected object:', intersectedObject.name);
+          console.log('DEBUG - No target found for click intersected object:', intersectedObject.name);
         }
       } else {
-        console.log('DEBUG - No intersections found');
+        console.log('DEBUG - No click intersections found');
       }
     };
 
     const handleTouchStart = (event) => {
-      console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length);
+      console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length, 'Target:', event.target.tagName);
 
       if (event.touches.length === 1) {
-        // Toccho singolo: gestisci come clic
-        event.preventDefault(); // Impedisci il comportamento predefinito solo per tocchi singoli
+        // Toccho singolo: gestisci come selezione
         const touch = event.touches[0];
         const rect = gl.domElement.getBoundingClientRect();
-        
-        // Calcolo preciso delle coordinate normalizzate
+
+        // Calcolo delle coordinate normalizzate
         mouseRef.current.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
         mouseRef.current.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
         console.log('DEBUG - Normalized touch coordinates:', {
@@ -957,6 +958,12 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           rect
         });
 
+        // Disabilita temporaneamente OrbitControls
+        if (orbitControlsRef.current) {
+          orbitControlsRef.current.enabled = false;
+        }
+
+        // Esegui il raycasting
         raycasterRef.current.setFromCamera(mouseRef.current, camera);
         const intersects = raycasterRef.current.intersectObjects(
           interactiveObjects.current.flatMap(obj => obj.meshes),
@@ -972,19 +979,21 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           if (target) {
             console.log('DEBUG - Touch intersected object:', target.game, Date.now());
             handleSelectGame(target.game);
-            // Disabilita temporaneamente OrbitControls
-            if (orbitControlsRef.current) {
-              orbitControlsRef.current.enabled = false;
-              setTimeout(() => {
-                orbitControlsRef.current.enabled = true;
-              }, 100);
-            }
+            // Impedisci il comportamento predefinito solo se un oggetto è stato selezionato
+            event.preventDefault();
           } else {
             console.log('DEBUG - No target found for touch intersected object:', intersectedObject.name);
           }
         } else {
           console.log('DEBUG - No touch intersections found');
         }
+
+        // Riabilita OrbitControls dopo un breve ritardo
+        setTimeout(() => {
+          if (orbitControlsRef.current) {
+            orbitControlsRef.current.enabled = true;
+          }
+        }, 100);
       } else {
         // Tocchi multipli: lascia che OrbitControls gestisca zoom/rotazione
         console.log('DEBUG - Multi-touch detected, allowing OrbitControls', Date.now());
@@ -994,7 +1003,6 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     const handleTouchMove = (event) => {
       if (event.touches.length > 1) {
         console.log('DEBUG - Multi-touch move detected, allowing OrbitControls', Date.now());
-        // Non chiamare preventDefault per consentire a OrbitControls di gestire i gesti
       }
     };
 
@@ -1005,11 +1013,13 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       }
     };
 
-    gl.domElement.addEventListener('click', handleClick);
+    // Aggiungi listener per clic e touch
+    gl.domElement.addEventListener('click', handleClick, { passive: false });
     gl.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
     gl.domElement.addEventListener('touchmove', handleTouchMove, { passive: true });
     gl.domElement.addEventListener('touchend', handleTouchEnd, { passive: true });
 
+    // Pulizia dei listener
     return () => {
       gl.domElement.removeEventListener('click', handleClick);
       gl.domElement.removeEventListener('touchstart', handleTouchStart);
@@ -1048,6 +1058,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     console.log('DEBUG - Interactive objects registered:', interactiveObjects.current.map(obj => ({
       game: obj.game,
       meshCount: obj.meshes.length,
+      meshNames: obj.meshes.map(m => m.name)
     })));
   }, []);
 
