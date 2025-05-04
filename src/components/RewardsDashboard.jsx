@@ -1164,7 +1164,6 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
 
 
-
 const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
   const [croupierAnimation, setCroupierAnimation] = useState('Idle');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -1403,6 +1402,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     </div>
   );
 };
+
 
 
 
@@ -3503,18 +3503,15 @@ const spinWheel = async (event) => {
   };
   
   const handleBetSelection = (segment, event) => {
-    event.preventDefault();
     setBets(prev => {
       const newBets = {
         ...prev,
         [segment]: prev[segment] + betAmount,
       };
-      // Aggiungi la scommessa alla cronologia
       setBetHistory(prevHistory => [...prevHistory, { segment, amount: betAmount }]);
       return newBets;
     });
   };
-
   
   const cancelLastBet = () => {
     console.log('DEBUG - cancelLastBet called, betHistory:', betHistory);
@@ -4625,41 +4622,43 @@ const spinWheel = async (event) => {
                       </div>
                     )}
   
-                    <div className="mb-6">
-                      <p className="text-lg text-orange-700 mb-2 text-center">Place Your Bets:</p>
-                      <div className="flex gap-4 justify-center flex-wrap">
-                        {['1', '2', '5', '10', 'Coin Flip', 'Pachinko', 'Cash Hunt', 'Crazy Time'].map(segment => (
-                          <button
-                            key={segment}
-                            type="button"
-                            onClick={(e) => handleBetSelection(segment, e)}
-                            onTouchStart={(e) => e.preventDefault()}
-                            className="casino-button"
-                            style={{
-                              background: bets[segment] > 0 ? 'linear-gradient(135deg, #00ff00, #008000)' : '',
-                            }}
-                          >
-                            {segment} (Bet: {bets[segment].toFixed(2)} SOL)
-                          </button>
-                        ))}
-                      </div>
-                      <div className="flex gap-4 justify-center mt-4">
-                        <button
-                          onClick={cancelLastBet}
-                          className="casino-button"
-                          disabled={wheelStatus !== 'idle' || betHistory.length === 0}
-                        >
-                          Cancel Last Bet
-                        </button>
-                        <button
-                          onClick={repeatLastBet}
-                          className="casino-button"
-                          disabled={wheelStatus !== 'idle' || !lastBets || Object.values(lastBets).every(bet => bet === 0)}
-                        >
-                          Repeat Last Spin
-                        </button>
-                      </div>
-                    </div>
+  <div className="mb-6">
+  <p className="text-lg text-orange-700 mb-2 text-center">Place Your Bets:</p>
+  <div className="flex gap-4 justify-center flex-wrap">
+    {['1', '2', '5', '10', 'Coin Flip', 'Pachinko', 'Cash Hunt', 'Crazy Time'].map(segment => (
+      <button
+        key={segment}
+        type="button"
+        onClick={(e) => handleBetSelection(segment, e)}
+        className="casino-button"
+        style={{
+          background: bets[segment] > 0 ? 'linear-gradient(135deg, #00ff00, #008000)' : '',
+          touchAction: 'auto', // Consenti scroll
+        }}
+      >
+        {segment} (Bet: {bets[segment].toFixed(2)} SOL)
+      </button>
+    ))}
+  </div>
+  <div className="flex gap-4 justify-center mt-4">
+    <button
+      onClick={cancelLastBet}
+      className="casino-button"
+      disabled={wheelStatus !== 'idle' || betHistory.length === 0}
+      style={{ touchAction: 'auto' }}
+    >
+      Cancel Last Bet
+    </button>
+    <button
+      onClick={repeatLastBet}
+      className="casino-button"
+      disabled={wheelStatus !== 'idle' || !lastBets || Object.values(lastBets).every(bet => bet === 0)}
+      style={{ touchAction: 'auto' }}
+    >
+      Repeat Last Spin
+    </button>
+  </div>
+</div>
   
                     <div className="mb-6 text-center">
                       <p className="text-lg text-orange-700 mb-2">Last Results:</p>
