@@ -898,7 +898,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         clientX: event.clientX,
         clientY: event.clientY,
       });
-    
+  
       // Calcola le coordinate normalizzate del mouse
       const rect = gl.domElement.getBoundingClientRect();
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -907,7 +907,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         x: mouseRef.current.x,
         y: mouseRef.current.y,
       });
-    
+  
       // Esegui il raycasting
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
       const intersects = raycasterRef.current.intersectObjects(
@@ -915,7 +915,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         true
       );
       console.log('DEBUG - Raycast intersects:', intersects.length, intersects.map(i => i.object.name));
-    
+  
       if (intersects.length > 0) {
         const intersectedObject = intersects[0].object;
         const target = interactiveObjects.current.find(obj =>
@@ -924,8 +924,8 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         if (target) {
           console.log('DEBUG - Intersected object:', target.game, Date.now());
           handleSelectGame(target.game);
-          // Breve disabilitazione di OrbitControls per evitare conflitti su desktop
-          if (orbitControlsRef.current) {
+          // Breve disabilitazione di OrbitControls solo su desktop per evitare conflitti
+          if (!isMobile && orbitControlsRef.current) {
             orbitControlsRef.current.enabled = false;
             setTimeout(() => {
               orbitControlsRef.current.enabled = true;
@@ -947,8 +947,15 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         // Toccho singolo: gestisci come clic
         handleClick(event.touches[0]);
       }
-      // Tocchi multipli: lascia che OrbitControls gestisca zoom/rotazione
-      // Non disabilitiamo OrbitControls qui per consentire gesti multi-touch
+      // Tocchi multipli: OrbitControls gestisce zoom/rotazione automaticamente
+    };
+  
+    const handleTouchMove = (event) => {
+      // Impedisci lo scroll/pan del browser durante i gesti multi-touch
+      if (isMobile && event.touches.length > 1) {
+        event.preventDefault();
+        console.log('DEBUG - Multi-touch detected, allowing OrbitControls', Date.now());
+      }
     };
   
     const handleTouchEnd = () => {
@@ -961,13 +968,16 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   
     gl.domElement.addEventListener('click', handleClick);
     gl.domElement.addEventListener('touchstart', handleTouchStart);
+    gl.domElement.addEventListener('touchmove', handleTouchMove);
     gl.domElement.addEventListener('touchend', handleTouchEnd);
     return () => {
       gl.domElement.removeEventListener('click', handleClick);
       gl.domElement.removeEventListener('touchstart', handleTouchStart);
+      gl.domElement.removeEventListener('touchmove', handleTouchMove);
       gl.domElement.removeEventListener('touchend', handleTouchEnd);
     };
   }, [gl, camera, handleSelectGame, isMobile]);
+ 
 
   useEffect(() => {
     if (triggerWinEffect) {
@@ -1128,8 +1138,8 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
+  const [selectedGame, setSelectedGame] = useState(null); // Aggiungi stato locale per debug
 
-  // Gestione del resize per mobile
   useEffect(() => {
     const handleResize = () => {
       const newIsMobile = window.innerWidth < 768;
@@ -1258,17 +1268,18 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
       >
         <SceneContent
           onSelectGame={(game) => {
+            console.log('DEBUG - CasinoScene onSelectGame called:', game, Date.now());
             if (isFullscreen) {
-              exitFullscreen(); // Disattiva fullscreen quando un gioco viene selezionato
+              exitFullscreen();
             }
-            onSelectGame(game);
+            setSelectedGame(game);
+            onSelectGame(game); // Propaga al genitore
           }}
           croupierAnimation={croupierAnimation}
           setCroupierAnimation={setCroupierAnimation}
           triggerWinEffect={triggerWinEffect}
           isMobile={isMobile}
           isFullscreen={isFullscreen}
-          exitFullscreen={exitFullscreen} // Passa exitFullscreen a SceneContent
         />
       </Canvas>
       <div className="absolute top-4 right-4 z-[1001]">
@@ -1281,18 +1292,17 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
             Exit Fullscreen
           </button>
         ) : (
-         // Aggiungi la condizione !isMobile per mostrare il pulsante solo su desktop
-    !isMobile && (
-      <button
-        onClick={enterFullscreen}
-        className="casino-button text-sm py-2 px-4 animate-pulse-slow"
-        style={{ pointerEvents: 'auto', zIndex: 1002 }}
-      >
-        Go Fullscreen
-      </button>
-    )
-  )}
-</div>
+          !isMobile && (
+            <button
+              onClick={enterFullscreen}
+              className="casino-button text-sm py-2 px-4 animate-pulse-slow"
+              style={{ pointerEvents: 'auto', zIndex: 1002 }}
+            >
+              Go Fullscreen
+            </button>
+          )
+        )}
+      </div>
     </div>
   );
 };
