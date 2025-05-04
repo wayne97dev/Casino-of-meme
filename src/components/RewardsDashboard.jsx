@@ -1165,8 +1165,6 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         zoomSpeed={isMobile ? 1.2 : 1.3} // Aumentata sensibilità zoom su mobile
         enableDamping={true}
         dampingFactor={isMobile ? 0.1 : 0.05}
-        minPolarAngle={Math.PI / 4}
-        maxPolarAngle={Math.PI / 2}
         autoRotate={false}
         onStart={() => console.log('DEBUG - OrbitControls interaction started', Date.now())}
         onEnd={() => console.log('DEBUG - OrbitControls interaction ended', Date.now())}
