@@ -59,7 +59,8 @@ html, body {
 body {
   font-family: 'Aleo', sans-serif;
   margin: 0;
-  padding: 40px;
+  padding: 20px; /* Ridotto il padding generale da 40px a 20px */
+  padding-top: 10px; /* Padding superiore ancora più piccolo per portare la barra più in alto */
   color: #f7f2f2;
   background: url('/my-background.webp') no-repeat center center fixed, linear-gradient(135deg, #1a1a2e, #2a2a4e);
   background-size: cover;
@@ -111,12 +112,16 @@ body:not(.fullscreen-active) {
   min-height: 40px;
 }
 
+
+
 /* Stili per il contenitore della scena del casinò */
 .casino-scene-container {
   position: relative;
   width: 100%;
   height: 60vh;
   max-height: 500px;
+  margin: 0 auto; /* Assicura che il contenitore sia centrato */
+  padding: 0; /* Rimuove eventuali padding che potrebbero spostare il contenuto */
 }
 
 .casino-canvas {
@@ -129,6 +134,18 @@ body:not(.fullscreen-active) {
   -webkit-tap-highlight-color: transparent;
   position: relative;
   z-index: 1;
+}
+
+
+.fullscreen-button-container {
+  position: fixed; /* Cambiato da absolute a fixed per riferirsi alla viewport */
+  top: 16px;
+  left: 5%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: auto;
 }
 
 /* Disattiva eventi touch sul canvas quando non attivo */
@@ -170,9 +187,18 @@ body:not(.fullscreen-active) {
   border: 2px solid #ffcc00;
   border-radius: 12px;
   padding: 10px 20px;
-  display: inline-block;
+  display: inline-block; /* Ripristinato per adattarsi alla larghezza del testo */
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
   font-weight: 700;
+  text-align: center; /* Centra il testo all'interno */
+}
+
+.title-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin: 0 auto;
 }
 
 /* Stile per i pulsanti a tema casinò */
@@ -799,7 +825,17 @@ body:not(.fullscreen-active) {
 /* Mantieni il colore bianco per i testi dentro le tabelle */
 table {
   color: #e0e0e0;
-  background: #850000; /* Colore di Casino Floor */
+  background: rgba(133, 0, 0, 0.4)
+  
+}
+
+.leaderboard-box {
+  background: rgba(133, 0, 0, 0.3); /* Rosso trasparente (opacità 0.3) */
+  border: 2px solid #ffcc00; /* Bordo dorato, in linea con il tema del casinò */
+  border-radius: 12px; /* Bordi arrotondati */
+  padding: 10px; /* Padding interno per distanziare la tabella dal bordo */
+  margin: 0 auto; /* Centra il box nella pagina */
+  width: fit-content; /* Adatta la larghezza al contenuto (la tabella) */
 }
 
 /* Stile per il modal del WalletMultiButton (per metterlo in primo piano) */
@@ -1289,4 +1325,93 @@ body, html {
     font-size: 0.85rem;
     padding: 6px;
   }
+
+  .nav-bar {
+    margin-top: 10px; /* Riduce lo spazio sopra la barra, portandola più in alto */
+  }
+
+  
+
+  .table-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0;
+  }
+  
+  .leaderboard-section {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .leaderboard-table {
+    border-collapse: collapse;
+    color: #e0e0e0;
+    background: transparent;
+    width: 100%;
+    max-width: 500px; /* Limita la larghezza della tabella */
+    margin: 0 auto; /* Centra la tabella */
+  }
+  
+  .leaderboard-table th,
+  .leaderboard-table td {
+    padding: 10px;
+    text-align: center;
+    border-bottom: 1px solid #444;
+  }
+  
+  .leaderboard-table th {
+    color: #00f7ff;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  
+  .leaderboard-table td {
+    color: #e0e0e0;
+    font-weight: 500;
+  }
+  
+  .leaderboard-table tr:last-child th,
+  .leaderboard-table tr:last-child td {
+    border-bottom: none;
+  }
+  
+  .leaderboard-table tr:hover {
+    background: rgba(255, 204, 0, 0.1);
+  }
+  
+  /* Media query per dispositivi mobili */
+  @media (max-width: 768px) {
+    .centered-table {
+      max-width: 90%; /* Usa il 90% della larghezza su schermi mobili */
+    }
+  
+    .leaderboard-table th,
+    .leaderboard-table td {
+      padding: 8px;
+      font-size: 0.9rem;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .centered-table {
+      max-width: 95%; /* Ancora più compatta su schermi molto piccoli */
+    }
+  
+    .leaderboard-table th,
+    .leaderboard-table td {
+      padding: 6px;
+      font-size: 0.8rem;
+    }
+  }
+ 
+
 }
