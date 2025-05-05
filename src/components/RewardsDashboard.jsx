@@ -810,6 +810,12 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   // Aggiorna il renderer quando cambia la dimensione del canvas
   useEffect(() => {
     const handleResize = debounce(() => {
+      // Controllo per containerRef.current
+      if (!isFullscreen && (!containerRef.current || !containerRef.current.clientWidth)) {
+        console.warn('DEBUG - containerRef.current non disponibile per il calcolo delle dimensioni');
+        return; // Esci dalla funzione se l'elemento non è disponibile
+      }
+  
       const width = isFullscreen ? window.innerWidth : containerRef.current.clientWidth;
       const height = isFullscreen ? window.innerHeight : containerRef.current.clientHeight;
       console.log('DEBUG - Resizing renderer:', { width, height, isFullscreen });
@@ -818,11 +824,11 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       gl.setSize(width, height);
       invalidate();
     }, 100);
-
+  
     window.addEventListener('resize', handleResize);
     document.addEventListener('fullscreenchange', handleResize);
     handleResize(); // Esegui subito al montaggio
-
+  
     return () => {
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('fullscreenchange', handleResize);
@@ -3611,7 +3617,7 @@ const spinWheel = async (event) => {
   
 
   return (
-    <div className="w-full max-w-6xl bg-gray-900 bg-opacity-80 rounded-xl p-8 shadow-lg animate-neon-glow">
+    <div className="w-full bg-gray-900 bg-opacity-80 rounded-xl shadow-lg animate-neon-glow">
       <audio ref={audioRef} src={backgroundMusic} loop />
       <audio ref={spinAudioRef} src={spinSound} />
       <audio ref={winAudioRef} src={winSound} />
@@ -3629,45 +3635,44 @@ const spinWheel = async (event) => {
         </div>
       )}
 
-      {/* Barra di navigazione con tasto Connect Wallet più grande e distanziato dal bordo */}
-  
+      {/* Barra di navigazione (sempre visibile) */}
       <div className="nav-bar w-[98%] max-w-[800px] mx-auto bg-[#850000] rounded-[40px] py-2 px-4 flex justify-between items-center mb-12">
-  {/* Lato sinistro: GIF e Play Music */}
-  <div className="flex items-center gap-3">
-    <img
-      src="/assets/footer-gif.gif"
-      alt="Header Animation"
-      className="object-contain"
-      style={{ height: '40px', width: 'auto' }}
-    />
-    <button
-      onClick={toggleMusic}
-      className="casino-button text-sm py-2 px-4"
-      style={{ padding: '2px 4px', fontSize: '10px', lineHeight: '1.2', minHeight: 'auto' }}
-    >
-      {isMusicPlaying ? 'Mute Music' : 'Play Music'}
-    </button>
-  </div>
-  {/* Lato destro: Connect Wallet */}
-  <WalletMultiButton
-    className="text-[8px] py-0.5 px-2 rounded-full"
-    style={{
-      padding: '1px 4px',
-      fontSize: '8px',
-      lineHeight: '1.2',
-      minHeight: 'auto',
-      height: '20px',
-      background: '#6B21A8',
-      color: '#FFFFFF',
-      border: 'none',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: '10px',
-      zIndex: 1000,
-    }}
-  />
-</div>
+        {/* Lato sinistro: GIF e Play Music */}
+        <div className="flex items-center gap-3">
+          <img
+            src="/assets/footer-gif.gif"
+            alt="Header Animation"
+            className="object-contain"
+            style={{ height: '40px', width: 'auto' }}
+          />
+          <button
+            onClick={toggleMusic}
+            className="casino-button text-sm py-2 px-4"
+            style={{ padding: '2px 4px', fontSize: '10px', lineHeight: '1.2', minHeight: 'auto' }}
+          >
+            {isMusicPlaying ? 'Mute Music' : 'Play Music'}
+          </button>
+        </div>
+        {/* Lato destro: Connect Wallet */}
+        <WalletMultiButton
+          className="text-[8px] py-0.5 px-2 rounded-full"
+          style={{
+            padding: '1px 4px',
+            fontSize: '8px',
+            lineHeight: '1.2',
+            minHeight: 'auto',
+            height: '20px',
+            background: '#6B21A8',
+            color: '#FFFFFF',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: '10px',
+            zIndex: 1000,
+          }}
+        />
+      </div>
 
       {loading ? (
         <p className="text-center text-orange-700 animate-pulse text-2xl">.</p>
@@ -3675,241 +3680,10 @@ const spinWheel = async (event) => {
         <p className="text-center text-red-500 text-2xl">{error}</p>
       ) : (
         <>
-          {connected && publicKey && (
-            <div className="game-box p-6 mb-8">
-              <p className="text-lg text-orange-700">
-                Your Wallet: <span className="text-orange-700">{publicKey.toString()}</span>
-              </p>
-              <p className="text-lg text-orange-700">
-                Your {TOKEN_SYMBOL} Balance: <span className="text-orange-700">{userTokens.toFixed(6)}</span>
-              </p>
-              <p className="text-lg text-orange-700">SOL Reward: {userRewards.sol.toFixed(6)}</p>
-              <p className="text-lg text-orange-700">WBTC Reward: {userRewards.wbtc.toFixed(8)}</p>
-              <p className="text-lg text-orange-700">WETH Reward: {userRewards.weth.toFixed(8)}</p>
-            </div>
-          )}
-
-          {/* Casino Floor con titolo centrato e margine inferiore aumentato */}
-          {!selectedGame && (
-  <>
-    <CasinoScene
-      onSelectGame={(game) => {
-        console.log('DEBUG - RewardsDashboard setSelectedGame:', game, Date.now());
-        setSelectedGame(game);
-      }}
-      triggerWinEffect={triggerWinEffect}
-      className="mb-32"
-      style={{ zIndex: 1 }}
-    />
-  </>
-)}
-
-<div className="content-wrapper">
-  {/* Sezione Show Info */}
-  {showInfo && (
-  <div className="text-center mb-10" style={{ marginTop: '96px' }}>
-    <div className="p-6">
-      <p className="text-lg text-orange-700">Tax Wallet Balance</p>
-      <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
-    </div>
-    <div className="p-6">
-      <p className="text-lg text-orange-700">SOL Rewards (Latest)</p>
-      <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
-      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.sol.toFixed(4)} SOL</p>
-    </div>
-    <div className="p-6">
-      <p className="text-lg text-orange-700">WBTC Rewards (Latest)</p>
-      <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
-      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.wbtc.toFixed(8)} WBTC</p>
-    </div>
-    <div className="p-6">
-      <p className="text-lg text-orange-700">WETH Rewards (Latest)</p>
-      <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
-      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.weth.toFixed(8)} WETH</p>
-    </div>
-  </div>
-)}
-
-  {/* Sezione Holders */}
-  {showHolders && holders.length > 0 ? (
-  <div className="p-6 mb-12 holders-table">
-    <div className="overflow-x-auto">
-      <table className="w-full text-center">
-        <thead>
-          <tr className="text-cyan-400">
-            <th className="p-4 text-lg">Holder Address</th>
-            <th className="p-4 text-lg">Amount ({TOKEN_SYMBOL})</th>
-            <th className="p-4 text-lg">SOL Reward</th>
-            <th className="p-4 text-lg">WBTC Reward</th>
-            <th className="p-4 text-lg">WETH Reward</th>
-          </tr>
-        </thead>
-        <tbody>
-          {currentHolders.map((holder, index) => (
-            <tr key={index} className="border-t border-gray-600 hover:bg-opacity-10 transition-all">
-              <td className="p-4 text-gray-200 font-mono">{holder.address}</td>
-              <td className="p-4 text-gray-200">{holder.amount.toFixed(6)}</td>
-              <td className="p-4 text-green-400">{holder.solReward.toFixed(6)}</td>
-              <td className="p-4 text-yellow-400">{holder.wbtcReward.toFixed(8)}</td>
-              <td className="p-4 text-purple-400">{holder.wethReward.toFixed(8)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-    <div className="flex justify-between items-center mt-4">
-      <button onClick={prevPage} disabled={currentPage === 1} className="casino-button">
-        Previous
-      </button>
-      <p className="text-orange-700">Page {currentPage} of {totalPages}</p>
-      <button onClick={nextPage} disabled={currentPage === totalPages} className="casino-button">
-        Next
-      </button>
-    </div>
-  </div>
-) : showHolders ? (
-  <p className="text-center text-orange-700 mb-12 text-lg">
-    No holders detected in the network (excluding pool).
-  </p>
-) : null}
-
-  {/* Missions & Leaderboard */}
-  <div className="mb-12 missions-leaderboard" style={{ marginTop: '96px' }}>
-    <div className="title-container">
-      <h2 className="text-3xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
-        Missions & Leaderboard
-      </h2>
-    </div>
-    <div className="grid grid-cols-1 gap-8">
-      <div className="p-4">
-        <div className="title-container">
-          <h3 className="text-xl font-bold text-orange-700 mb-3">Daily Missions</h3>
-        </div>
-        {missions.map(mission => (
-          <div key={mission.id} className="mb-3 text-center">
-            <p className="text-base text-orange-700">{mission.description}</p>
-            <p className="text-sm text-orange-700">Progress: {mission.current}/{mission.target}</p>
-            <p className="text-sm text-orange-700">Reward: {mission.reward} SOL</p>
-            {mission.completed && <p className="text-green-400 text-sm">Completed!</p>}
-          </div>
-        ))}
-      </div>
-    </div>
-    <div className="flex justify-center mt-6 mb-6 gap-4">
-      <button onClick={toggleLeaderboard} className="casino-button text-sm py-2 px-4">
-        {showLeaderboard ? 'Hide Leaderboard' : 'Show Leaderboard'}
-      </button>
-      <button
-        onClick={() => setShowInfo(!showInfo)}
-        className="casino-button text-sm py-2 px-4"
-      >
-        {showInfo ? 'Hide Info' : 'Show Info'}
-      </button>
-      <button
-        onClick={toggleHolders}
-        className="casino-button text-sm py-2 px-4"
-      >
-        {showHolders ? 'Hide Holders' : 'Show Holders'}
-      </button>
-    </div>
-    {showLeaderboard && (
-  <div className="p-6">
-    <div className="title-container">
-      <h3 className="text-xl font-bold text-orange-700 mb-3">Leaderboard</h3>
-    </div>
-    {leaderboard.length > 0 ? (
-      <div className="overflow-x-auto leaderboard-box">
-        <table className="w-full text-center leaderboard-table">
-          <thead>
-            <tr className="text-cyan-400">
-              <th className="p-4 text-lg">Rank</th>
-              <th className="p-4 text-lg">Address</th>
-              <th className="p-4 text-lg">Total Winnings (COM)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leaderboard.map((player, index) => (
-              <tr key={index} className="border-t border-gray-600 hover:bg-opacity-10 transition-all">
-                <td className="p-4 text-gray-200">{index + 1}</td>
-                <td className="p-4 text-gray-200 font-mono">{player.address.slice(0, 8)}...</td>
-                <td className="p-4 text-green-400">{player.totalWinnings.toFixed(2)} COM</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    ) : (
-      <p className="text-orange-700 text-lg text-center">Play some games to appear on the leaderboard!</p>
-    )}
-  </div>
-)}
-  
-  </div>
- 
-
-
-  
-   {/* Aggiungi la GIF sotto i pulsanti e sopra la sezione dei social links */}
-   <div className="flex justify-center mt-6 mb-6">
-      <img src="/assets/footer-gif.gif" alt="Footer Animated GIF" className="gif-spacer" />
-    </div>
-  
-
-  {/* Sezione Social Links */}
-  {!selectedGame && (
-    <div className="mb-12 max-w-lg mx-auto">
-      <div className="flex justify-center mb-4">
-        <p className="text-lg text-orange-700">
-          Contract: <span className="text-cyan-400">TBA (To Be Announced)</span>
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-4 justify-center">
-        <a
-          href="https://t.me/Casinofmeme"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="casino-button text-sm py-2 px-4"
-        >
-          Telegram
-        </a>
-        <a
-          href="https://x.com/CasinofmemeSOL"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="casino-button text-sm py-2 px-4"
-        >
-          Twitter
-        </a>
-        <a
-          href="https://www.dextools.io/app/your-pair"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="casino-button text-sm py-2 px-4"
-        >
-          Dextools
-        </a>
-        <a
-          href="https://casinoofmemes-organization.gitbook.io/thesolanacasino"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="casino-button text-sm py-2 px-4"
-        >
-          Gitbook
-        </a>
-      </div>
-    </div>
-  )}
-</div>
-
-
-
-
-
-
-
-          {/* Sezione giochi (quando un gioco è selezionato) */}
-          {selectedGame && (
+          {/* Mostra solo il gioco selezionato o la pagina principale */}
+          {selectedGame ? (
             <>
+              {/* Schermata del gioco selezionato */}
               {selectedGame === 'Solana Card Duel' && (
                 <div>
                   <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
@@ -4017,7 +3791,7 @@ const spinWheel = async (event) => {
                   </div>
                 </div>
               )}
-  
+
               {selectedGame === 'Meme Slots' && (
                 <div>
                   <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
@@ -4100,7 +3874,7 @@ const spinWheel = async (event) => {
                   </button>
                 </div>
               )}
-  
+
               {selectedGame === 'Coin Flip' && (
                 <div>
                   <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
@@ -4162,7 +3936,7 @@ const spinWheel = async (event) => {
                   </div>
                 </div>
               )}
-  
+
               {selectedGame === 'Poker PvP' && (
                 <div>
                   <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
@@ -4177,7 +3951,7 @@ const spinWheel = async (event) => {
                       socketId: socket.id,
                       minBet,
                     })}
-  
+
                     {pokerStatus === 'waiting' && waitingPlayersList.some(p => p.address === publicKey?.toString()) && (
                       <button
                         onClick={() => socket.emit('leaveWaitingList', { playerAddress: publicKey.toString() })}
@@ -4186,7 +3960,7 @@ const spinWheel = async (event) => {
                         Leave Table
                       </button>
                     )}
-  
+
                     {pokerStatus === 'waiting' && (
                       <div className="text-center mb-6">
                         <label className="text-lg text-orange-700 mr-2">Bet Amount (COM):</label>
@@ -4209,7 +3983,7 @@ const spinWheel = async (event) => {
                         </p>
                       </div>
                     )}
-  
+
                     {waitingPlayersList.length > 0 && pokerStatus === 'waiting' ? (
                       <div className="mb-6">
                         <p className="text-lg text-orange-700 mb-2 text-center">Players Waiting:</p>
@@ -4226,7 +4000,7 @@ const spinWheel = async (event) => {
                         {pokerStatus === 'waiting' ? 'No players waiting yet...' : 'Game status: ' + pokerStatus}
                       </p>
                     )}
-  
+
                     {pokerPlayers.length > 0 && publicKey ? (
                       <>
                         <div className="mb-6">
@@ -4239,14 +4013,14 @@ const spinWheel = async (event) => {
                             ))}
                           </ul>
                         </div>
-  
+
                         <p className="text-lg text-orange-700 mb-2 text-center">
                           Pot: {pokerPot ? pokerPot.toFixed(2) : '0.00'} COM
                         </p>
                         <p className="text-lg text-orange-700 mb-2 text-center">
                           Current Bet: {currentBet ? currentBet.toFixed(2) : '0.00'} COM
                         </p>
-  
+
                         <p className="text-lg text-orange-700 mb-2 text-center">Community Cards:</p>
                         <div className="flex gap-4 justify-center">
                           {pokerTableCards && pokerTableCards.length > 0 ? (
@@ -4267,7 +4041,7 @@ const spinWheel = async (event) => {
                             <p className="text-orange-700">No community cards yet</p>
                           )}
                         </div>
-  
+
                         <p className="text-lg text-orange-700 mb-2 text-center">Your Cards:</p>
                         <div className="flex gap-4 justify-center">
                           {pokerPlayerCards[publicKey.toString()] &&
@@ -4289,7 +4063,7 @@ const spinWheel = async (event) => {
                             <p className="text-orange-700">No cards assigned yet</p>
                           )}
                         </div>
-  
+
                         <p className="text-lg text-orange-700 mb-2 text-center">Opponent's Cards:</p>
                         <div className="flex gap-4 justify-center">
                           {(() => {
@@ -4313,7 +4087,7 @@ const spinWheel = async (event) => {
                             ));
                           })()}
                         </div>
-  
+
                         <p className="text-center text-orange-700 mb-4 text-lg">
                           {pokerMessage || 'Waiting for game state...'}
                         </p>
@@ -4325,7 +4099,7 @@ const spinWheel = async (event) => {
                             Time Left: {timeLeft} seconds
                           </p>
                         )}
-  
+
                         {pokerStatus === 'playing' && currentTurn === socket.id && (
                           <div className="flex flex-col gap-4">
                             {currentBet > (playerBets[publicKey.toString()] || 0) && (
@@ -4419,7 +4193,7 @@ const spinWheel = async (event) => {
                         {publicKey ? 'No players in game yet...' : 'Please connect your wallet to play!'}
                       </p>
                     )}
-  
+
                     {pokerStatus === 'waiting' && (
                       <button
                         onClick={joinPokerGame}
@@ -4429,7 +4203,7 @@ const spinWheel = async (event) => {
                         Join Game (Bet {betAmount.toFixed(2)} COM)
                       </button>
                     )}
-  
+
                     <button
                       onClick={() => setSelectedGame(null)}
                       className="w-full casino-button mt-4"
@@ -4439,8 +4213,7 @@ const spinWheel = async (event) => {
                   </div>
                 </div>
               )}
-  
-              {selectedGame === 'Crazy Wheel' && (
+{selectedGame === 'Crazy Wheel' && (
                 <div>
                   <h2 className="text-5xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
                     Crazy Wheel
@@ -4735,16 +4508,236 @@ const spinWheel = async (event) => {
                     >
                       Back to Casino Floor
                     </button>
+            
+  
                   </div>
                 </div>
               )}
             </>
-          )}
+          ) : (
+            <>
+              {/* Pagina principale (mostrata solo se nessun gioco è selezionato) */}
+              {connected && publicKey && (
+                <div className="game-box p-6 mb-8">
+                  <p className="text-lg text-orange-700">
+                    Your Wallet: <span className="text-orange-700">{publicKey.toString()}</span>
+                  </p>
+                  <p className="text-lg text-orange-700">
+                    Your {TOKEN_SYMBOL} Balance: <span className="text-orange-700">{userTokens.toFixed(6)}</span>
+                  </p>
+                  <p className="text-lg text-orange-700">SOL Reward: {userRewards.sol.toFixed(6)}</p>
+                  <p className="text-lg text-orange-700">WBTC Reward: {userRewards.wbtc.toFixed(8)}</p>
+                  <p className="text-lg text-orange-700">WETH Reward: {userRewards.weth.toFixed(8)}</p>
+                </div>
+              )}
+
+              <CasinoScene
+                onSelectGame={(game) => {
+                  console.log('DEBUG - RewardsDashboard setSelectedGame:', game, Date.now());
+                  setSelectedGame(game);
+                }}
+                triggerWinEffect={triggerWinEffect}
+                className="mb-32"
+                style={{ zIndex: 1 }}
+              />
+
+              <div className="content-wrapper">
+                {/* Sezione Show Info */}
+                {showInfo && (
+                  <div className="text-center mb-10" style={{ marginTop: '96px' }}>
+                    <div className="p-6">
+                      <p className="text-lg text-orange-700">Tax Wallet Balance</p>
+                      <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
+                    </div>
+                    <div className="p-6">
+                      <p className="text-lg text-orange-700">SOL Rewards (Latest)</p>
+                      <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
+                      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.sol.toFixed(4)} SOL</p>
+                    </div>
+                    <div className="p-6">
+                      <p className="text-lg text-orange-700">WBTC Rewards (Latest)</p>
+                      <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
+                      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.wbtc.toFixed(8)} WBTC</p>
+                    </div>
+                    <div className="p-6">
+                      <p className="text-lg text-orange-700">WETH Rewards (Latest)</p>
+                      <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
+                      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.weth.toFixed(8)} WETH</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sezione Holders */}
+                {showHolders && holders.length > 0 ? (
+                  <div className="p-6 mb-12 holders-table">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-center">
+                        <thead>
+                          <tr className="text-cyan-400">
+                            <th className="p-4 text-lg">Holder Address</th>
+                            <th className="p-4 text-lg">Amount ({TOKEN_SYMBOL})</th>
+                            <th className="p-4 text-lg">SOL Reward</th>
+                            <th className="p-4 text-lg">WBTC Reward</th>
+                            <th className="p-4 text-lg">WETH Reward</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {holders.map((holder, index) => (
+                            <tr key={index} className="border-t border-gray-600 hover:bg-opacity-10 transition-all">
+                              <td className="p-4 text-gray-200 font-mono">{holder.address}</td>
+                              <td className="p-4 text-gray-200">{holder.amount.toFixed(6)}</td>
+                              <td className="p-4 text-green-400">{holder.solReward.toFixed(6)}</td>
+                              <td className="p-4 text-yellow-400">{holder.wbtcReward.toFixed(8)}</td>
+                              <td className="p-4 text-purple-400">{holder.wethReward.toFixed(8)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="flex justify-between items-center mt-4">
+                      <button onClick={prevPage} disabled={currentPage === 1} className="casino-button">
+                        Previous
+                      </button>
+                      <p className="text-orange-700">Page {currentPage} of {totalPages}</p>
+                      <button onClick={nextPage} disabled={currentPage === totalPages} className="casino-button">
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                ) : showHolders ? (
+                  <p className="text-center text-orange-700 mb-12 text-lg">
+                    No holders detected in the network (excluding pool).
+                  </p>
+                ) : null}
+
+               
+{/* Missions & Leaderboard */}
+<div className="mb-12 missions-leaderboard" style={{ marginTop: '96px' }}>
+    <div className="title-container">
+      <h2 className="text-3xl font-bold text-orange-700 mt-10 mb-6 tracking-wide header-box">
+        Missions & Leaderboard
+      </h2>
+    </div>
+    <div className="grid grid-cols-1 gap-8">
+      <div className="p-4">
+        <div className="title-container">
+          <h3 className="text-xl font-bold text-orange-700 mb-3">Daily Missions</h3>
+        </div>
+        {missions.map(mission => (
+          <div key={mission.id} className="mb-3 text-center">
+            <p className="text-base text-orange-700">{mission.description}</p>
+            <p className="text-sm text-orange-700">Progress: {mission.current}/{mission.target}</p>
+            <p className="text-sm text-orange-700">Reward: {mission.reward} SOL</p>
+            {mission.completed && <p className="text-green-400 text-sm">Completed!</p>}
+          </div>
+        ))}
+      </div>
+    </div>
+    <div className="flex justify-center mt-6 mb-6 gap-4">
+      <button onClick={toggleLeaderboard} className="casino-button text-sm py-2 px-4">
+        {showLeaderboard ? 'Hide Leaderboard' : 'Show Leaderboard'}
+      </button>
+      <button
+        onClick={() => setShowInfo(!showInfo)}
+        className="casino-button text-sm py-2 px-4"
+      >
+        {showInfo ? 'Hide Info' : 'Show Info'}
+      </button>
+      <button
+        onClick={toggleHolders}
+        className="casino-button text-sm py-2 px-4"
+      >
+        {showHolders ? 'Hide Holders' : 'Show Holders'}
+      </button>
+    </div>
+    {showLeaderboard && (
+  <div className="p-6">
+    <div className="title-container">
+      <h3 className="text-xl font-bold text-orange-700 mb-3">Leaderboard</h3>
+    </div>
+    {leaderboard.length > 0 ? (
+      <div className="overflow-x-auto leaderboard-box">
+        <table className="w-full text-center leaderboard-table">
+          <thead>
+            <tr className="text-cyan-400">
+              <th className="p-4 text-lg">Rank</th>
+              <th className="p-4 text-lg">Address</th>
+              <th className="p-4 text-lg">Total Winnings (COM)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {leaderboard.map((player, index) => (
+              <tr key={index} className="border-t border-gray-600 hover:bg-opacity-10 transition-all">
+                <td className="p-4 text-gray-200">{index + 1}</td>
+                <td className="p-4 text-gray-200 font-mono">{player.address.slice(0, 8)}...</td>
+                <td className="p-4 text-green-400">{player.totalWinnings.toFixed(2)} COM</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : (
+      <p className="text-orange-700 text-lg text-center">Play some games to appear on the leaderboard!</p>
+    )}
+  </div>
+)}
   
+  </div>
 
 
+                {/* Aggiungi la GIF sotto i pulsanti e sopra la sezione dei social links */}
+                <div className="flex justify-center mt-4 mb-4">
+                  <img src="/assets/footer-gif.gif" alt="Footer Animated GIF" className="gif-spacer" />
+                </div>
 
+                {/* Sezione Social Links */}
+                <div className="mb-12 max-w-lg mx-auto">
+                  <div className="flex justify-center mb-4">
+                    <p className="text-lg text-orange-700">
+                      Contract: <span className="text-cyan-400">TBA (To Be Announced)</span>
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-4 justify-center">
+                    <a
+                      href="https://t.me/Casinofmeme"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="casino-button text-sm py-2 px-4"
+                    >
+                      Telegram
+                    </a>
+                    <a
+                      href="https://x.com/CasinofmemeSOL"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="casino-button text-sm py-2 px-4"
+                    >
+                      Twitter
+                    </a>
+                    <a
+                      href="https://www.dextools.io/app/your-pair"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="casino-button text-sm py-2 px-4"
+                    >
+                      Dextools
+                    </a>
+                    <a
+                      href="https://casinoofmemes-organization.gitbook.io/thesolanacasino"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="casino-button text-sm py-2 px-4"
+                    >
+                      Gitbook
+                    </a>
+                  </div>
+                </div>
+              </div>
 
+             
+              
+            </>
+          )}
         </>
       )}
     </div>
@@ -4752,3 +4745,22 @@ const spinWheel = async (event) => {
 };
 
 export default RewardsDashboard;
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 

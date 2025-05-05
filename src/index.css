@@ -487,17 +487,13 @@ body:not(.fullscreen-active) {
 
 /* Stile per i box dei giochi */
 .game-box {
-  background: #850000;
+  background: transparent;
   border: 3px solid #ffcc00;
   border-radius: 16px;
   transform: perspective(1000px) rotateX(5deg);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7);
   position: relative;
-  overflow-y: auto !important; /* Consenti scroll verticale */
-  overscroll-behavior-y: auto !important; /* Consenti comportamento naturale */
-  touch-action: auto !important; /* Consenti interazioni touch */
-  -webkit-overflow-scrolling: touch; /* Migliora lo scroll su iOS */
   padding: 15px;
   z-index: 1;
 }
@@ -555,15 +551,18 @@ body:not(.fullscreen-active) {
 
 .wheel-container {
   position: relative;
-  display: inline-block;
-  width: 500px;
-  height: 500px;
+  display: block; /* Cambiato da inline-block a block per un layout più controllato */
+  width: 100%;
+  max-width: 500px; /* Limita la larghezza massima */
+  height: auto; /* Altezza adattata al contenuto */
+  aspect-ratio: 1 / 1; /* Mantiene proporzioni quadrate */
   margin: 0 auto;
   z-index: 1;
-  touch-action: auto !important;
-  overscroll-behavior-y: auto !important;
-  overflow: visible !important; /* Evita che il contenitore blocchi lo scroll */
-  -webkit-overflow-scrolling: touch; /* Migliora lo scroll su iOS */
+}
+
+.wheel-container svg.wheel {
+  width: 100%;
+  height: 100%;
 }
 
 .wheel {
