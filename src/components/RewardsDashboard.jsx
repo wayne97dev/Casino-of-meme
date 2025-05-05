@@ -4687,7 +4687,7 @@ const spinWheel = async (event) => {
 
                 {/* Aggiungi la GIF sotto i pulsanti e sopra la sezione dei social links */}
                 <div className="flex justify-center mt-4 mb-4">
-                  <img src="/assets/footer-gif.gif" alt="Footer Animated GIF" className="gif-spacer" />
+                  <img src="/assets/casino.gif" alt="Footer Animated GIF" className="gif-spacer" />
                 </div>
 
                 {/* Sezione Social Links */}
