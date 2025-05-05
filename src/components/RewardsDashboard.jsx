@@ -3674,6 +3674,10 @@ const spinWheel = async (event) => {
         />
       </div>
 
+
+  {/* Spacer */}
+  <div className="spacer h-12"></div>
+
       {loading ? (
         <p className="text-center text-orange-700 animate-pulse text-2xl">.</p>
       ) : error ? (
@@ -4518,18 +4522,14 @@ const spinWheel = async (event) => {
             <>
               {/* Pagina principale (mostrata solo se nessun gioco è selezionato) */}
               {connected && publicKey && (
-                <div className="game-box p-6 mb-8">
-                  <p className="text-lg text-orange-700">
-                    Your Wallet: <span className="text-orange-700">{publicKey.toString()}</span>
-                  </p>
-                  <p className="text-lg text-orange-700">
-                    Your {TOKEN_SYMBOL} Balance: <span className="text-orange-700">{userTokens.toFixed(6)}</span>
-                  </p>
-                  <p className="text-lg text-orange-700">SOL Reward: {userRewards.sol.toFixed(6)}</p>
-                  <p className="text-lg text-orange-700">WBTC Reward: {userRewards.wbtc.toFixed(8)}</p>
-                  <p className="text-lg text-orange-700">WETH Reward: {userRewards.weth.toFixed(8)}</p>
-                </div>
-              )}
+        <div className="wallet-info-box">
+          <p className="text-orange-700">
+            Your COM Balance: {TOKEN_SYMBOL} {userTokens.toFixed(6)}
+          </p>
+        </div>
+      )}
+
+
 
               <CasinoScene
                 onSelectGame={(game) => {
@@ -4541,75 +4541,9 @@ const spinWheel = async (event) => {
                 style={{ zIndex: 1 }}
               />
 
-              <div className="content-wrapper">
-                {/* Sezione Show Info */}
-                {showInfo && (
-                  <div className="text-center mb-10" style={{ marginTop: '96px' }}>
-                    <div className="p-6">
-                      <p className="text-lg text-orange-700">Tax Wallet Balance</p>
-                      <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
-                    </div>
-                    <div className="p-6">
-                      <p className="text-lg text-orange-700">SOL Rewards (Latest)</p>
-                      <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
-                      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.sol.toFixed(4)} SOL</p>
-                    </div>
-                    <div className="p-6">
-                      <p className="text-lg text-orange-700">WBTC Rewards (Latest)</p>
-                      <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
-                      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.wbtc.toFixed(8)} WBTC</p>
-                    </div>
-                    <div className="p-6">
-                      <p className="text-lg text-orange-700">WETH Rewards (Latest)</p>
-                      <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
-                      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.weth.toFixed(8)} WETH</p>
-                    </div>
-                  </div>
-                )}
 
-                {/* Sezione Holders */}
-                {showHolders && holders.length > 0 ? (
-                  <div className="p-6 mb-12 holders-table">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-center">
-                        <thead>
-                          <tr className="text-cyan-400">
-                            <th className="p-4 text-lg">Holder Address</th>
-                            <th className="p-4 text-lg">Amount ({TOKEN_SYMBOL})</th>
-                            <th className="p-4 text-lg">SOL Reward</th>
-                            <th className="p-4 text-lg">WBTC Reward</th>
-                            <th className="p-4 text-lg">WETH Reward</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {holders.map((holder, index) => (
-                            <tr key={index} className="border-t border-gray-600 hover:bg-opacity-10 transition-all">
-                              <td className="p-4 text-gray-200 font-mono">{holder.address}</td>
-                              <td className="p-4 text-gray-200">{holder.amount.toFixed(6)}</td>
-                              <td className="p-4 text-green-400">{holder.solReward.toFixed(6)}</td>
-                              <td className="p-4 text-yellow-400">{holder.wbtcReward.toFixed(8)}</td>
-                              <td className="p-4 text-purple-400">{holder.wethReward.toFixed(8)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="flex justify-between items-center mt-4">
-                      <button onClick={prevPage} disabled={currentPage === 1} className="casino-button">
-                        Previous
-                      </button>
-                      <p className="text-orange-700">Page {currentPage} of {totalPages}</p>
-                      <button onClick={nextPage} disabled={currentPage === totalPages} className="casino-button">
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                ) : showHolders ? (
-                  <p className="text-center text-orange-700 mb-12 text-lg">
-                    No holders detected in the network (excluding pool).
-                  </p>
-                ) : null}
-
+<div className="content-wrapper">
+                
                
 {/* Missions & Leaderboard */}
 <div className="mb-12 missions-leaderboard" style={{ marginTop: '96px' }}>
@@ -4683,6 +4617,74 @@ const spinWheel = async (event) => {
 )}
   
   </div>
+
+  {showInfo && (
+  <div className="show-info-section">
+    <div className="info-block">
+      <p className="text-lg text-orange-700">Tax Wallet Balance</p>
+      <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
+    </div>
+    <div className="info-block">
+      <p className="text-lg text-orange-700">SOL Rewards (Latest)</p>
+      <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
+      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.sol.toFixed(4)} SOL</p>
+    </div>
+    <div className="info-block">
+      <p className="text-lg text-orange-700">WBTC Rewards (Latest)</p>
+      <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
+      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.wbtc.toFixed(8)} WBTC</p>
+    </div>
+    <div className="info-block">
+      <p className="text-lg text-orange-700">WETH Rewards (Latest)</p>
+      <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
+      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.weth.toFixed(8)} WETH</p>
+    </div>
+  </div>
+)}
+
+                {/* Sezione Holders */}
+                {showHolders && holders.length > 0 ? (
+  <div className="p-6 mb-12 holders-table">
+    <div className="overflow-x-auto">
+      <table className="w-full text-center">
+        <thead>
+          <tr className="text-cyan-400">
+            <th className="p-4 text-lg">Holder Address</th>
+            <th className="p-4 text-lg">Amount ({TOKEN_SYMBOL})</th>
+            <th className="p-4 text-lg">SOL Reward</th>
+            <th className="p-4 text-lg">WBTC Reward</th>
+            <th className="p-4 text-lg">WETH Reward</th>
+          </tr>
+        </thead>
+        <tbody>
+          {currentHolders.map((holder, index) => (
+            <tr key={index} className="border-t border-gray-600 hover:bg-opacity-10 transition-all">
+              <td className="p-4 text-gray-200 font-mono">{holder.address}</td>
+              <td className="p-4 text-gray-200">{holder.amount.toFixed(6)}</td>
+              <td className="p-4 text-green-400">{holder.solReward.toFixed(6)}</td>
+              <td className="p-4 text-yellow-400">{holder.wbtcReward.toFixed(8)}</td>
+              <td className="p-4 text-purple-400">{holder.wethReward.toFixed(8)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <div className="flex justify-between items-center mt-4">
+      <button onClick={prevPage} disabled={currentPage === 1} className="casino-button">
+        Previous
+      </button>
+      <p className="text-orange-700">Page {currentPage} of {totalPages}</p>
+      <button onClick={nextPage} disabled={currentPage === totalPages} className="casino-button">
+        Next
+      </button>
+    </div>
+  </div>
+) : showHolders ? (
+  <p className="text-center text-orange-700 mb-12 text-lg">
+    No holders detected in the network (excluding pool).
+  </p>
+) : null}
+             
 
 
                 {/* Aggiungi la GIF sotto i pulsanti e sopra la sezione dei social links */}

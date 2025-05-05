@@ -424,7 +424,7 @@ body:not(.fullscreen-active) {
   width: 100%;
   border-collapse: collapse;
   color: #e0e0e0;
-  background: #850000; /* Colore di Casino Floor */
+  background: #410101; /* Colore di Casino Floor */
 }
 
 .payout-table th,
@@ -850,11 +850,293 @@ table {
 .ui-wallet-adapter-modal-overlay {
   z-index: 9998 !important; /* Assicura che il backdrop del modal sia appena sotto il modal ma sopra gli altri elementi */
 }
+.nav-bar {
+  margin-top: 10px; /* Riduce lo spazio sopra la barra, portandola più in alto */
+}
+
+/* Spacer */
+.spacer {
+  height: 1rem; /* 64px su desktop */
+  width: 100%;
+  margin: 1rem 0; /* Margine verticale per sicurezza */
+  clear: both; /* Previene problemi di float */
+}
+
+/* Tabella del wallet */
+.wallet-info-box {
+  background: transparent;
+  border: 2px solid #ffcf00;
+  border-radius: 12px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
+  padding: 8px; /* Padding ridotto per un look più compatto */
+  max-width: 300px; /* Larghezza ancora più piccola */
+  margin: 2rem auto 1.5rem; /* Margine superiore per separazione */
+  z-index: 1;
+  text-align: center; /* Centra il testo */
+}
+
+.wallet-info-box p {
+  font-size: 0.9rem; /* Testo più piccolo */
+  line-height: 1.4;
+  margin: 0;
+  color: #ffcf00;
+}
+
+/* Assicura che il contenitore genitore non causi problemi */
+.w-full.bg-gray-900.bg-opacity-80 {
+  display: block; /* Previene conflitti con flex o altri display */
+  overflow: visible; /* Evita clipping dello spacer */
+}
+
+/* Media query per mobile */
+@media (max-width: 768px) {
+  .spacer {
+    height: 2.5rem; /* 40px su mobile */
+    margin: 0.75rem 0;
+  }
+
+  .wallet-info-box {
+    padding: 6px;
+    max-width: 90%;
+    border: 1px solid #ffcc00;
+    border-radius: 10px;
+    margin: 1.5rem auto 1rem;
+  }
+
+  .wallet-info-box p {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .spacer {
+    height: 2rem; /* 32px su schermi piccoli */
+    margin: 0.5rem 0;
+  }
+
+  .wallet-info-box {
+    margin: 1rem auto 0.75rem;
+  }
+}
+
+
+/* Stile per la sezione Show Info */
+.show-info-section {
+  background: transparent;
+  border: 2px solid #ffcc00;
+  border-radius: 12px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
+  padding: 1rem;
+  max-width: 600px; /* Limita la larghezza per coerenza */
+  margin: 1rem auto 2rem; /* Margine per separazione */
+  text-align: center;
+}
+
+.show-info-section p {
+  font-size: 1rem; /* Testo leggermente più piccolo */
+  line-height: 1.5;
+  margin: 0.5rem 0;
+  color: #ff9500;
+}
+
+.show-info-section .text-2xl {
+  font-size: 1.5rem; /* Ridotto leggermente per compattezza */
+}
+
+/* Media query per mobile */
+@media (max-width: 768px) {
+  .show-info-section {
+    padding: 0.75rem;
+    max-width: 90%;
+    margin: 0.75rem auto 1.5rem;
+    border: 1px solid #ffcc00;
+  }
+
+  .show-info-section p {
+    font-size: 0.9rem;
+  }
+
+  .show-info-section .text-2xl {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .show-info-section {
+    padding: 0.5rem;
+    margin: 0.5rem auto 1rem;
+  }
+
+  .show-info-section p {
+    font-size: 0.8rem;
+  }
+
+  .show-info-section .text-2xl {
+    font-size: 1.1rem;
+  }
+}
+
+.holders-table {
+  background: transparent; /* Già trasparente, confermato */
+  border: 2px solid #ffcc00;
+  border-radius: 12px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
+  padding: 1rem;
+  max-width: 1000px;
+  margin: 1rem auto;
+}
+
+
+.holders-table table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #e0e0e0;
+  background: transparent; /* Rimosso rgba(133, 0, 0, 0.4) */
+}
+
+/* Assicura che non ci siano override di debug */
+.holders-table table,
+.holders-table {
+  background: transparent !important; /* Forza la rimozione di qualsiasi rosso */
+}
+
+/* Stili per le righe e le celle */
+.holders-table th,
+.holders-table td {
+  padding: 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid #444;
+}
+
+.holders-table th {
+  background: #ffcf00; /* Mantiene il rosso scuro solo per l’intestazione */
+  color: #000000;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 1rem;
+}
+
+.holders-table td {
+  color: #e0e0e0;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.holders-table tr:hover {
+  background: rgba(255, 204, 0, 0.2); /* Effetto hover dorato */
+}
+
+/* Media query per mobile */
+@media (max-width: 768px) {
+  .holders-table {
+    padding: 0.5rem;
+    max-width: 90%;
+    margin: 0.75rem auto;
+    border: 1px solid #ffcc00;
+  }
+
+  .holders-table th,
+  .holders-table td {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .holders-table th {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .holders-table th,
+  .holders-table td {
+    padding: 0.4rem;
+    font-size: 0.7rem;
+  }
+
+  .holders-table th {
+    font-size: 0.8rem;
+  }
+}
+
+
+.show-info-section {
+  background: transparent;
+  border: 2px solid #ffcc00;
+  border-radius: 12px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
+  padding: 1rem;
+  max-width: 1000px; /* Allineato a holders-table */
+  margin: 1rem auto;
+  text-align: center;
+}
+
+/* Stile per i blocchi interni (simili alle righe della tabella) */
+.show-info-section .info-block {
+  padding: 0.75rem; /* Allineato a holders-table th, td */
+  border-bottom: 1px solid #444; /* Simula il bordo tra le righe */
+  color: #e0e0e0;
+}
+
+/* Ultimo blocco senza bordo inferiore */
+.show-info-section .info-block:last-child {
+  border-bottom: none;
+}
+
+/* Stile per i paragrafi interni */
+.show-info-section p {
+  font-size: 0.9rem; /* Allineato a holders-table td */
+  line-height: 1.4;
+  margin: 0.25rem 0;
+  color: #ffcf00; /* Mantiene il colore arancione */
+}
+
+/* Testo in grassetto per i valori principali */
+.show-info-section .text-2xl {
+  font-size: 1.25rem; /* Leggermente più piccolo per coerenza */
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* Media query per mobile */
+@media (max-width: 768px) {
+  .show-info-section {
+    padding: 0.5rem;
+    max-width: 90%;
+    margin: 0.75rem auto;
+    border: 1px solid #ffcc00;
+  }
+
+  .show-info-section .info-block {
+    padding: 0.5rem;
+  }
+
+  .show-info-section p {
+    font-size: 0.8rem;
+  }
+
+  .show-info-section .text-2xl {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .show-info-section .info-block {
+    padding: 0.4rem;
+  }
+
+  .show-info-section p {
+    font-size: 0.7rem;
+  }
+
+  .show-info-section .text-2xl {
+    font-size: 1rem;
+  }
+}
 
 /* Stile per il contenitore dei pulsanti dei giochi */
 .game-buttons-container {
-  background: #850000; /* Colore di Casino Floor */
-  border: 3px solid #ffcc00;
+  background: transparent; /* Colore di Casino Floor */
+  border: none;
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7);
@@ -1326,9 +1608,7 @@ body, html {
     padding: 6px;
   }
 
-  .nav-bar {
-    margin-top: 10px; /* Riduce lo spazio sopra la barra, portandola più in alto */
-  }
+
 
   
 
