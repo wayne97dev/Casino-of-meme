@@ -3636,14 +3636,14 @@ const spinWheel = async (event) => {
       )}
 
       {/* Barra di navigazione (sempre visibile) */}
-      <div className="nav-bar w-[98%] max-w-[800px] mx-auto bg-[#850000] rounded-[40px] py-2 px-4 flex justify-between items-center mb-12">
+      <div className="nav-bar w-[98%] max-w-[800px] mx-auto bg-[#1c1c1c] rounded-[45px] py-2 px-4 flex justify-between items-center mb-12">
         {/* Lato sinistro: GIF e Play Music */}
         <div className="flex items-center gap-3">
           <img
-            src="/assets/footer-gif.gif"
+            src="/assets/C_Small.png"
             alt="Header Animation"
             className="object-contain"
-            style={{ height: '40px', width: 'auto' }}
+            style={{ height: '45px', width: 'auto' }}
           />
           <button
             onClick={toggleMusic}
@@ -3658,13 +3658,13 @@ const spinWheel = async (event) => {
           className="text-[8px] py-0.5 px-2 rounded-full"
           style={{
             padding: '1px 4px',
-            fontSize: '8px',
+            fontSize: '10px',
             lineHeight: '1.2',
             minHeight: 'auto',
-            height: '20px',
+            height: '25px',
             background: '#6B21A8',
             color: '#FFFFFF',
-            border: 'none',
+            border: '15px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

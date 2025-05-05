@@ -118,8 +118,8 @@ body:not(.fullscreen-active) {
 .casino-scene-container {
   position: relative;
   width: 100%;
-  height: 60vh;
-  max-height: 500px;
+  height: 90vh;
+  max-height: 800px;
   margin: 0 auto; /* Assicura che il contenitore sia centrato */
   padding: 0; /* Rimuove eventuali padding che potrebbero spostare il contenuto */
 }
@@ -203,12 +203,12 @@ body:not(.fullscreen-active) {
 
 /* Stile per i pulsanti a tema casinò */
 .casino-button {
-  background: linear-gradient(135deg, #ff4500, #ff8c00);
-  border: 2px solid #ffcc00;
-  border-radius: 12px;
-  padding: 12px 24px;
-  color: #ffffff;
-  font-size: 1.25rem;
+  background: #ffcf00;
+  border: none;
+  border-radius: 15px;
+  padding: 8px 18px;
+  color: #000000;
+  font-size: 1rem;
   font-weight: 700;
   text-transform: uppercase;
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.3);
@@ -218,6 +218,7 @@ body:not(.fullscreen-active) {
   -webkit-tap-highlight-color: transparent;
   will-change: transform, box-shadow;
   z-index: 1; /* z-index basso per i pulsanti */
+  margin: 4px; /* Aggiungi margine per aumentare la distanza */
 }
 
 /* Su mobile, rimuovi touch-action: manipulation per evitare conflitti con lo scroll */
@@ -229,7 +230,7 @@ body:not(.fullscreen-active) {
 }
 
 .casino-button:hover {
-  background: linear-gradient(135deg, #ff8c00, #ff4500);
+  background: #d3ab00;
   box-shadow: 0 0 20px rgba(255, 204, 0, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.5);
   transform: scale(1.05);
 }
@@ -516,24 +517,24 @@ body:not(.fullscreen-active) {
 
 /* Stile per l'input del bet */
 .bet-input {
-  background: linear-gradient(135deg, #ff4500, #ff8c00);
-  border: 1px solid #ffcc00;
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: #ffffff;
+  background: #ffcf00;
+  border: 2px solid #ffcf00;
+  border-radius: 10px;
+  padding: 8px 8px;
+  color: #000000;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 700;
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.3);
   transition: all 0.3s ease;
-  width: 150px;
+  width: 100px;
   text-align: center;
   touch-action: auto !important; /* Permette il tocco senza interferire con lo scroll */
 }
 
 .bet-input:hover,
 .bet-input:focus {
-  background: linear-gradient(135deg, #ff8c00, #ff4500);
-  box-shadow: 0 0 20px rgba(255, 204, 0, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.5);
+  background: #ffcf00;
+  box-shadow: 0 0 15px rgba(255, 204, 0, 0.8), inset 0 0 5px rgba(255, 255, 255, 0.5);
   outline: none;
 }
 
@@ -599,7 +600,7 @@ body:not(.fullscreen-active) {
 
 .wheel .multiplier-text {
   font-weight: 700;
-  font-size: 14px;
+  font-size: 20px;
   fill: #fff;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
@@ -865,7 +866,7 @@ table {
 /* Stile per i pulsanti dei giochi */
 .game-buttons-container .casino-button {
   width: 100%;
-  max-width: 200px;
+  max-width: 150px;
   font-size: 1rem;
   padding: 10px;
 }
