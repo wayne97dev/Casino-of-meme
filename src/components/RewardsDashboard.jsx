@@ -1680,13 +1680,46 @@ const [timeLeft, setTimeLeft] = useState(30); // Stato per il tempo rimanente
 
 
 useEffect(() => {
+  const handleSocketConnect = () => {
+    console.log('DEBUG - Socket connected:', socket.id);
+    setPokerMessage('Connected to server');
+    // Richiedi il conteggio iniziale degli utenti attivi
+    socket.emit('requestActiveUsers');
+    // Verifica se il giocatore è in un gioco attivo
+    const gameId = localStorage.getItem('currentGameId');
+    if (gameId && publicKey) {
+      console.log('DEBUG - Emitting reconnectPlayer:', { playerAddress: publicKey.toString(), gameId });
+      socket.emit('reconnectPlayer', { playerAddress: publicKey.toString(), gameId });
+    }
+  };
+
+  const handleSocketConnectError = (err) => {
+    console.error('DEBUG - Socket connection error:', err.message);
+    setPokerMessage('Failed to connect to server. Retrying...');
+  };
+
+  const handleSocketDisconnect = () => {
+    console.log('DEBUG - Socket disconnected');
+    setPokerMessage('Disconnected from server');
+  };
+
+  const handleActiveUsers = ({ count }) => {
+    console.log('DEBUG - Active users count received:', count);
+    setActiveUsers(count);
+  };
+
+  const handleInitialActiveUsers = ({ count }) => {
+    console.log('DEBUG - Initial active users count received:', count);
+    setActiveUsers(count);
+  };
+
   const handleGameState = (game) => {
-    console.log('Game state received:', game);
-    console.log('My socket.id:', socket.id || 'undefined');
-    console.log('New currentTurn:', game.currentTurn);
-    console.log('Updated pot:', game.pot);
-    console.log('Updated timeLeft:', game.timeLeft);
-    console.log('Game phase:', game.gamePhase);
+    console.log('DEBUG - Game state received:', game);
+    console.log('DEBUG - My socket.id:', socket.id || 'undefined');
+    console.log('DEBUG - New currentTurn:', game.currentTurn);
+    console.log('DEBUG - Updated pot:', game.pot);
+    console.log('DEBUG - Updated timeLeft:', game.timeLeft);
+    console.log('DEBUG - Game phase:', game.gamePhase);
     setPokerPlayers(game.players || []);
     setPokerTableCards(game.tableCards || []);
     setPokerPlayerCards(game.playerCards || {});
@@ -1711,10 +1744,10 @@ useEffect(() => {
   };
 
   const handleDistributeWinnings = async ({ winnerAddress, amount, isRefund }) => {
-    console.log('Distribute winnings:', { winnerAddress, amount, isRefund });
+    console.log('DEBUG - Distribute winnings:', { winnerAddress, amount, isRefund });
     if (winnerAddress === publicKey?.toString()) {
       try {
-        console.log('Sending request to /distribute-winnings:', { winnerAddress, amount });
+        console.log('DEBUG - Sending request to /distribute-winnings:', { winnerAddress, amount });
         const response = await fetch(`${BACKEND_URL}/distribute-winnings`, {
           method: 'POST',
           headers: {
@@ -1723,7 +1756,7 @@ useEffect(() => {
           body: JSON.stringify({ winnerAddress, amount }),
         });
         const result = await response.json();
-        console.log('Response from /distribute-winnings:', result);
+        console.log('DEBUG - Response from /distribute-winnings:', result);
         if (response.ok && result.success) {
           setTriggerWinEffect(true);
           playSound(winAudioRef);
@@ -1737,7 +1770,7 @@ useEffect(() => {
           setPokerMessage(`You ${isRefund ? 'received a refund of' : 'won'} ${amount.toFixed(2)} COM!`);
           fetchComBalance();
         } else {
-          console.error('Failed to distribute winnings:', result.error || 'Unknown error');
+          console.error('DEBUG - Failed to distribute winnings:', result.error || 'Unknown error');
           const errorMessage = result.error || 'Unknown error';
           const transactionSignature = result.transactionSignature || 'N/A';
           setPokerMessage(
@@ -1745,7 +1778,7 @@ useEffect(() => {
           );
         }
       } catch (err) {
-        console.error('Error distributing winnings:', err.message, err.stack);
+        console.error('DEBUG - Error distributing winnings:', err.message, err.stack);
         setPokerMessage(
           `Error receiving ${amount.toFixed(2)} COM: ${err.message}. Please contact support with error details.`
         );
@@ -1756,9 +1789,9 @@ useEffect(() => {
   };
 
   const handleRefund = async ({ message, amount, isRefund }) => {
-    console.log('Refund received:', { message, amount, isRefund });
+    console.log('DEBUG - Refund received:', { message, amount, isRefund });
     setPokerMessage(message);
-  
+
     if (connected && publicKey && amount > 0) {
       try {
         const response = await fetch(`${BACKEND_URL}/refund`, {
@@ -1783,66 +1816,55 @@ useEffect(() => {
           setPokerMessage('Refund failed: Error processing refund. Contact support.');
         }
       } catch (err) {
-        console.error('Error processing refund:', err);
+        console.error('DEBUG - Error processing refund:', err);
         setPokerMessage('Refund failed: Transaction error. Contact support.');
       }
     } else {
       setPokerMessage('Refund failed: Wallet not connected or invalid amount.');
     }
-  
+
     setWaitingPlayersList(prev => prev.filter(p => p.address !== publicKey?.toString()));
   };
 
-  socket.on('connect', () => {
-    console.log('Socket connected:', socket.id || 'undefined');
-    setPokerMessage('Connected to server');
-    const gameId = localStorage.getItem('currentGameId');
-    if (gameId && publicKey) {
-      console.log('Emitting reconnectPlayer:', { playerAddress: publicKey.toString(), gameId });
-      socket.emit('reconnectPlayer', { playerAddress: publicKey.toString(), gameId });
-    }
-  });
-
-  socket.on('connect_error', (err) => {
-    console.error('Socket connection error:', err.message);
-    setPokerMessage('Failed to connect to server. Retrying...');
-  });
-
+  socket.on('connect', handleSocketConnect);
+  socket.on('connect_error', handleSocketConnectError);
+  socket.on('disconnect', handleSocketDisconnect);
+  socket.on('activeUsers', handleActiveUsers);
+  socket.on('initialActiveUsers', handleInitialActiveUsers);
   socket.on('waiting', (data) => {
-    console.log('Received waiting event:', data);
+    console.log('DEBUG - Received waiting event:', data);
     setPokerMessage(data.message);
     setWaitingPlayersList(data.players || []);
   });
-
   socket.on('waitingPlayers', (data) => {
-    console.log('Received waitingPlayers event:', data);
+    console.log('DEBUG - Received waitingPlayers event:', data);
     setWaitingPlayersList(data.players || []);
   });
-
   socket.on('refund', handleRefund);
-
   socket.on('leftWaitingList', ({ message }) => {
-    console.log('Left waiting list:', message);
+    console.log('DEBUG - Left waiting list:', message);
     setPokerMessage(message);
     setWaitingPlayersList(prev => prev.filter(p => p.address !== publicKey?.toString()));
     setBetAmount(minBet);
   });
-
   socket.on('gameState', handleGameState);
   socket.on('distributeWinnings', handleDistributeWinnings);
   socket.on('error', (data) => {
-    console.error('Error from server:', data);
+    console.error('DEBUG - Error from server:', data);
     setPokerMessage(data.message);
   });
 
-
-  console.log('Connecting socket...');
-  socket.connect();
+  console.log('DEBUG - Connecting socket...');
+  if (!socket.connected) {
+    socket.connect();
+  }
 
   return () => {
-    socket.off('connect');
-    socket.off('connect_error');
-    socket.off('activeUsers');
+    socket.off('connect', handleSocketConnect);
+    socket.off('connect_error', handleSocketConnectError);
+    socket.off('disconnect', handleSocketDisconnect);
+    socket.off('activeUsers', handleActiveUsers);
+    socket.off('initialActiveUsers', handleInitialActiveUsers);
     socket.off('waiting');
     socket.off('waitingPlayers');
     socket.off('refund', handleRefund);
@@ -1853,30 +1875,6 @@ useEffect(() => {
   };
 }, [publicKey, minBet]);
 
-useEffect(() => {
-  socket.on('connect', () => {
-    console.log('Socket connected:', socket.id);
-    setPokerMessage('Connected to server');
-  });
-
-  socket.on('connect_error', (err) => {
-    console.error('Socket connection error:', err.message);
-    setPokerMessage('Failed to connect to server. Retrying...');
-  });
-
-  socket.on('activeUsers', ({ count }) => {
-    console.log('DEBUG - Active users count received:', count);
-    setActiveUsers(count);
-  });
-
-  socket.connect();
-
-  return () => {
-    socket.off('connect');
-    socket.off('connect_error');
-    socket.off('activeUsers');
-  };
-}, []);
 
 // Determina se è il turno del giocatore corrente
 const isMyTurn = currentTurn === socket.id;
