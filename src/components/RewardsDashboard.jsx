@@ -541,7 +541,7 @@ const BlackjackTable = ({ position, onSelectGame }) => {
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
     >
-      <primitive object={scene} scale={[0.04, 0.04, 0.04]} />
+      <primitive object={scene} scale={[0.35, 0.35, 0.35]} />
       <Text
         position={[0, 5, 0]}
         fontSize={1.3}
