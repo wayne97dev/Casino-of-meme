@@ -512,29 +512,26 @@ const CasinoTable = ({ position }) => {
 };
 
 // Componente per il tavolo centrale (Poker PvP)
+
+
 const BlackjackTable = ({ position, onSelectGame }) => {
   const group = useRef();
-  const fbx = useFBX('/models/blackjack-table.fbx');
-  const tableDiffuseTexture = useLoader(THREE.TextureLoader, '/models/textures/blackjack-table-diffuse.jpg');
+  const { scene } = useGLTF('/models/tavolo_poker.glb'); // Carica il file GLB
   const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
-    fbx.traverse((child) => {
+    scene.traverse((child) => {
       if (child.isMesh) {
-        child.material = new THREE.MeshStandardMaterial({
-          map: tableDiffuseTexture,
-          side: THREE.DoubleSide,
-          roughness: 0.6,
-          metalness: 0.3,
-          emissive: hovered ? new THREE.Color(0xff00ff) : new THREE.Color(0x000000),
-          emissiveIntensity: hovered ? 0.5 : 0,
-        });
+        // Mantieni la texture incorporata nel GLB, modifica solo emissive per l'effetto hover
+        child.material = child.material.clone(); // Clona il materiale per evitare modifiche condivise
+        child.material.emissive = hovered ? new THREE.Color(0xff00ff) : new THREE.Color(0x000000);
+        child.material.emissiveIntensity = hovered ? 0.5 : 0;
         child.material.needsUpdate = true;
         child.castShadow = true;
         child.receiveShadow = true;
       }
     });
-  }, [fbx, tableDiffuseTexture, hovered]);
+  }, [scene, hovered]);
 
   return (
     <group
@@ -544,7 +541,7 @@ const BlackjackTable = ({ position, onSelectGame }) => {
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
     >
-      <primitive object={fbx} scale={[0.04, 0.04, 0.04]} />
+      <primitive object={scene} scale={[0.04, 0.04, 0.04]} />
       <Text
         position={[0, 5, 0]}
         fontSize={1.3}
@@ -557,6 +554,8 @@ const BlackjackTable = ({ position, onSelectGame }) => {
     </group>
   );
 };
+
+
 
 
 // Componente per il tappeto rosso con barriere
