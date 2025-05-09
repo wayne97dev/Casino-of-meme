@@ -789,7 +789,7 @@ const DonaldTrump = ({ position, currentAnimation = 'Idle' }) => {
 
 
 // Sottocomponente per la logica della scena
-const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, triggerWinEffect, isMobile, isFullscreen }) => {
+const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, triggerWinEffect, isMobile, isFullscreen, activeUsers }) => {
   const { camera, gl, invalidate, scene, raycaster, mouse } = useThree();
   const [showParticles, setShowParticles] = useState(false);
   const [winLightColor, setWinLightColor] = useState(new THREE.Color('red'));
@@ -810,12 +810,11 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   // Aggiorna il renderer quando cambia la dimensione del canvas
   useEffect(() => {
     const handleResize = debounce(() => {
-      // Controllo per containerRef.current
       if (!isFullscreen && (!containerRef.current || !containerRef.current.clientWidth)) {
         console.warn('DEBUG - containerRef.current non disponibile per il calcolo delle dimensioni');
-        return; // Esci dalla funzione se l'elemento non è disponibile
+        return;
       }
-  
+
       const width = isFullscreen ? window.innerWidth : containerRef.current.clientWidth;
       const height = isFullscreen ? window.innerHeight : containerRef.current.clientHeight;
       console.log('DEBUG - Resizing renderer:', { width, height, isFullscreen });
@@ -824,11 +823,11 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       gl.setSize(width, height);
       invalidate();
     }, 100);
-  
+
     window.addEventListener('resize', handleResize);
     document.addEventListener('fullscreenchange', handleResize);
-    handleResize(); // Esegui subito al montaggio
-  
+    handleResize();
+
     return () => {
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('fullscreenchange', handleResize);
@@ -896,14 +895,14 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   useEffect(() => {
     let touchStartTime = 0;
     let touchMoved = false;
-  
+
     const handleClick = (event) => {
       event.preventDefault();
       console.log('DEBUG - Canvas clicked', Date.now(), 'Event type:', event.type, 'Coordinates:', {
         clientX: event.clientX,
         clientY: event.clientY,
       });
-  
+
       const rect = gl.domElement.getBoundingClientRect();
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -912,14 +911,14 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         y: mouseRef.current.y,
         rect
       });
-  
+
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
       const intersects = raycasterRef.current.intersectObjects(
         interactiveObjects.current.flatMap(obj => obj.meshes),
         true
       );
       console.log('DEBUG - Click raycast intersects:', intersects.length, intersects.map(i => i.object.name));
-  
+
       if (intersects.length > 0) {
         const intersectedObject = intersects[0].object;
         const target = interactiveObjects.current.find(obj =>
@@ -937,12 +936,12 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         }
       }
     };
-  
+
     const handleTouchStart = (event) => {
       console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length, 'Target:', event.target.tagName);
       touchStartTime = Date.now();
       touchMoved = false;
-  
+
       if (event.touches.length === 1) {
         const touch = event.touches[0];
         const rect = gl.domElement.getBoundingClientRect();
@@ -962,17 +961,16 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         }
       }
     };
-  
+
     const handleTouchMove = (event) => {
       touchMoved = true;
-      // Non chiamare preventDefault per consentire lo scroll
       console.log('DEBUG - Touch move detected, allowing scroll', Date.now());
     };
-  
+
     const handleTouchEnd = (event) => {
       console.log('DEBUG - Canvas touch ended', Date.now());
       const touchDuration = Date.now() - touchStartTime;
-  
+
       if (event.changedTouches.length === 1 && !touchMoved && touchDuration < 300) {
         console.log('DEBUG - Short single touch, performing raycast', Date.now());
         raycasterRef.current.setFromCamera(mouseRef.current, camera);
@@ -981,7 +979,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           true
         );
         console.log('DEBUG - Touch raycast intersects:', intersects.length, intersects.map(i => i.object.name));
-  
+
         if (intersects.length > 0) {
           const intersectedObject = intersects[0].object;
           const target = interactiveObjects.current.find(obj =>
@@ -993,17 +991,17 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           }
         }
       }
-  
+
       if (orbitControlsRef.current) {
         orbitControlsRef.current.enabled = true;
       }
     };
-  
+
     gl.domElement.addEventListener('click', handleClick, { passive: true });
     gl.domElement.addEventListener('touchstart', handleTouchStart, { passive: true });
     gl.domElement.addEventListener('touchmove', handleTouchMove, { passive: true });
     gl.domElement.addEventListener('touchend', handleTouchEnd, { passive: true });
-  
+
     return () => {
       gl.domElement.removeEventListener('click', handleClick);
       gl.domElement.removeEventListener('touchstart', handleTouchStart);
@@ -1011,7 +1009,6 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       gl.domElement.removeEventListener('touchend', handleTouchEnd);
     };
   }, [gl, camera, handleSelectGame, isMobile]);
-
 
   useEffect(() => {
     if (triggerWinEffect) {
@@ -1139,6 +1136,23 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
       {showParticles && <Particles position={[0, 2, 0]} />}
 
+      {/* Counter utenti attivi */}
+      <group position={[20, -10, -20]}>
+        <mesh>
+          <planeGeometry args={[8, 4]} />
+          <meshStandardMaterial color="#1c1c1c" opacity={0.8} transparent />
+        </mesh>
+        <Text
+          position={[0, 0, 0.1]}
+          fontSize={1}
+          color="orange"
+          anchorX="center"
+          anchorY="middle"
+        >
+          Users Online: {activeUsers}
+        </Text>
+      </group>
+
       <OrbitControls
         ref={orbitControlsRef}
         enablePan={true}
@@ -1160,23 +1174,6 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={isMobile ? 50 : 100} />
         </EffectComposer>
       )}
-// Aggiungi il riquadro per il counter
-<group position={[20, -10, -20]}> {/* Posizione in basso a destra */}
-  <mesh>
-    <planeGeometry args={[8, 4]} /> {/* Dimensioni del riquadro */}
-    <meshStandardMaterial color="#1c1c1c" opacity={0.8} transparent />
-  </mesh>
-  <Text
-    position={[0, 0, 0.1]} // Leggermente sopra il riquadro per visibilità
-    fontSize={1}
-    color="orange"
-    anchorX="center"
-    anchorY="middle"
-  >
-    Users Online: {activeUsers}
-  </Text>
-</group>
-
     </>
   );
 };
@@ -1187,11 +1184,11 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
 
 
-const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
+const CasinoScene = ({ onSelectGame, triggerWinEffect, activeUsers }) => {
   const [croupierAnimation, setCroupierAnimation] = useState('Idle');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [is3DView, setIs3DView] = useState(true); // Stato per alternare tra 3D e pulsanti
+  const [is3DView, setIs3DView] = useState(true);
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -1210,7 +1207,6 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [isFullscreen]);
 
-  // Gestione del cambio di stato del fullscreen
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isNowFullscreen = !!document.fullscreenElement;
@@ -1236,7 +1232,6 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, [isMobile]);
 
-  // Funzione per entrare in modalità fullscreen
   const enterFullscreen = () => {
     if (!canvasRef.current) {
       console.error('Canvas ref non disponibile');
@@ -1264,7 +1259,6 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     }
   };
 
-  // Funzione per uscire dal fullscreen
   const exitFullscreen = () => {
     console.log('Attempting to exit fullscreen...');
     if (document.fullscreenElement) {
@@ -1296,13 +1290,11 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     }
   };
 
-  // Funzione per alternare tra vista 3D e pulsanti
   const toggleView = () => {
     setIs3DView(!is3DView);
     console.log('DEBUG - Toggled view:', is3DView ? 'Buttons' : '3D');
   };
 
-  // Debug rendering del canvas
   useEffect(() => {
     console.log('Canvas rendered:', canvasRef.current);
   }, []);
@@ -1344,6 +1336,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
               triggerWinEffect={triggerWinEffect}
               isMobile={isMobile}
               isFullscreen={isFullscreen}
+              activeUsers={activeUsers}
             />
           </Canvas>
           {isMobile && (
@@ -1401,31 +1394,30 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
           )}
         </div>
       )}
-<div className="fullscreen-button-container z-[1001]">
-  {isFullscreen ? (
-    <button
-      onClick={exitFullscreen}
-      className="casino-button text-sm py-2 px-4"
-      style={{ pointerEvents: 'auto', zIndex: 1002 }}
-    >
-      Exit Fullscreen
-    </button>
-  ) : (
-    !isMobile && (
-      <button
-        onClick={enterFullscreen}
-        className="casino-button text-sm py-2 px-4 animate-pulse-slow"
-        style={{ pointerEvents: 'auto', zIndex: 1002 }}
-      >
-        Fullscreen
-      </button>
-    )
-  )}
-</div>
+      <div className="fullscreen-button-container z-[1001]">
+        {isFullscreen ? (
+          <button
+            onClick={exitFullscreen}
+            className="casino-button text-sm py-2 px-4"
+            style={{ pointerEvents: 'auto', zIndex: 1002 }}
+          >
+            Exit Fullscreen
+          </button>
+        ) : (
+          !isMobile && (
+            <button
+              onClick={enterFullscreen}
+              className="casino-button text-sm py-2 px-4 animate-pulse-slow"
+              style={{ pointerEvents: 'auto', zIndex: 1002 }}
+            >
+              Fullscreen
+            </button>
+          )
+        )}
+      </div>
     </div>
   );
 };
-
 
 
 
