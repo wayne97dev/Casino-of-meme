@@ -1044,6 +1044,10 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     })));
   }, []);
 
+  useEffect(() => {
+    console.log('DEBUG - SceneContent activeUsers:', activeUsers);
+  }, [activeUsers]);
+
   return (
     <>
       <PerspectiveCamera makeDefault fov={isMobile ? 60 : 90} />
@@ -1137,7 +1141,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       {showParticles && <Particles position={[0, 2, 0]} />}
 
       {/* Counter utenti attivi */}
-      <group position={[20, -10, -20]}>
+      <group position={[20, 20, 23]}>
         <mesh>
           <planeGeometry args={[8, 4]} />
           <meshStandardMaterial color="#1c1c1c" opacity={0.8} transparent />
@@ -1145,11 +1149,11 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         <Text
           position={[0, 0, 0.1]}
           fontSize={1}
-          color="orange"
+          color="white"
           anchorX="center"
           anchorY="middle"
         >
-          Users Online: {activeUsers}
+          Users Online: {activeUsers ?? 0}
         </Text>
       </group>
 
@@ -1177,6 +1181,15 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     </>
   );
 };
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1297,7 +1310,8 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect, activeUsers }) => {
 
   useEffect(() => {
     console.log('Canvas rendered:', canvasRef.current);
-  }, []);
+    console.log('DEBUG - CasinoScene activeUsers:', activeUsers);
+  }, [activeUsers]);
 
   return (
     <div ref={containerRef} className="relative w-full casino-scene-container">
@@ -1418,7 +1432,6 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect, activeUsers }) => {
     </div>
   );
 };
-
 
 
 
@@ -1823,11 +1836,6 @@ useEffect(() => {
     setPokerMessage(data.message);
   });
 
-    // Aggiungi listener per activeUsers
-    socket.on('activeUsers', ({ count }) => {
-      console.log('Received active users count:', count);
-      setActiveUsers(count);
-    });
 
   console.log('Connecting socket...');
   socket.connect();
@@ -1845,6 +1853,31 @@ useEffect(() => {
     socket.off('error');
   };
 }, [publicKey, minBet]);
+
+useEffect(() => {
+  socket.on('connect', () => {
+    console.log('Socket connected:', socket.id);
+    setPokerMessage('Connected to server');
+  });
+
+  socket.on('connect_error', (err) => {
+    console.error('Socket connection error:', err.message);
+    setPokerMessage('Failed to connect to server. Retrying...');
+  });
+
+  socket.on('activeUsers', ({ count }) => {
+    console.log('DEBUG - Active users count received:', count);
+    setActiveUsers(count);
+  });
+
+  socket.connect();
+
+  return () => {
+    socket.off('connect');
+    socket.off('connect_error');
+    socket.off('activeUsers');
+  };
+}, []);
 
 // Determina se è il turno del giocatore corrente
 const isMyTurn = currentTurn === socket.id;
