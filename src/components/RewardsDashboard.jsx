@@ -1160,6 +1160,23 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={isMobile ? 50 : 100} />
         </EffectComposer>
       )}
+// Aggiungi il riquadro per il counter
+<group position={[20, -10, -20]}> {/* Posizione in basso a destra */}
+  <mesh>
+    <planeGeometry args={[8, 4]} /> {/* Dimensioni del riquadro */}
+    <meshStandardMaterial color="#1c1c1c" opacity={0.8} transparent />
+  </mesh>
+  <Text
+    position={[0, 0, 0.1]} // Leggermente sopra il riquadro per visibilità
+    fontSize={1}
+    color="orange"
+    anchorX="center"
+    anchorY="middle"
+  >
+    Users Online: {activeUsers}
+  </Text>
+</group>
+
     </>
   );
 };
@@ -1445,6 +1462,7 @@ const RewardsDashboard = () => {
 const [lastBets, setLastBets] = useState(null); // Ultima combinazione di scommesse valida
 const [hasSeenWarning, setHasSeenWarning] = useState(false); // Stato per tracciare se l'utente ha visto l'avviso
 const [showLeaderboard, setShowLeaderboard] = useState(false);
+const [activeUsers, setActiveUsers] = useState(0);
 
 
 
@@ -1813,12 +1831,19 @@ useEffect(() => {
     setPokerMessage(data.message);
   });
 
+    // Aggiungi listener per activeUsers
+    socket.on('activeUsers', ({ count }) => {
+      console.log('Received active users count:', count);
+      setActiveUsers(count);
+    });
+
   console.log('Connecting socket...');
   socket.connect();
 
   return () => {
     socket.off('connect');
     socket.off('connect_error');
+    socket.off('activeUsers');
     socket.off('waiting');
     socket.off('waitingPlayers');
     socket.off('refund', handleRefund);
