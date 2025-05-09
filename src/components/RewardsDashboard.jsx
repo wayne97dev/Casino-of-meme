@@ -514,8 +514,6 @@ const CasinoTable = ({ position }) => {
 };
 
 // Componente per il tavolo centrale (Poker PvP)
-// Componente per il tavolo centrale (Poker PvP)
-
 
 const BlackjackTable = ({ position, onSelectGame }) => {
   const group = useRef();
@@ -559,6 +557,11 @@ const BlackjackTable = ({ position, onSelectGame }) => {
     </group>
   );
 };
+
+
+
+
+
 
 
 // Componente per il tappeto rosso con barriere

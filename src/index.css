@@ -859,12 +859,12 @@ table {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #ff8c00, #ff4500); /* Gradiente arancione */
-  color: #fff;
+  background: #ffcf00; /* Gradiente arancione */
+  color: #000000;
   font-weight: bold;
-  border: 1px solid #d4af37; /* Bordo dorato */
-  border-radius: 12px;
-  padding: 4px 8px;
+  border: 1px solid #000000; /* Bordo dorato */
+  border-radius: 15px;
+  padding: 4px 4px;
   font-size: 12px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
