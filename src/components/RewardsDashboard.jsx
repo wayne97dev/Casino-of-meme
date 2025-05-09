@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
@@ -512,6 +514,7 @@ const CasinoTable = ({ position }) => {
 };
 
 // Componente per il tavolo centrale (Poker PvP)
+// Componente per il tavolo centrale (Poker PvP)
 
 
 const BlackjackTable = ({ position, onSelectGame }) => {
@@ -532,6 +535,8 @@ const BlackjackTable = ({ position, onSelectGame }) => {
       }
     });
   }, [scene, hovered]);
+
+
 
   return (
     <group
@@ -554,8 +559,6 @@ const BlackjackTable = ({ position, onSelectGame }) => {
     </group>
   );
 };
-
-
 
 
 // Componente per il tappeto rosso con barriere
@@ -788,7 +791,7 @@ const DonaldTrump = ({ position, currentAnimation = 'Idle' }) => {
 
 
 // Sottocomponente per la logica della scena
-const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, triggerWinEffect, isMobile, isFullscreen, activeUsers }) => {
+const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, triggerWinEffect, isMobile, isFullscreen }) => {
   const { camera, gl, invalidate, scene, raycaster, mouse } = useThree();
   const [showParticles, setShowParticles] = useState(false);
   const [winLightColor, setWinLightColor] = useState(new THREE.Color('red'));
@@ -809,11 +812,12 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   // Aggiorna il renderer quando cambia la dimensione del canvas
   useEffect(() => {
     const handleResize = debounce(() => {
+      // Controllo per containerRef.current
       if (!isFullscreen && (!containerRef.current || !containerRef.current.clientWidth)) {
         console.warn('DEBUG - containerRef.current non disponibile per il calcolo delle dimensioni');
-        return;
+        return; // Esci dalla funzione se l'elemento non è disponibile
       }
-
+  
       const width = isFullscreen ? window.innerWidth : containerRef.current.clientWidth;
       const height = isFullscreen ? window.innerHeight : containerRef.current.clientHeight;
       console.log('DEBUG - Resizing renderer:', { width, height, isFullscreen });
@@ -822,11 +826,11 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       gl.setSize(width, height);
       invalidate();
     }, 100);
-
+  
     window.addEventListener('resize', handleResize);
     document.addEventListener('fullscreenchange', handleResize);
-    handleResize();
-
+    handleResize(); // Esegui subito al montaggio
+  
     return () => {
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('fullscreenchange', handleResize);
@@ -894,14 +898,14 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   useEffect(() => {
     let touchStartTime = 0;
     let touchMoved = false;
-
+  
     const handleClick = (event) => {
       event.preventDefault();
       console.log('DEBUG - Canvas clicked', Date.now(), 'Event type:', event.type, 'Coordinates:', {
         clientX: event.clientX,
         clientY: event.clientY,
       });
-
+  
       const rect = gl.domElement.getBoundingClientRect();
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -910,14 +914,14 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         y: mouseRef.current.y,
         rect
       });
-
+  
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
       const intersects = raycasterRef.current.intersectObjects(
         interactiveObjects.current.flatMap(obj => obj.meshes),
         true
       );
       console.log('DEBUG - Click raycast intersects:', intersects.length, intersects.map(i => i.object.name));
-
+  
       if (intersects.length > 0) {
         const intersectedObject = intersects[0].object;
         const target = interactiveObjects.current.find(obj =>
@@ -935,12 +939,12 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         }
       }
     };
-
+  
     const handleTouchStart = (event) => {
       console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length, 'Target:', event.target.tagName);
       touchStartTime = Date.now();
       touchMoved = false;
-
+  
       if (event.touches.length === 1) {
         const touch = event.touches[0];
         const rect = gl.domElement.getBoundingClientRect();
@@ -960,16 +964,17 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         }
       }
     };
-
+  
     const handleTouchMove = (event) => {
       touchMoved = true;
+      // Non chiamare preventDefault per consentire lo scroll
       console.log('DEBUG - Touch move detected, allowing scroll', Date.now());
     };
-
+  
     const handleTouchEnd = (event) => {
       console.log('DEBUG - Canvas touch ended', Date.now());
       const touchDuration = Date.now() - touchStartTime;
-
+  
       if (event.changedTouches.length === 1 && !touchMoved && touchDuration < 300) {
         console.log('DEBUG - Short single touch, performing raycast', Date.now());
         raycasterRef.current.setFromCamera(mouseRef.current, camera);
@@ -978,7 +983,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           true
         );
         console.log('DEBUG - Touch raycast intersects:', intersects.length, intersects.map(i => i.object.name));
-
+  
         if (intersects.length > 0) {
           const intersectedObject = intersects[0].object;
           const target = interactiveObjects.current.find(obj =>
@@ -990,17 +995,17 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           }
         }
       }
-
+  
       if (orbitControlsRef.current) {
         orbitControlsRef.current.enabled = true;
       }
     };
-
+  
     gl.domElement.addEventListener('click', handleClick, { passive: true });
     gl.domElement.addEventListener('touchstart', handleTouchStart, { passive: true });
     gl.domElement.addEventListener('touchmove', handleTouchMove, { passive: true });
     gl.domElement.addEventListener('touchend', handleTouchEnd, { passive: true });
-
+  
     return () => {
       gl.domElement.removeEventListener('click', handleClick);
       gl.domElement.removeEventListener('touchstart', handleTouchStart);
@@ -1008,6 +1013,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       gl.domElement.removeEventListener('touchend', handleTouchEnd);
     };
   }, [gl, camera, handleSelectGame, isMobile]);
+
 
   useEffect(() => {
     if (triggerWinEffect) {
@@ -1042,10 +1048,6 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       meshNames: obj.meshes.map(m => m.name)
     })));
   }, []);
-
-  useEffect(() => {
-    console.log('DEBUG - SceneContent activeUsers:', activeUsers);
-  }, [activeUsers]);
 
   return (
     <>
@@ -1139,23 +1141,6 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
       {showParticles && <Particles position={[0, 2, 0]} />}
 
-      {/* Counter utenti attivi */}
-      <group position={[20, 20, 23]}>
-        <mesh>
-          <planeGeometry args={[8, 4]} />
-          <meshStandardMaterial color="#1c1c1c" opacity={0.8} transparent />
-        </mesh>
-        <Text
-          position={[0, 0, 0.1]}
-          fontSize={1}
-          color="white"
-          anchorX="center"
-          anchorY="middle"
-        >
-          Users Online: {activeUsers ?? 0}
-        </Text>
-      </group>
-
       <OrbitControls
         ref={orbitControlsRef}
         enablePan={true}
@@ -1187,20 +1172,11 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
 
 
-
-
-
-
-
-
-
-
-
-const CasinoScene = ({ onSelectGame, triggerWinEffect, activeUsers }) => {
+const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
   const [croupierAnimation, setCroupierAnimation] = useState('Idle');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [is3DView, setIs3DView] = useState(true);
+  const [is3DView, setIs3DView] = useState(true); // Stato per alternare tra 3D e pulsanti
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -1219,6 +1195,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect, activeUsers }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [isFullscreen]);
 
+  // Gestione del cambio di stato del fullscreen
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isNowFullscreen = !!document.fullscreenElement;
@@ -1244,6 +1221,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect, activeUsers }) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, [isMobile]);
 
+  // Funzione per entrare in modalità fullscreen
   const enterFullscreen = () => {
     if (!canvasRef.current) {
       console.error('Canvas ref non disponibile');
@@ -1271,6 +1249,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect, activeUsers }) => {
     }
   };
 
+  // Funzione per uscire dal fullscreen
   const exitFullscreen = () => {
     console.log('Attempting to exit fullscreen...');
     if (document.fullscreenElement) {
@@ -1302,15 +1281,16 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect, activeUsers }) => {
     }
   };
 
+  // Funzione per alternare tra vista 3D e pulsanti
   const toggleView = () => {
     setIs3DView(!is3DView);
     console.log('DEBUG - Toggled view:', is3DView ? 'Buttons' : '3D');
   };
 
+  // Debug rendering del canvas
   useEffect(() => {
     console.log('Canvas rendered:', canvasRef.current);
-    console.log('DEBUG - CasinoScene activeUsers:', activeUsers);
-  }, [activeUsers]);
+  }, []);
 
   return (
     <div ref={containerRef} className="relative w-full casino-scene-container">
@@ -1349,7 +1329,6 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect, activeUsers }) => {
               triggerWinEffect={triggerWinEffect}
               isMobile={isMobile}
               isFullscreen={isFullscreen}
-              activeUsers={activeUsers}
             />
           </Canvas>
           {isMobile && (
@@ -1407,30 +1386,32 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect, activeUsers }) => {
           )}
         </div>
       )}
-      <div className="fullscreen-button-container z-[1001]">
-        {isFullscreen ? (
-          <button
-            onClick={exitFullscreen}
-            className="casino-button text-sm py-2 px-4"
-            style={{ pointerEvents: 'auto', zIndex: 1002 }}
-          >
-            Exit Fullscreen
-          </button>
-        ) : (
-          !isMobile && (
-            <button
-              onClick={enterFullscreen}
-              className="casino-button text-sm py-2 px-4 animate-pulse-slow"
-              style={{ pointerEvents: 'auto', zIndex: 1002 }}
-            >
-              Fullscreen
-            </button>
-          )
-        )}
-      </div>
+<div className="fullscreen-button-container z-[1001]">
+  {isFullscreen ? (
+    <button
+      onClick={exitFullscreen}
+      className="casino-button text-sm py-2 px-4"
+      style={{ pointerEvents: 'auto', zIndex: 1002 }}
+    >
+      Exit Fullscreen
+    </button>
+  ) : (
+    !isMobile && (
+      <button
+        onClick={enterFullscreen}
+        className="casino-button text-sm py-2 px-4 animate-pulse-slow"
+        style={{ pointerEvents: 'auto', zIndex: 1002 }}
+      >
+        Fullscreen
+      </button>
+    )
+  )}
+</div>
     </div>
   );
 };
+
+
 
 
 
@@ -1466,8 +1447,7 @@ const RewardsDashboard = () => {
 const [lastBets, setLastBets] = useState(null); // Ultima combinazione di scommesse valida
 const [hasSeenWarning, setHasSeenWarning] = useState(false); // Stato per tracciare se l'utente ha visto l'avviso
 const [showLeaderboard, setShowLeaderboard] = useState(false);
-const [activeUsers, setActiveUsers] = useState(0);
-
+const [visitorCount, setVisitorCount] = useState(0); // Stato per il conteggio dei visitatori
 
 
 
@@ -1531,6 +1511,21 @@ const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
       setHasSeenWarning(true);
     }
   }, [connected, publicKey]);
+
+
+
+// Gestione WebSocket per il conteggio dei visitatori
+useEffect(() => {
+  socket.on('visitorCount', (count) => {
+    console.log('DEBUG - Received visitor count:', count);
+    setVisitorCount(count);
+  });
+
+  return () => {
+    socket.off('visitorCount');
+  };
+}, []);
+
 
 
 
@@ -1678,48 +1673,14 @@ const [timeLeft, setTimeLeft] = useState(30); // Stato per il tempo rimanente
 
 
 
-
 useEffect(() => {
-  const handleSocketConnect = () => {
-    console.log('DEBUG - Socket connected:', socket.id);
-    setPokerMessage('Connected to server');
-    // Richiedi il conteggio iniziale degli utenti attivi
-    socket.emit('requestActiveUsers');
-    // Verifica se il giocatore è in un gioco attivo
-    const gameId = localStorage.getItem('currentGameId');
-    if (gameId && publicKey) {
-      console.log('DEBUG - Emitting reconnectPlayer:', { playerAddress: publicKey.toString(), gameId });
-      socket.emit('reconnectPlayer', { playerAddress: publicKey.toString(), gameId });
-    }
-  };
-
-  const handleSocketConnectError = (err) => {
-    console.error('DEBUG - Socket connection error:', err.message);
-    setPokerMessage('Failed to connect to server. Retrying...');
-  };
-
-  const handleSocketDisconnect = () => {
-    console.log('DEBUG - Socket disconnected');
-    setPokerMessage('Disconnected from server');
-  };
-
-  const handleActiveUsers = ({ count }) => {
-    console.log('DEBUG - Active users count received:', count);
-    setActiveUsers(count);
-  };
-
-  const handleInitialActiveUsers = ({ count }) => {
-    console.log('DEBUG - Initial active users count received:', count);
-    setActiveUsers(count);
-  };
-
   const handleGameState = (game) => {
-    console.log('DEBUG - Game state received:', game);
-    console.log('DEBUG - My socket.id:', socket.id || 'undefined');
-    console.log('DEBUG - New currentTurn:', game.currentTurn);
-    console.log('DEBUG - Updated pot:', game.pot);
-    console.log('DEBUG - Updated timeLeft:', game.timeLeft);
-    console.log('DEBUG - Game phase:', game.gamePhase);
+    console.log('Game state received:', game);
+    console.log('My socket.id:', socket.id || 'undefined');
+    console.log('New currentTurn:', game.currentTurn);
+    console.log('Updated pot:', game.pot);
+    console.log('Updated timeLeft:', game.timeLeft);
+    console.log('Game phase:', game.gamePhase);
     setPokerPlayers(game.players || []);
     setPokerTableCards(game.tableCards || []);
     setPokerPlayerCards(game.playerCards || {});
@@ -1744,10 +1705,10 @@ useEffect(() => {
   };
 
   const handleDistributeWinnings = async ({ winnerAddress, amount, isRefund }) => {
-    console.log('DEBUG - Distribute winnings:', { winnerAddress, amount, isRefund });
+    console.log('Distribute winnings:', { winnerAddress, amount, isRefund });
     if (winnerAddress === publicKey?.toString()) {
       try {
-        console.log('DEBUG - Sending request to /distribute-winnings:', { winnerAddress, amount });
+        console.log('Sending request to /distribute-winnings:', { winnerAddress, amount });
         const response = await fetch(`${BACKEND_URL}/distribute-winnings`, {
           method: 'POST',
           headers: {
@@ -1756,7 +1717,7 @@ useEffect(() => {
           body: JSON.stringify({ winnerAddress, amount }),
         });
         const result = await response.json();
-        console.log('DEBUG - Response from /distribute-winnings:', result);
+        console.log('Response from /distribute-winnings:', result);
         if (response.ok && result.success) {
           setTriggerWinEffect(true);
           playSound(winAudioRef);
@@ -1770,7 +1731,7 @@ useEffect(() => {
           setPokerMessage(`You ${isRefund ? 'received a refund of' : 'won'} ${amount.toFixed(2)} COM!`);
           fetchComBalance();
         } else {
-          console.error('DEBUG - Failed to distribute winnings:', result.error || 'Unknown error');
+          console.error('Failed to distribute winnings:', result.error || 'Unknown error');
           const errorMessage = result.error || 'Unknown error';
           const transactionSignature = result.transactionSignature || 'N/A';
           setPokerMessage(
@@ -1778,7 +1739,7 @@ useEffect(() => {
           );
         }
       } catch (err) {
-        console.error('DEBUG - Error distributing winnings:', err.message, err.stack);
+        console.error('Error distributing winnings:', err.message, err.stack);
         setPokerMessage(
           `Error receiving ${amount.toFixed(2)} COM: ${err.message}. Please contact support with error details.`
         );
@@ -1789,9 +1750,9 @@ useEffect(() => {
   };
 
   const handleRefund = async ({ message, amount, isRefund }) => {
-    console.log('DEBUG - Refund received:', { message, amount, isRefund });
+    console.log('Refund received:', { message, amount, isRefund });
     setPokerMessage(message);
-
+  
     if (connected && publicKey && amount > 0) {
       try {
         const response = await fetch(`${BACKEND_URL}/refund`, {
@@ -1816,55 +1777,64 @@ useEffect(() => {
           setPokerMessage('Refund failed: Error processing refund. Contact support.');
         }
       } catch (err) {
-        console.error('DEBUG - Error processing refund:', err);
+        console.error('Error processing refund:', err);
         setPokerMessage('Refund failed: Transaction error. Contact support.');
       }
     } else {
       setPokerMessage('Refund failed: Wallet not connected or invalid amount.');
     }
-
+  
     setWaitingPlayersList(prev => prev.filter(p => p.address !== publicKey?.toString()));
   };
 
-  socket.on('connect', handleSocketConnect);
-  socket.on('connect_error', handleSocketConnectError);
-  socket.on('disconnect', handleSocketDisconnect);
-  socket.on('activeUsers', handleActiveUsers);
-  socket.on('initialActiveUsers', handleInitialActiveUsers);
+  socket.on('connect', () => {
+    console.log('Socket connected:', socket.id || 'undefined');
+    setPokerMessage('Connected to server');
+    const gameId = localStorage.getItem('currentGameId');
+    if (gameId && publicKey) {
+      console.log('Emitting reconnectPlayer:', { playerAddress: publicKey.toString(), gameId });
+      socket.emit('reconnectPlayer', { playerAddress: publicKey.toString(), gameId });
+    }
+  });
+
+  socket.on('connect_error', (err) => {
+    console.error('Socket connection error:', err.message);
+    setPokerMessage('Failed to connect to server. Retrying...');
+  });
+
   socket.on('waiting', (data) => {
-    console.log('DEBUG - Received waiting event:', data);
+    console.log('Received waiting event:', data);
     setPokerMessage(data.message);
     setWaitingPlayersList(data.players || []);
   });
+
   socket.on('waitingPlayers', (data) => {
-    console.log('DEBUG - Received waitingPlayers event:', data);
+    console.log('Received waitingPlayers event:', data);
     setWaitingPlayersList(data.players || []);
   });
+
   socket.on('refund', handleRefund);
+
   socket.on('leftWaitingList', ({ message }) => {
-    console.log('DEBUG - Left waiting list:', message);
+    console.log('Left waiting list:', message);
     setPokerMessage(message);
     setWaitingPlayersList(prev => prev.filter(p => p.address !== publicKey?.toString()));
     setBetAmount(minBet);
   });
+
   socket.on('gameState', handleGameState);
   socket.on('distributeWinnings', handleDistributeWinnings);
   socket.on('error', (data) => {
-    console.error('DEBUG - Error from server:', data);
+    console.error('Error from server:', data);
     setPokerMessage(data.message);
   });
 
-  console.log('DEBUG - Connecting socket...');
-  if (!socket.connected) {
-    socket.connect();
-  }
+  console.log('Connecting socket...');
+  socket.connect();
 
   return () => {
-    socket.off('connect', handleSocketConnect);
-    socket.off('connect_error', handleSocketConnectError);
-    socket.off('disconnect', handleSocketDisconnect);
-    socket.off('activeUsers', handleActiveUsers);
-    socket.off('initialActiveUsers', handleInitialActiveUsers);
+    socket.off('connect');
+    socket.off('connect_error');
     socket.off('waiting');
     socket.off('waitingPlayers');
     socket.off('refund', handleRefund);
@@ -1874,7 +1844,6 @@ useEffect(() => {
     socket.off('error');
   };
 }, [publicKey, minBet]);
-
 
 // Determina se è il turno del giocatore corrente
 const isMyTurn = currentTurn === socket.id;
@@ -3682,44 +3651,48 @@ const spinWheel = async (event) => {
         </div>
       )}
 
-      {/* Barra di navigazione (sempre visibile) */}
-      <div className="nav-bar w-[98%] max-w-[800px] mx-auto bg-[#1c1c1c] rounded-[45px] py-2 px-4 flex justify-between items-center mb-12">
-        {/* Lato sinistro: GIF e Play Music */}
-        <div className="flex items-center gap-3">
-          <img
-            src="/assets/C_Small.png"
-            alt="Header Animation"
-            className="object-contain"
-            style={{ height: '45px', width: 'auto' }}
-          />
-          <button
-            onClick={toggleMusic}
-            className="casino-button text-sm py-2 px-4"
-            style={{ padding: '2px 4px', fontSize: '10px', lineHeight: '1.2', minHeight: 'auto' }}
-          >
-            {isMusicPlaying ? 'Mute Music' : 'Play Music'}
-          </button>
-        </div>
-        {/* Lato destro: Connect Wallet */}
-        <WalletMultiButton
-          className="text-[8px] py-0.5 px-2 rounded-full"
-          style={{
-            padding: '1px 4px',
-            fontSize: '10px',
-            lineHeight: '1.2',
-            minHeight: 'auto',
-            height: '25px',
-            background: '#6B21A8',
-            color: '#FFFFFF',
-            border: '15px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginRight: '10px',
-            zIndex: 1000,
-          }}
-        />
-      </div>
+
+<div className="nav-bar w-[98%] max-w-[800px] mx-auto bg-[#1c1c1c] rounded-[45px] py-2 px-4 flex justify-between items-center mb-12">
+  <div className="flex items-center gap-3">
+    <img
+      src="/assets/C_Small.png"
+      alt="Header Animation"
+      className="object-contain"
+      style={{ height: '45px', width: 'auto' }}
+    />
+    <button
+      onClick={toggleMusic}
+      className="casino-button text-sm py-2 px-4"
+      style={{ padding: '2px 4px', fontSize: '10px', lineHeight: '1.2', minHeight: 'auto' }}
+    >
+      {isMusicPlaying ? 'Mute Music' : 'Play Music'}
+    </button>
+    <div
+      className="visitor-count bg-gray-700 text-orange-700 rounded-full py-1 px-3 flex items-center"
+      style={{ fontSize: '12px', lineHeight: '1.2' }}
+    >
+      <span className="mr-1">👥</span> {visitorCount} Live
+    </div>
+  </div>
+  <WalletMultiButton
+    className="text-[8px] py-0.5 px-2 rounded-full"
+    style={{
+      padding: '1px 4px',
+      fontSize: '10px',
+      lineHeight: '1.2',
+      minHeight: 'auto',
+      height: '25px',
+      background: '#6B21A8',
+      color: '#FFFFFF',
+      border: '15px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: '10px',
+      zIndex: 1000,
+    }}
+  />
+</div>
 
 
   {/* Spacer */}
@@ -4794,22 +4767,3 @@ const spinWheel = async (event) => {
 };
 
 export default RewardsDashboard;
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- 

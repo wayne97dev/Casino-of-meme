@@ -854,6 +854,26 @@ table {
   margin-top: 10px; /* Riduce lo spazio sopra la barra, portandola più in alto */
 }
 
+
+.visitor-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff8c00, #ff4500); /* Gradiente arancione */
+  color: #fff;
+  font-weight: bold;
+  border: 1px solid #d4af37; /* Bordo dorato */
+  border-radius: 12px;
+  padding: 4px 8px;
+  font-size: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.visitor-count:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 8px rgba(255, 140, 0, 0.5);
+}
+
 /* Spacer */
 .spacer {
   height: 1rem; /* 64px su desktop */
