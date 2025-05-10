@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
@@ -56,7 +58,7 @@ const socket = io(BACKEND_URL, {
 
 // Percentuale di vittoria del computer per ogni minigioco
 const COMPUTER_WIN_CHANCE = {
-  cardDuel: 0.92,
+  cardDuel: 0.97,
   memeSlots: 0.92,
   coinFlip: 0.6,
   crazyTime: 0.95,
@@ -244,34 +246,31 @@ const Croupier = ({ position, currentAnimation = 'Idle' }) => {
   );
 };
 
-// Componente per la slot machine
+
+
 const SlotMachine = ({ position, gameName, onClick }) => {
   const group = useRef();
-  const fbx = useFBX('/models/slot-machine.fbx');
-  const { actions, names } = useAnimations(fbx.animations, group);
+  const { scene, animations } = useGLTF('/models/slot-machine.glb'); // Sostituisci con il percorso del tuo file GLB
+  const { actions, names } = useAnimations(animations, group);
   const [hovered, setHovered] = useState(false);
 
-  const slotBaseColorTexture = useLoader(THREE.TextureLoader, '/models/textures/TX_Slot_Machine_1_1_Base_color.png');
-  const slotNormalTexture = useLoader(THREE.TextureLoader, '/models/textures/TX_Slot_Machine_1_1_Normal.png');
-
   useEffect(() => {
-    fbx.traverse((child) => {
+    scene.traverse((child) => {
       if (child.isMesh) {
-        child.material = new THREE.MeshStandardMaterial({
-          map: slotBaseColorTexture,
-          normalMap: slotNormalTexture,
-          side: THREE.DoubleSide,
-          roughness: 0.5,
-          metalness: 0.5,
-          emissive: hovered ? new THREE.Color(0xff0000) : new THREE.Color(0x000000),
-          emissiveIntensity: hovered ? 0.5 : 0,
-        });
+        // Clona il materiale esistente per evitare modifiche condivise
+        child.material = child.material.clone();
+        // Applica proprietà aggiuntive per l'effetto hover
+        child.material.side = THREE.DoubleSide;
+        child.material.roughness = 0.5;
+        child.material.metalness = 0.5;
+        child.material.emissive = hovered ? new THREE.Color(0xff0000) : new THREE.Color(0x000000);
+        child.material.emissiveIntensity = hovered ? 0.5 : 0;
         child.material.needsUpdate = true;
         child.castShadow = true;
         child.receiveShadow = true;
       }
     });
-  }, [fbx, slotBaseColorTexture, slotNormalTexture, hovered]);
+  }, [scene, hovered]);
 
   useEffect(() => {
     if (actions && Object.keys(actions).length > 0) {
@@ -295,19 +294,21 @@ const SlotMachine = ({ position, gameName, onClick }) => {
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
     >
-      <primitive object={fbx} scale={[0.04, 0.04, 0.04]} />
+      <primitive object={scene} scale={[3.5, 3.5, 3.5]} />
       <Text
-        position={[0, 1, 3]}
+        position={[0, 1.5, 3]}
         fontSize={1.3}
-        color={hovered ? "yellow" : "red"}
-        anchorX="center"
-        anchorY="middle"
+        color={hovered ? 'yellow' : 'red'}
+        anchorX='center'
+        anchorY='middle'
       >
         {gameName}
       </Text>
     </group>
   );
 };
+
+
 
 // Componente per la carta da poker
 const PokerCard = ({ position, gameName, onClick }) => {
@@ -356,31 +357,31 @@ const PokerCard = ({ position, gameName, onClick }) => {
 };
 
 // Componente per la ruota di Crazy Time
+
+
 const CrazyTimeWheel = ({ position, gameName, onClick }) => {
   const group = useRef();
-  const fbx = useFBX('/models/crazytime-wheel.fbx');
-  const { actions, names } = useAnimations(fbx.animations, group);
+  const { scene, animations } = useGLTF('/models/crazytime-wheel.glb'); // Sostituisci con il percorso del tuo file GLB
+  const { actions, names } = useAnimations(animations, group);
   const [hovered, setHovered] = useState(false);
 
-  const wheelTexture = useLoader(THREE.TextureLoader, '/models/textures/crazytime-wheel-texture.jpg');
-
   useEffect(() => {
-    fbx.traverse((child) => {
+    scene.traverse((child) => {
       if (child.isMesh) {
-        child.material = new THREE.MeshStandardMaterial({
-          map: wheelTexture,
-          side: THREE.DoubleSide,
-          roughness: 0.7,
-          metalness: 0.1,
-          emissive: hovered ? new THREE.Color(0x00ffff) : new THREE.Color(0x000000),
-          emissiveIntensity: hovered ? 0.5 : 0,
-        });
+        // Clona il materiale esistente per evitare modifiche condivise
+        child.material = child.material.clone();
+        // Applica proprietà aggiuntive per l'effetto hover
+        child.material.side = THREE.DoubleSide;
+        child.material.roughness = 0.7;
+        child.material.metalness = 0.1;
+        child.material.emissive = hovered ? new THREE.Color(0x00ffff) : new THREE.Color(0x000000);
+        child.material.emissiveIntensity = hovered ? 0.5 : 0;
         child.material.needsUpdate = true;
         child.castShadow = true;
         child.receiveShadow = true;
       }
     });
-  }, [fbx, wheelTexture, hovered]);
+  }, [scene, hovered]);
 
   useEffect(() => {
     if (actions && Object.keys(actions).length > 0) {
@@ -404,11 +405,11 @@ const CrazyTimeWheel = ({ position, gameName, onClick }) => {
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
     >
-      <primitive object={fbx} scale={[0.05, 0.05, 0.05]} />
+      <primitive object={scene} scale={[2.5, 2.5, 2.5]} />
       <Text
         position={[0, 1, 1]}
         fontSize={1.3}
-        color={hovered ? "yellow" : "red"}
+        color={hovered ? 'yellow' : 'red'}
         anchorX="center"
         anchorY="middle"
       >
@@ -419,6 +420,8 @@ const CrazyTimeWheel = ({ position, gameName, onClick }) => {
 };
 
 
+
+
 // Componente per il Coin Flip
 const CoinFlip = ({ position, gameName, onClick }) => {
   const group = useRef();
@@ -426,7 +429,7 @@ const CoinFlip = ({ position, gameName, onClick }) => {
   const { actions, names } = useAnimations(fbx.animations, group);
   const [hovered, setHovered] = useState(false);
 
-  const coinTexture = useLoader(THREE.TextureLoader, '/models/textures/coinflip-texture.jpg');
+  const coinTexture = useLoader(THREE.TextureLoader, '/models/textures/coinfliptexture.jpg');
 
   useEffect(() => {
     fbx.traverse((child) => {
@@ -512,29 +515,27 @@ const CasinoTable = ({ position }) => {
 };
 
 // Componente per il tavolo centrale (Poker PvP)
+
 const BlackjackTable = ({ position, onSelectGame }) => {
   const group = useRef();
-  const fbx = useFBX('/models/blackjack-table.fbx');
-  const tableDiffuseTexture = useLoader(THREE.TextureLoader, '/models/textures/blackjack-table-diffuse.jpg');
+  const { scene } = useGLTF('/models/tavolo_poker.glb'); // Carica il file GLB
   const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
-    fbx.traverse((child) => {
+    scene.traverse((child) => {
       if (child.isMesh) {
-        child.material = new THREE.MeshStandardMaterial({
-          map: tableDiffuseTexture,
-          side: THREE.DoubleSide,
-          roughness: 0.6,
-          metalness: 0.3,
-          emissive: hovered ? new THREE.Color(0xff00ff) : new THREE.Color(0x000000),
-          emissiveIntensity: hovered ? 0.5 : 0,
-        });
+        // Mantieni la texture incorporata nel GLB, modifica solo emissive per l'effetto hover
+        child.material = child.material.clone(); // Clona il materiale per evitare modifiche condivise
+        child.material.emissive = hovered ? new THREE.Color(0xff00ff) : new THREE.Color(0x000000);
+        child.material.emissiveIntensity = hovered ? 0.5 : 0;
         child.material.needsUpdate = true;
         child.castShadow = true;
         child.receiveShadow = true;
       }
     });
-  }, [fbx, tableDiffuseTexture, hovered]);
+  }, [scene, hovered]);
+
+
 
   return (
     <group
@@ -544,7 +545,7 @@ const BlackjackTable = ({ position, onSelectGame }) => {
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
     >
-      <primitive object={fbx} scale={[0.04, 0.04, 0.04]} />
+      <primitive object={scene} scale={[0.35, 0.35, 0.35]} />
       <Text
         position={[0, 5, 0]}
         fontSize={1.3}
@@ -557,6 +558,11 @@ const BlackjackTable = ({ position, onSelectGame }) => {
     </group>
   );
 };
+
+
+
+
+
 
 
 // Componente per il tappeto rosso con barriere
@@ -605,18 +611,17 @@ const RedCarpetModule = ({ position }) => {
 
 const CasinoSignWithBulb = ({ position }) => {
   const group = useRef();
-  const fbx = useFBX('/models/casino-sign-with-bulb.fbx'); // Percorso del file FBX
+  const fbx = useFBX('/models/casino-sign-with-bulb.fbx');
 
   useEffect(() => {
     fbx.traverse((child) => {
       if (child.isMesh) {
-        // Materiale personalizzato per simulare un’insegna con lampadine
         child.material = new THREE.MeshStandardMaterial({
-          color: '##ffd700', // Colore base scuro per l’insegna (blu notte)
-          emissive: '##ffd700', // Arancione neon per simulare le lampadine
-          emissiveIntensity: 0.6, // Intensità della luce emessa
-          roughness: 0.4, // Per un aspetto leggermente lucido
-          metalness: 0.7, // Per un tocco metallico
+          color: '#ffd700', // Corretto da ##ffd700
+          emissive: '#ffd700', // Corretto da ##ffd700
+          emissiveIntensity: 0.6,
+          roughness: 0.4,
+          metalness: 0.7,
         });
         child.material.needsUpdate = true;
         child.castShadow = true;
@@ -627,11 +632,10 @@ const CasinoSignWithBulb = ({ position }) => {
 
   return (
     <group ref={group} position={position}>
-      <primitive object={fbx} scale={[0.035, 0.035, 0.035]} /> {/* Scala regolabile */}
-      {/* Luci per simulare le lampadine */}
-      <pointLight color="#ffff00" intensity={3} distance={15} position={[0, 1, 0.5]} />
-      <pointLight color="##ffff00" intensity={2} distance={10} position={[-2, 0, 0.5]} />
-      <pointLight color="##ffff00" intensity={2} distance={10} position={[2, 0, 0.5]} />
+      <primitive object={fbx} scale={[0.035, 0.035, 0.035]} />
+      <pointLight color="#ffd700" intensity={3} distance={15} position={[0, 1, 0.5]} /> {/* Corretto */}
+      <pointLight color="#ffd700" intensity={2} distance={10} position={[-2, 0, 0.5]} /> {/* Corretto */}
+      <pointLight color="#ffd700" intensity={2} distance={10} position={[2, 0, 0.5]} /> {/* Corretto */}
     </group>
   );
 };
@@ -810,10 +814,9 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   // Aggiorna il renderer quando cambia la dimensione del canvas
   useEffect(() => {
     const handleResize = debounce(() => {
-      // Controllo per containerRef.current
       if (!isFullscreen && (!containerRef.current || !containerRef.current.clientWidth)) {
         console.warn('DEBUG - containerRef.current non disponibile per il calcolo delle dimensioni');
-        return; // Esci dalla funzione se l'elemento non è disponibile
+        return;
       }
   
       const width = isFullscreen ? window.innerWidth : containerRef.current.clientWidth;
@@ -825,15 +828,18 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       invalidate();
     }, 100);
   
-    window.addEventListener('resize', handleResize);
-    document.addEventListener('fullscreenchange', handleResize);
-    handleResize(); // Esegui subito al montaggio
+    // Esegui il resize solo dopo che containerRef è pronto
+    if (containerRef.current) {
+      handleResize();
+      window.addEventListener('resize', handleResize);
+      document.addEventListener('fullscreenchange', handleResize);
+    }
   
     return () => {
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('fullscreenchange', handleResize);
     };
-  }, [isMobile, isFullscreen, camera, gl, invalidate]);
+  }, [isMobile, isFullscreen, camera, gl, invalidate, containerRef.current]);
 
   // Parte del pavimento invariata
   const brickTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
@@ -896,47 +902,50 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   useEffect(() => {
     let touchStartTime = 0;
     let touchMoved = false;
-  
-    const handleClick = (event) => {
-      event.preventDefault();
-      console.log('DEBUG - Canvas clicked', Date.now(), 'Event type:', event.type, 'Coordinates:', {
-        clientX: event.clientX,
-        clientY: event.clientY,
-      });
-  
-      const rect = gl.domElement.getBoundingClientRect();
-      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      console.log('DEBUG - Normalized mouse coordinates:', {
-        x: mouseRef.current.x,
-        y: mouseRef.current.y,
-        rect
-      });
-  
-      raycasterRef.current.setFromCamera(mouseRef.current, camera);
-      const intersects = raycasterRef.current.intersectObjects(
-        interactiveObjects.current.flatMap(obj => obj.meshes),
-        true
-      );
-      console.log('DEBUG - Click raycast intersects:', intersects.length, intersects.map(i => i.object.name));
-  
-      if (intersects.length > 0) {
-        const intersectedObject = intersects[0].object;
-        const target = interactiveObjects.current.find(obj =>
-          obj.meshes.includes(intersectedObject)
+      const handleClick = (event) => {
+        // Rimuovi event.preventDefault() se non strettamente necessario
+        console.log('DEBUG - Canvas clicked', Date.now(), 'Event type:', event.type, 'Coordinates:', {
+          clientX: event.clientX,
+          clientY: event.clientY,
+        });
+    
+        const rect = gl.domElement.getBoundingClientRect();
+        mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        console.log('DEBUG - Normalized mouse coordinates:', {
+          x: mouseRef.current.x,
+          y: mouseRef.current.y,
+          rect
+        });
+    
+        raycasterRef.current.setFromCamera(mouseRef.current, camera);
+        const intersects = raycasterRef.current.intersectObjects(
+          interactiveObjects.current.flatMap(obj => obj.meshes),
+          true
         );
-        if (target) {
-          console.log('DEBUG - Click intersected object:', target.game, Date.now());
-          handleSelectGame(target.game);
-          if (!isMobile && orbitControlsRef.current) {
-            orbitControlsRef.current.enabled = false;
-            setTimeout(() => {
-              orbitControlsRef.current.enabled = true;
-            }, 100);
+        console.log('DEBUG - Click raycast intersects:', intersects.length, intersects.map(i => i.object.name));
+    
+        if (intersects.length > 0) {
+          const intersectedObject = intersects[0].object;
+          const target = interactiveObjects.current.find(obj =>
+            obj.meshes.includes(intersectedObject)
+          );
+          if (target) {
+            console.log('DEBUG - Click intersected object:', target.game, Date.now());
+            handleSelectGame(target.game);
+            if (!isMobile && orbitControlsRef.current) {
+              orbitControlsRef.current.enabled = false;
+              setTimeout(() => {
+                orbitControlsRef.current.enabled = true;
+              }, 100);
+            }
           }
         }
-      }
-    };
+      };
+    
+      // Configura come non passivo se preventDefault è necessario
+      gl.domElement.addEventListener('click', handleClick, { passive: false });
+
   
     const handleTouchStart = (event) => {
       console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length, 'Target:', event.target.tagName);
@@ -1035,17 +1044,26 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
 
   useEffect(() => {
     console.log('DEBUG - Registering interactive objects');
-    registerInteractiveObject(pokerCardRef, 'Solana Card Duel');
-    registerInteractiveObject(slotMachineRef, 'Meme Slots');
-    registerInteractiveObject(coinFlipRef, 'Coin Flip');
-    registerInteractiveObject(crazyTimeWheelRef, 'Crazy Wheel');
-    registerInteractiveObject(blackjackTableRef, 'Poker PvP');
+    const registerIfReady = (ref, game) => {
+      if (ref.current) {
+        registerInteractiveObject(ref, game);
+      } else {
+        console.warn(`DEBUG - Ref for ${game} not ready yet`);
+      }
+    };
+  
+    registerIfReady(pokerCardRef, 'Solana Card Duel');
+    registerIfReady(slotMachineRef, 'Meme Slots');
+    registerIfReady(coinFlipRef, 'Coin Flip');
+    registerIfReady(crazyTimeWheelRef, 'Crazy Wheel');
+    registerIfReady(blackjackTableRef, 'Poker PvP');
+  
     console.log('DEBUG - Interactive objects registered:', interactiveObjects.current.map(obj => ({
       game: obj.game,
       meshCount: obj.meshes.length,
       meshNames: obj.meshes.map(m => m.name)
     })));
-  }, []);
+  }, [pokerCardRef.current, slotMachineRef.current, coinFlipRef.current, crazyTimeWheelRef.current, blackjackTableRef.current]);
 
   return (
     <>
@@ -1115,7 +1133,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       />
       <CrazyTimeWheel
         ref={crazyTimeWheelRef}
-        position={[2, -1, -16]}
+        position={[2, -1, -15]}
         gameName="Crazy Wheel"
         onClick={() => {
           console.log('DEBUG - CrazyTimeWheel clicked (Crazy Wheel)', Date.now());
@@ -1445,7 +1463,7 @@ const RewardsDashboard = () => {
 const [lastBets, setLastBets] = useState(null); // Ultima combinazione di scommesse valida
 const [hasSeenWarning, setHasSeenWarning] = useState(false); // Stato per tracciare se l'utente ha visto l'avviso
 const [showLeaderboard, setShowLeaderboard] = useState(false);
-
+const [visitorCount, setVisitorCount] = useState(0); // Stato per il conteggio dei visitatori
 
 
 
@@ -1509,6 +1527,21 @@ const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
       setHasSeenWarning(true);
     }
   }, [connected, publicKey]);
+
+
+
+// Gestione WebSocket per il conteggio dei visitatori
+useEffect(() => {
+  socket.on('visitorCount', (count) => {
+    console.log('DEBUG - Received visitor count:', count);
+    setVisitorCount(count);
+  });
+
+  return () => {
+    socket.off('visitorCount');
+  };
+}, []);
+
 
 
 
@@ -1647,7 +1680,6 @@ const [waitingPlayersList, setWaitingPlayersList] = useState([]); // Lista dei g
 const [dealerMessage, setDealerMessage] = useState(''); // Messaggi del dealer
 const [raiseAmount, setRaiseAmount] = useState(0.01); // Stato per l'importo del raise
 const [timeLeft, setTimeLeft] = useState(30); // Stato per il tempo rimanente
-
 
 
 
@@ -3635,44 +3667,48 @@ const spinWheel = async (event) => {
         </div>
       )}
 
-      {/* Barra di navigazione (sempre visibile) */}
-      <div className="nav-bar w-[98%] max-w-[800px] mx-auto bg-[#1c1c1c] rounded-[45px] py-2 px-4 flex justify-between items-center mb-12">
-        {/* Lato sinistro: GIF e Play Music */}
-        <div className="flex items-center gap-3">
-          <img
-            src="/assets/C_Small.png"
-            alt="Header Animation"
-            className="object-contain"
-            style={{ height: '45px', width: 'auto' }}
-          />
-          <button
-            onClick={toggleMusic}
-            className="casino-button text-sm py-2 px-4"
-            style={{ padding: '2px 4px', fontSize: '10px', lineHeight: '1.2', minHeight: 'auto' }}
-          >
-            {isMusicPlaying ? 'Mute Music' : 'Play Music'}
-          </button>
-        </div>
-        {/* Lato destro: Connect Wallet */}
-        <WalletMultiButton
-          className="text-[8px] py-0.5 px-2 rounded-full"
-          style={{
-            padding: '1px 4px',
-            fontSize: '10px',
-            lineHeight: '1.2',
-            minHeight: 'auto',
-            height: '25px',
-            background: '#6B21A8',
-            color: '#FFFFFF',
-            border: '15px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginRight: '10px',
-            zIndex: 1000,
-          }}
-        />
-      </div>
+
+<div className="nav-bar w-[98%] max-w-[800px] mx-auto bg-[#1c1c1c] rounded-[45px] py-2 px-4 flex justify-between items-center mb-12">
+  <div className="flex items-center gap-3">
+    <img
+      src="/assets/C_Small.png"
+      alt="Header Animation"
+      className="object-contain"
+      style={{ height: '45px', width: 'auto' }}
+    />
+    <button
+      onClick={toggleMusic}
+      className="casino-button text-sm py-2 px-4"
+      style={{ padding: '2px 4px', fontSize: '10px', lineHeight: '1.2', minHeight: 'auto' }}
+    >
+      {isMusicPlaying ? 'Mute Music' : 'Play Music'}
+    </button>
+    <div
+      className="visitor-count bg-gray-700 text-orange-700 rounded-full py-1 px-3 flex items-center"
+      style={{ fontSize: '12px', lineHeight: '1.2' }}
+    >
+      <span className="mr-1">👥</span> {visitorCount} Live
+    </div>
+  </div>
+  <WalletMultiButton
+    className="text-[8px] py-0.5 px-2 rounded-full"
+    style={{
+      padding: '1px 4px',
+      fontSize: '10px',
+      lineHeight: '1.2',
+      minHeight: 'auto',
+      height: '25px',
+      background: '#6B21A8',
+      color: '#FFFFFF',
+      border: '15px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: '10px',
+      zIndex: 1000,
+    }}
+  />
+</div>
 
 
   {/* Spacer */}
@@ -4747,22 +4783,3 @@ const spinWheel = async (event) => {
 };
 
 export default RewardsDashboard;
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- 
