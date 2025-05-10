@@ -429,7 +429,7 @@ const CoinFlip = ({ position, gameName, onClick }) => {
   const { actions, names } = useAnimations(fbx.animations, group);
   const [hovered, setHovered] = useState(false);
 
-  const coinTexture = useLoader(THREE.TextureLoader, '/models/textures/coinfliptexture.jpg');
+  const coinTexture = useLoader(THREE.TextureLoader, '/models/textures/coinflip-texture.jpg');
 
   useEffect(() => {
     fbx.traverse((child) => {
