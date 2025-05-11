@@ -1198,8 +1198,6 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
   const [croupierAnimation, setCroupierAnimation] = useState('Idle');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  // Inizializza is3DView a false su mobile, true su desktop
-  const [is3DView, setIs3DView] = useState(!isMobile);
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -1207,9 +1205,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     const handleResize = () => {
       const newIsMobile = window.innerWidth < 768;
       setIsMobile(newIsMobile);
-      // Aggiorna is3DView in base al dispositivo
-      setIs3DView(!newIsMobile);
-      console.log('Window resized, isMobile:', newIsMobile, 'is3DView:', !newIsMobile);
+      console.log('Window resized, isMobile:', newIsMobile);
       if (canvasRef.current && !isFullscreen) {
         canvasRef.current.style.width = '100%';
         canvasRef.current.style.height = newIsMobile ? '50vh' : '70vh';
@@ -1240,7 +1236,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
       }
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.addEventListener('fullscreenchange', handleFullscreenChange);
   }, [isMobile]);
 
   const enterFullscreen = () => {
@@ -1304,14 +1300,44 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     }
   };
 
-  const toggleView = () => {
-    setIs3DView(!is3DView);
-    console.log('DEBUG - Toggled view:', is3DView ? 'Game List' : '3D View');
-  };
-
   return (
     <div ref={containerRef} className="relative w-full casino-scene-container">
-      {is3DView ? (
+      {isMobile ? (
+        // Mostra solo la lista dei giochi su mobile
+        <div className="game-buttons-container flex flex-col gap-4 items-center justify-center h-full">
+          <button
+            onClick={() => onSelectGame('Solana Card Duel')}
+            className="casino-button w-48"
+          >
+            Blackjack
+          </button>
+          <button
+            onClick={() => onSelectGame('Meme Slots')}
+            className="casino-button w-48"
+          >
+            Meme Slots
+          </button>
+          <button
+            onClick={() => onSelectGame('Coin Flip')}
+            className="casino-button w-48"
+          >
+            Coin Flip
+          </button>
+          <button
+            onClick={() => onSelectGame('Crazy Wheel')}
+            className="casino-button w-48"
+          >
+            Crazy Wheel
+          </button>
+          <button
+            onClick={() => onSelectGame('Poker PvP')}
+            className="casino-button w-48"
+          >
+            Poker PvP
+          </button>
+        </div>
+      ) : (
+        // Mostra la scena 3D su desktop con opzione di fullscreen
         <>
           <Canvas
             ref={canvasRef}
@@ -1348,84 +1374,27 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
               isFullscreen={isFullscreen}
             />
           </Canvas>
-          {isMobile && (
-            <div className="flex justify-center mt-4">
+          <div className="fullscreen-button-container z-[1001]">
+            {isFullscreen ? (
               <button
-                onClick={toggleView}
+                onClick={exitFullscreen}
                 className="casino-button text-sm py-2 px-4"
                 style={{ pointerEvents: 'auto', zIndex: 1002 }}
               >
-                Back to Game List
+                Exit Fullscreen
               </button>
-            </div>
-          )}
+            ) : (
+              <button
+                onClick={enterFullscreen}
+                className="casino-button text-sm py-2 px-4 animate-pulse-slow"
+                style={{ pointerEvents: 'auto', zIndex: 1002 }}
+              >
+                Fullscreen
+              </button>
+            )}
+          </div>
         </>
-      ) : (
-        <div className="game-buttons-container flex flex-col gap-4 items-center justify-center h-full">
-          <button
-            onClick={() => onSelectGame('Solana Card Duel')}
-            className="casino-button w-48"
-          >
-            Blackjack
-          </button>
-          <button
-            onClick={() => onSelectGame('Meme Slots')}
-            className="casino-button w-48"
-          >
-            Meme Slots
-          </button>
-          <button
-            onClick={() => onSelectGame('Coin Flip')}
-            className="casino-button w-48"
-          >
-            Coin Flip
-          </button>
-          <button
-            onClick={() => onSelectGame('Crazy Wheel')}
-            className="casino-button w-48"
-          >
-            Crazy Wheel
-          </button>
-          <button
-            onClick={() => onSelectGame('Poker PvP')}
-            className="casino-button w-48"
-          >
-            Poker PvP
-          </button>
-          {isMobile && (
-            <div className="flex justify-center mt-4">
-              <button
-                onClick={toggleView}
-                className="casino-button text-sm py-2 px-4"
-                style={{ pointerEvents: 'auto', zIndex: 1002 }}
-              >
-                Switch to 3D View
-              </button>
-            </div>
-          )}
-        </div>
       )}
-      <div className="fullscreen-button-container z-[1001]">
-        {isFullscreen ? (
-          <button
-            onClick={exitFullscreen}
-            className="casino-button text-sm py-2 px-4"
-            style={{ pointerEvents: 'auto', zIndex: 1002 }}
-          >
-            Exit Fullscreen
-          </button>
-        ) : (
-          !isMobile && (
-            <button
-              onClick={enterFullscreen}
-              className="casino-button text-sm py-2 px-4 animate-pulse-slow"
-              style={{ pointerEvents: 'auto', zIndex: 1002 }}
-            >
-              Fullscreen
-            </button>
-          )
-        )}
-      </div>
     </div>
   );
 };
