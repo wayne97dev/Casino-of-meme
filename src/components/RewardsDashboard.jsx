@@ -947,79 +947,79 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       gl.domElement.addEventListener('click', handleClick, { passive: false });
 
   
-    const handleTouchStart = (event) => {
-      console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length, 'Target:', event.target.tagName);
-      touchStartTime = Date.now();
-      touchMoved = false;
-  
-      if (event.touches.length === 1) {
-        const touch = event.touches[0];
-        const rect = gl.domElement.getBoundingClientRect();
-        mouseRef.current.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
-        mouseRef.current.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
-        console.log('DEBUG - Normalized touch coordinates:', {
-          x: mouseRef.current.x,
-          y: mouseRef.current.y,
-          clientX: touch.clientX,
-          clientY: touch.clientY,
-          rect
-        });
-      } else if (event.touches.length === 2) {
-        console.log('DEBUG - Pinch-to-zoom detected', Date.now());
-        if (orbitControlsRef.current) {
-          orbitControlsRef.current.enabled = true;
-        }
-      }
-    };
-  
-    const handleTouchMove = (event) => {
-      touchMoved = true;
-      // Non chiamare preventDefault per consentire lo scroll
-      console.log('DEBUG - Touch move detected, allowing scroll', Date.now());
-    };
-  
-    const handleTouchEnd = (event) => {
-      console.log('DEBUG - Canvas touch ended', Date.now());
-      const touchDuration = Date.now() - touchStartTime;
-  
-      if (event.changedTouches.length === 1 && !touchMoved && touchDuration < 300) {
-        console.log('DEBUG - Short single touch, performing raycast', Date.now());
-        raycasterRef.current.setFromCamera(mouseRef.current, camera);
-        const intersects = raycasterRef.current.intersectObjects(
-          interactiveObjects.current.flatMap(obj => obj.meshes),
-          true
-        );
-        console.log('DEBUG - Touch raycast intersects:', intersects.length, intersects.map(i => i.object.name));
-  
-        if (intersects.length > 0) {
-          const intersectedObject = intersects[0].object;
-          const target = interactiveObjects.current.find(obj =>
-            obj.meshes.includes(intersectedObject)
-          );
-          if (target) {
-            console.log('DEBUG - Touch intersected object:', target.game, Date.now());
-            handleSelectGame(target.game);
+
+      
+        const handleTouchStart = (event) => {
+          // Previeni il refresh su swipe verso l'alto/basso se necessario
+          if (event.touches.length === 1) {
+            const touchY = event.touches[0].clientY;
+            // Se il tocco inizia vicino al bordo superiore o inferiore, consenti il comportamento nativo
+            if (touchY < 50 || touchY > window.innerHeight - 50) {
+              return;
+            }
+            // Altrimenti, previeni il comportamento di default
+            event.preventDefault();
           }
-        }
-      }
-  
-      if (orbitControlsRef.current) {
-        orbitControlsRef.current.enabled = true;
-      }
-    };
-  
-    gl.domElement.addEventListener('click', handleClick, { passive: true });
-    gl.domElement.addEventListener('touchstart', handleTouchStart, { passive: true });
-    gl.domElement.addEventListener('touchmove', handleTouchMove, { passive: true });
-    gl.domElement.addEventListener('touchend', handleTouchEnd, { passive: true });
-  
-    return () => {
-      gl.domElement.removeEventListener('click', handleClick);
-      gl.domElement.removeEventListener('touchstart', handleTouchStart);
-      gl.domElement.removeEventListener('touchmove', handleTouchMove);
-      gl.domElement.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [gl, camera, handleSelectGame, isMobile]);
+          console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length);
+          touchStartTime = Date.now();
+          touchMoved = false;
+          if (event.touches.length === 1) {
+            const touch = event.touches[0];
+            const rect = gl.domElement.getBoundingClientRect();
+            mouseRef.current.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+            mouseRef.current.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+          } else if (event.touches.length === 2) {
+            console.log('DEBUG - Pinch-to-zoom detected', Date.now());
+            if (orbitControlsRef.current) {
+              orbitControlsRef.current.enabled = true;
+            }
+          }
+        };
+      
+        const handleTouchMove = (event) => {
+          touchMoved = true;
+          // Consenti lo scroll nativo solo se il tocco non è su un oggetto interattivo
+          console.log('DEBUG - Touch move detected', Date.now());
+        };
+      
+        const handleTouchEnd = (event) => {
+          console.log('DEBUG - Canvas touch ended', Date.now());
+          const touchDuration = Date.now() - touchStartTime;
+          if (event.changedTouches.length === 1 && !touchMoved && touchDuration < 300) {
+            raycasterRef.current.setFromCamera(mouseRef.current, camera);
+            const intersects = raycasterRef.current.intersectObjects(
+              interactiveObjects.current.flatMap(obj => obj.meshes),
+              true
+            );
+            if (intersects.length > 0) {
+              const intersectedObject = intersects[0].object;
+              const target = interactiveObjects.current.find(obj =>
+                obj.meshes.includes(intersectedObject)
+              );
+              if (target) {
+                console.log('DEBUG - Touch intersected object:', target.game, Date.now());
+                handleSelectGame(target.game);
+              }
+            }
+          }
+          if (orbitControlsRef.current) {
+            orbitControlsRef.current.enabled = true;
+          }
+        };
+      
+        // Usa passive: false per consentire event.preventDefault()
+        gl.domElement.addEventListener('click', handleClick, { passive: false });
+        gl.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+        gl.domElement.addEventListener('touchmove', handleTouchMove, { passive: true });
+        gl.domElement.addEventListener('touchend', handleTouchEnd, { passive: false });
+      
+        return () => {
+          gl.domElement.removeEventListener('click', handleClick);
+          gl.domElement.removeEventListener('touchstart', handleTouchStart);
+          gl.domElement.removeEventListener('touchmove', handleTouchMove);
+          gl.domElement.removeEventListener('touchend', handleTouchEnd);
+        };
+      }, [gl, camera, handleSelectGame, isMobile]);
 
 
   useEffect(() => {
