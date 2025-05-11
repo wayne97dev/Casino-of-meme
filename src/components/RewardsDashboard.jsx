@@ -1005,7 +1005,11 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         event.preventDefault(); // Previeni scroll/zoom indesiderati
         const touchY = event.touches[0].clientY;
         if (touchY < 50 || touchY > window.innerHeight - 50) {
+          console.log('DEBUG - Touch near screen edge, allowing native behavior');
           return; // Consenti comportamento nativo ai bordi
+        }
+        if (orbitControlsRef.current) {
+          orbitControlsRef.current.enabled = false; // Disabilita OrbitControls durante il tocco
         }
       }
       console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length, 'Target:', event.target.tagName);
@@ -1059,12 +1063,6 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           if (targetGame) {
             console.log('DEBUG - Touch intersected object:', targetGame, Date.now());
             handleSelectGame(targetGame);
-            if (orbitControlsRef.current) {
-              orbitControlsRef.current.enabled = false;
-              setTimeout(() => {
-                orbitControlsRef.current.enabled = true;
-              }, 100);
-            }
           } else {
             console.warn('DEBUG - No game associated with intersected object:', intersectedObject.name);
           }
@@ -1074,7 +1072,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       }
 
       if (orbitControlsRef.current) {
-        orbitControlsRef.current.enabled = true;
+        orbitControlsRef.current.enabled = true; // Riattiva OrbitControls dopo il tocco
       }
     };
 
@@ -1113,7 +1111,6 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         position={[10, 10, 5]}
         intensity={isMobile ? 0.8 : 1.5}
         castShadow={false}
-        shadow-mapSize={[isMobile ? 512 : 1024, isMobile ? 512 : 1024]}
       />
       <pointLight
         position={[0, 5, 0]}
@@ -1148,30 +1145,25 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         ref={pokerCardRef}
         position={[-17, 2.5, -15]}
         gameName="BlackJack"
-        // Rimossa la proprietà onClick per affidarsi al raycasting
       />
       <SlotMachine
         ref={slotMachineRef}
         position={[18, -1, -15]}
         gameName="Meme Slots"
-        // Rimossa la proprietà onClick
       />
       <CoinFlip
         ref={coinFlipRef}
         position={[-12.5, 2.5, -15]}
         gameName="Coin Flip"
-        // Rimossa la proprietà onClick
       />
       <CrazyTimeWheel
         ref={crazyTimeWheelRef}
         position={[2, -1, -15]}
         gameName="Crazy Wheel"
-        // Rimossa la proprietà onClick
       />
       <BlackjackTable
         ref={blackjackTableRef}
         position={[0, -1, 3]}
-        // Rimossa la proprietà onSelectGame
       />
 
       <CasinoTable position={[-15, -1, -15]} />
