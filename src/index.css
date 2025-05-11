@@ -1038,7 +1038,7 @@ table {
 
 .footer-social-links {
   display: flex;
-  gap: 24px;
+  gap: 60px;
 }
 
 .social-icon-wrapper {
@@ -1173,7 +1173,7 @@ table {
   }
 
   .footer-social-links {
-    gap: 12px;
+    gap: 36px;
   }
 
   .social-icon {

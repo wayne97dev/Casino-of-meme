@@ -4701,41 +4701,58 @@ const spinWheel = async (event) => {
       {/* Logo */}
       <img src="/assets/casino.gif" alt="Casino of Meme" className="footer-logo w-24 mb-6" />
 
-      {/* Social Links */}
-      <div className="footer-social-links flex gap-6">
-        <a
-          href="https://t.me/casinoofmeme"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="social-icon-wrapper hover:scale-110 transition-transform"
-        >
-          <img src="/assets/social/telegramLogo.png" alt="Telegram" className="social-icon w-12 h-12" />
-        </a>
-        <a
-          href="https://www.dextools.io/app/your-pair"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="social-icon-wrapper hover:scale-110 transition-transform"
-        >
-          <img src="/assets/social/dextoolsLogo.png" alt="Dextools" className="social-icon w-12 h-12" />
-        </a>
-        <a
-          href="https://casinoofmeme.gitbook.io/casino-of-meme-whitepaper/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="social-icon-wrapper hover:scale-110 transition-transform"
-        >
-          <img src="/assets/social/gitbookLogo.png" alt="Gitbook" className="social-icon w-12 h-12" />
-        </a>
-        <a
-          href="https://twitter.com/casinoofmeme" // Sostituisci con l'URL corretto del tuo profilo Twitter
-          target="_blank"
-          rel="noopener noreferrer"
-          className="social-icon-wrapper hover:scale-110 transition-transform"
-        >
-          <img src="/assets/social/twitterLogo.png" alt="Twitter" className="social-icon w-12 h-12" />
-        </a>
-      </div>
+  {/* Social Links */}
+<div className="footer-social-links flex gap-8">
+  <a
+    href="https://t.me/casinoofmeme"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="social-icon-wrapper hover:scale-110 transition-transform"
+  >
+    <img
+      src="/assets/social/TG.svg"
+      alt="Telegram"
+      className="social-icon w-12 h-12"
+    />
+  </a>
+  <a
+    href="https://www.dextools.io/app/your-pair"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="social-icon-wrapper hover:scale-110 transition-transform"
+  >
+    <img
+      src="/assets/social/DEXT.svg"
+      alt="Dextools"
+      className="social-icon w-12 h-12"
+    />
+  </a>
+  <a
+    href="https://casinoofmeme.gitbook.io/casino-of-meme-whitepaper/"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="social-icon-wrapper hover:scale-110 transition-transform"
+  >
+    <img
+      src="/assets/social/GITB.svg"
+      alt="Gitbook"
+      className="social-icon w-12 h-12"
+    />
+  </a>
+  <a
+    href="https://twitter.com/casinoofmeme"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="social-icon-wrapper hover:scale-110 transition-transform"
+  >
+    <img
+      src="/assets/social/x.svg"
+      alt="Twitter"
+      className="social-icon w-12 h-12"
+    />
+  </a>
+</div>
+
 
       {/* Contract Info */}
       <div className="footer-contract text-white text-lg">
