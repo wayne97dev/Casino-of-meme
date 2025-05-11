@@ -998,6 +998,208 @@ table {
   padding: 10px;
 }
 
+/* Footer Section */
+.footer-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 40px 20px;
+  box-sizing: border-box;
+  margin-top: 64px;
+}
+
+.footer-box {
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #ffcc00;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.footer-logo {
+  width: 120px;
+  height: auto;
+  margin-bottom: 24px;
+}
+
+.footer-social-links {
+  display: flex;
+  gap: 24px;
+}
+
+.social-icon-wrapper {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.social-icon-wrapper:hover {
+  transform: scale(1.1);
+}
+
+.social-icon {
+  width: 48px;
+  height: 48px;
+}
+
+.footer-contract {
+  color: #ffffff;
+  font-size: 1.125rem;
+  font-family: 'Aleo', sans-serif;
+  text-align: center;
+}
+
+.footer-contract span {
+  color: #ffcc00; /* Colore dorato per l'indirizzo del contratto */
+  font-size: 1rem;
+}
+
+.footer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: #ffffff;
+  font-size: 1.125rem;
+  font-family: 'Aleo', sans-serif;
+}
+
+.footer-info-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer-info-item svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.footer-copyright {
+  color: #aaaaaa;
+  font-size: 1rem;
+  margin-top: 24px;
+  font-family: 'Aleo', sans-serif;
+}
+
+/* Responsività per dispositivi mobili */
+@media (max-width: 768px) {
+  .footer-section {
+    padding: 24px 16px;
+    margin-top: 40px;
+  }
+
+  .footer-box {
+    padding: 24px;
+    max-width: 90%;
+  }
+
+  .footer-content {
+    gap: 24px;
+  }
+
+  .footer-logo {
+    width: 80px;
+    margin-bottom: 16px;
+  }
+
+  .footer-social-links {
+    gap: 16px;
+  }
+
+  .social-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .footer-contract {
+    font-size: 1rem;
+  }
+
+  .footer-contract span {
+    font-size: 0.875rem;
+  }
+
+  .footer-info {
+    gap: 12px;
+    font-size: 1rem;
+  }
+
+  .footer-info-item {
+    gap: 8px;
+  }
+
+  .footer-info-item svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .footer-copyright {
+    font-size: 0.875rem;
+    margin-top: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer-section {
+    padding: 16px 12px;
+    margin-top: 32px;
+  }
+
+  .footer-box {
+    padding: 16px;
+  }
+
+  .footer-content {
+    gap: 20px;
+  }
+
+  .footer-logo {
+    width: 60px;
+    margin-bottom: 12px;
+  }
+
+  .footer-social-links {
+    gap: 12px;
+  }
+
+  .social-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .footer-contract {
+    font-size: 0.875rem;
+  }
+
+  .footer-contract span {
+    font-size: 0.75rem;
+  }
+
+  .footer-info {
+    gap: 10px;
+    font-size: 0.875rem;
+  }
+
+  .footer-copyright {
+    font-size: 0.75rem;
+    margin-top: 12px;
+  }
+}
+
 /* Media Queries per Mobile */
 @media (max-width: 768px) {
   .fullscreen-active body {
@@ -1564,4 +1766,8 @@ table {
     padding: 6px;
     font-size: 0.8rem;
   }
+
+
+
+
 }

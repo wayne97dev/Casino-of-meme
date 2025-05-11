@@ -802,7 +802,15 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   const containerRef = useRef(null);
   const orbitControlsRef = useRef(null);
 
-  // Funzione di debouncing per limitare gli aggiornamenti
+  // Riferimenti per gli oggetti interattivi
+  const pokerCardRef = useRef();
+  const slotMachineRef = useRef();
+  const coinFlipRef = useRef();
+  const crazyTimeWheelRef = useRef();
+  const blackjackTableRef = useRef();
+  const interactiveObjects = useRef([]);
+
+  // Funzione di debouncing
   const debounce = (func, wait) => {
     let timeout;
     return (...args) => {
@@ -814,11 +822,10 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   // Aggiorna il renderer quando cambia la dimensione del canvas
   useEffect(() => {
     const handleResize = debounce(() => {
-      if (!isFullscreen && (!containerRef.current || !containerRef.current.clientWidth)) {
-        console.warn('DEBUG - containerRef.current non disponibile per il calcolo delle dimensioni');
+      if (!containerRef.current) {
+        console.warn('DEBUG - containerRef.current non disponibile');
         return;
       }
-  
       const width = isFullscreen ? window.innerWidth : containerRef.current.clientWidth;
       const height = isFullscreen ? window.innerHeight : containerRef.current.clientHeight;
       console.log('DEBUG - Resizing renderer:', { width, height, isFullscreen });
@@ -827,23 +834,26 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       gl.setSize(width, height);
       invalidate();
     }, 100);
-  
-    // Esegui il resize solo dopo che containerRef è pronto
+
     if (containerRef.current) {
       handleResize();
       window.addEventListener('resize', handleResize);
       document.addEventListener('fullscreenchange', handleResize);
     }
-  
+
     return () => {
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('fullscreenchange', handleResize);
     };
-  }, [isMobile, isFullscreen, camera, gl, invalidate, containerRef.current]);
+  }, [isMobile, isFullscreen, camera, gl, invalidate]);
 
-  // Parte del pavimento invariata
-  const brickTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
-  const brickNormalTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
+  // Configurazione del pavimento
+  const brickTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg', undefined, (err) => {
+    console.error('DEBUG - Failed to load brick texture:', err);
+  });
+  const brickNormalTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg', undefined, (err) => {
+    console.error('DEBUG - Failed to load brick normal texture:', err);
+  });
   const floorMaterialRef = useRef(new THREE.MeshStandardMaterial({
     roughness: 0.3,
     metalness: 0.1,
@@ -855,20 +865,22 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       brickTexture.repeat.set(10, 10);
       brickNormalTexture.wrapS = brickNormalTexture.wrapT = THREE.RepeatWrapping;
       brickNormalTexture.repeat.set(10, 10);
-
       floorMaterialRef.current.map = brickTexture;
       floorMaterialRef.current.normalMap = brickNormalTexture;
       floorMaterialRef.current.needsUpdate = true;
-
       setIsFloorReady(true);
+      console.log('DEBUG - Floor material loaded and ready');
     }
   }, [brickTexture, brickNormalTexture]);
 
+  // Configurazione iniziale della camera
   useEffect(() => {
     camera.position.set(0, 20, 60);
     camera.lookAt(0, 0, 0);
+    console.log('DEBUG - Camera initialized at position:', camera.position);
   }, [camera]);
 
+  // Funzione per selezionare un gioco
   const handleSelectGame = (game) => {
     console.log('DEBUG - Game selected:', game, 'Timestamp:', Date.now());
     setCroupierAnimation('Wave');
@@ -879,8 +891,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     }, 2000);
   };
 
-  // Gestione del raycasting per i clic sugli oggetti 3D
-  const interactiveObjects = useRef([]);
+  // Gestione del raycasting
   const raycasterRef = useRef(raycaster);
   const mouseRef = useRef(mouse);
 
@@ -891,137 +902,196 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       ref.current.traverse((child) => {
         if (child.isMesh) {
           objects.push(child);
+          child.userData = { game }; // Associa il gioco al mesh
         }
       });
       interactiveObjects.current.push({ ref: ref.current, game, meshes: objects });
-      console.log('DEBUG - Registered interactive object:', game, objects.length, 'meshes', objects.map(m => m.name));
+      console.log('DEBUG - Registered interactive object:', game, 'Meshes:', objects.length, objects.map(m => m.name));
     }
   };
+
+  // Registrazione ritardata degli oggetti interattivi
+  useEffect(() => {
+    console.log('DEBUG - Starting interactive objects registration');
+    const registerIfReady = (ref, game) => {
+      if (ref.current) {
+        registerInteractiveObject(ref, game);
+      } else {
+        console.warn(`DEBUG - Ref for ${game} not ready yet`);
+      }
+    };
+
+    // Ritenta la registrazione fino a quando tutti gli oggetti sono pronti
+    const registrationInterval = setInterval(() => {
+      registerIfReady(pokerCardRef, 'Solana Card Duel');
+      registerIfReady(slotMachineRef, 'Meme Slots');
+      registerIfReady(coinFlipRef, 'Coin Flip');
+      registerIfReady(crazyTimeWheelRef, 'Crazy Wheel');
+      registerIfReady(blackjackTableRef, 'Poker PvP');
+
+      if (
+        pokerCardRef.current &&
+        slotMachineRef.current &&
+        coinFlipRef.current &&
+        crazyTimeWheelRef.current &&
+        blackjackTableRef.current
+      ) {
+        clearInterval(registrationInterval);
+        console.log('DEBUG - All interactive objects registered:', interactiveObjects.current.map(obj => ({
+          game: obj.game,
+          meshCount: obj.meshes.length,
+          meshNames: obj.meshes.map(m => m.name)
+        })));
+      }
+    }, 100);
+
+    return () => clearInterval(registrationInterval);
+  }, []);
 
   // Gestore degli eventi touch e click
   useEffect(() => {
     let touchStartTime = 0;
     let touchMoved = false;
-      const handleClick = (event) => {
-        // Rimuovi event.preventDefault() se non strettamente necessario
-        console.log('DEBUG - Canvas clicked', Date.now(), 'Event type:', event.type, 'Coordinates:', {
-          clientX: event.clientX,
-          clientY: event.clientY,
-        });
-    
+
+    const handleClick = (event) => {
+      event.preventDefault();
+      console.log('DEBUG - Canvas clicked', Date.now(), 'Event:', {
+        type: event.type,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+
+      const rect = gl.domElement.getBoundingClientRect();
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      console.log('DEBUG - Normalized mouse coordinates:', {
+        x: mouseRef.current.x,
+        y: mouseRef.current.y,
+        rect,
+      });
+
+      raycasterRef.current.setFromCamera(mouseRef.current, camera);
+      const intersects = raycasterRef.current.intersectObjects(
+        interactiveObjects.current.flatMap(obj => obj.meshes),
+        true
+      );
+      console.log('DEBUG - Click raycast intersects:', intersects.length, intersects.map(i => ({
+        name: i.object.name,
+        game: i.object.userData.game,
+      })));
+
+      if (intersects.length > 0) {
+        const intersectedObject = intersects[0].object;
+        const targetGame = intersectedObject.userData.game;
+        if (targetGame) {
+          console.log('DEBUG - Click intersected object:', targetGame, Date.now());
+          handleSelectGame(targetGame);
+          if (orbitControlsRef.current) {
+            orbitControlsRef.current.enabled = false;
+            setTimeout(() => {
+              orbitControlsRef.current.enabled = true;
+            }, 100);
+          }
+        } else {
+          console.warn('DEBUG - No game associated with intersected object:', intersectedObject.name);
+        }
+      } else {
+        console.warn('DEBUG - No intersections found for click');
+      }
+    };
+
+    const handleTouchStart = (event) => {
+      if (event.touches.length === 1) {
+        event.preventDefault(); // Previeni scroll/zoom indesiderati
+        const touchY = event.touches[0].clientY;
+        if (touchY < 50 || touchY > window.innerHeight - 50) {
+          return; // Consenti comportamento nativo ai bordi
+        }
+      }
+      console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length, 'Target:', event.target.tagName);
+      touchStartTime = Date.now();
+      touchMoved = false;
+
+      if (event.touches.length === 1) {
+        const touch = event.touches[0];
         const rect = gl.domElement.getBoundingClientRect();
-        mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-        console.log('DEBUG - Normalized mouse coordinates:', {
+        mouseRef.current.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+        mouseRef.current.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+        console.log('DEBUG - Normalized touch coordinates:', {
           x: mouseRef.current.x,
           y: mouseRef.current.y,
-          rect
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+          rect,
         });
-    
+      } else if (event.touches.length === 2) {
+        console.log('DEBUG - Pinch-to-zoom detected', Date.now());
+        if (orbitControlsRef.current) {
+          orbitControlsRef.current.enabled = true;
+        }
+      }
+    };
+
+    const handleTouchMove = (event) => {
+      touchMoved = true;
+      console.log('DEBUG - Touch move detected', Date.now());
+    };
+
+    const handleTouchEnd = (event) => {
+      console.log('DEBUG - Canvas touch ended', Date.now());
+      const touchDuration = Date.now() - touchStartTime;
+
+      if (event.changedTouches.length === 1 && !touchMoved && touchDuration < 300) {
+        event.preventDefault();
         raycasterRef.current.setFromCamera(mouseRef.current, camera);
         const intersects = raycasterRef.current.intersectObjects(
           interactiveObjects.current.flatMap(obj => obj.meshes),
           true
         );
-        console.log('DEBUG - Click raycast intersects:', intersects.length, intersects.map(i => i.object.name));
-    
+        console.log('DEBUG - Touch raycast intersects:', intersects.length, intersects.map(i => ({
+          name: i.object.name,
+          game: i.object.userData.game,
+        })));
+
         if (intersects.length > 0) {
           const intersectedObject = intersects[0].object;
-          const target = interactiveObjects.current.find(obj =>
-            obj.meshes.includes(intersectedObject)
-          );
-          if (target) {
-            console.log('DEBUG - Click intersected object:', target.game, Date.now());
-            handleSelectGame(target.game);
-            if (!isMobile && orbitControlsRef.current) {
+          const targetGame = intersectedObject.userData.game;
+          if (targetGame) {
+            console.log('DEBUG - Touch intersected object:', targetGame, Date.now());
+            handleSelectGame(targetGame);
+            if (orbitControlsRef.current) {
               orbitControlsRef.current.enabled = false;
               setTimeout(() => {
                 orbitControlsRef.current.enabled = true;
               }, 100);
             }
+          } else {
+            console.warn('DEBUG - No game associated with intersected object:', intersectedObject.name);
           }
+        } else {
+          console.warn('DEBUG - No intersections found for touch');
         }
-      };
-    
-      // Configura come non passivo se preventDefault è necessario
-      gl.domElement.addEventListener('click', handleClick, { passive: false });
+      }
 
-  
+      if (orbitControlsRef.current) {
+        orbitControlsRef.current.enabled = true;
+      }
+    };
 
-      
-        const handleTouchStart = (event) => {
-          // Previeni il refresh su swipe verso l'alto/basso se necessario
-          if (event.touches.length === 1) {
-            const touchY = event.touches[0].clientY;
-            // Se il tocco inizia vicino al bordo superiore o inferiore, consenti il comportamento nativo
-            if (touchY < 50 || touchY > window.innerHeight - 50) {
-              return;
-            }
-            // Altrimenti, previeni il comportamento di default
-            event.preventDefault();
-          }
-          console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length);
-          touchStartTime = Date.now();
-          touchMoved = false;
-          if (event.touches.length === 1) {
-            const touch = event.touches[0];
-            const rect = gl.domElement.getBoundingClientRect();
-            mouseRef.current.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
-            mouseRef.current.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
-          } else if (event.touches.length === 2) {
-            console.log('DEBUG - Pinch-to-zoom detected', Date.now());
-            if (orbitControlsRef.current) {
-              orbitControlsRef.current.enabled = true;
-            }
-          }
-        };
-      
-        const handleTouchMove = (event) => {
-          touchMoved = true;
-          // Consenti lo scroll nativo solo se il tocco non è su un oggetto interattivo
-          console.log('DEBUG - Touch move detected', Date.now());
-        };
-      
-        const handleTouchEnd = (event) => {
-          console.log('DEBUG - Canvas touch ended', Date.now());
-          const touchDuration = Date.now() - touchStartTime;
-          if (event.changedTouches.length === 1 && !touchMoved && touchDuration < 300) {
-            raycasterRef.current.setFromCamera(mouseRef.current, camera);
-            const intersects = raycasterRef.current.intersectObjects(
-              interactiveObjects.current.flatMap(obj => obj.meshes),
-              true
-            );
-            if (intersects.length > 0) {
-              const intersectedObject = intersects[0].object;
-              const target = interactiveObjects.current.find(obj =>
-                obj.meshes.includes(intersectedObject)
-              );
-              if (target) {
-                console.log('DEBUG - Touch intersected object:', target.game, Date.now());
-                handleSelectGame(target.game);
-              }
-            }
-          }
-          if (orbitControlsRef.current) {
-            orbitControlsRef.current.enabled = true;
-          }
-        };
-      
-        // Usa passive: false per consentire event.preventDefault()
-        gl.domElement.addEventListener('click', handleClick, { passive: false });
-        gl.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
-        gl.domElement.addEventListener('touchmove', handleTouchMove, { passive: true });
-        gl.domElement.addEventListener('touchend', handleTouchEnd, { passive: false });
-      
-        return () => {
-          gl.domElement.removeEventListener('click', handleClick);
-          gl.domElement.removeEventListener('touchstart', handleTouchStart);
-          gl.domElement.removeEventListener('touchmove', handleTouchMove);
-          gl.domElement.removeEventListener('touchend', handleTouchEnd);
-        };
-      }, [gl, camera, handleSelectGame, isMobile]);
+    gl.domElement.addEventListener('click', handleClick, { passive: false });
+    gl.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+    gl.domElement.addEventListener('touchmove', handleTouchMove, { passive: true });
+    gl.domElement.addEventListener('touchend', handleTouchEnd, { passive: false });
 
+    return () => {
+      gl.domElement.removeEventListener('click', handleClick);
+      gl.domElement.removeEventListener('touchstart', handleTouchStart);
+      gl.domElement.removeEventListener('touchmove', handleTouchMove);
+      gl.domElement.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [gl, camera, handleSelectGame, isMobile]);
 
+  // Gestione dell'effetto di vincita
   useEffect(() => {
     if (triggerWinEffect) {
       setShowParticles(true);
@@ -1035,61 +1105,31 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     }
   }, [triggerWinEffect]);
 
-  // Riferimenti per gli oggetti interattivi
-  const pokerCardRef = useRef();
-  const slotMachineRef = useRef();
-  const coinFlipRef = useRef();
-  const crazyTimeWheelRef = useRef();
-  const blackjackTableRef = useRef();
-
-  useEffect(() => {
-    console.log('DEBUG - Registering interactive objects');
-    const registerIfReady = (ref, game) => {
-      if (ref.current) {
-        registerInteractiveObject(ref, game);
-      } else {
-        console.warn(`DEBUG - Ref for ${game} not ready yet`);
-      }
-    };
-  
-    registerIfReady(pokerCardRef, 'Solana Card Duel');
-    registerIfReady(slotMachineRef, 'Meme Slots');
-    registerIfReady(coinFlipRef, 'Coin Flip');
-    registerIfReady(crazyTimeWheelRef, 'Crazy Wheel');
-    registerIfReady(blackjackTableRef, 'Poker PvP');
-  
-    console.log('DEBUG - Interactive objects registered:', interactiveObjects.current.map(obj => ({
-      game: obj.game,
-      meshCount: obj.meshes.length,
-      meshNames: obj.meshes.map(m => m.name)
-    })));
-  }, [pokerCardRef.current, slotMachineRef.current, coinFlipRef.current, crazyTimeWheelRef.current, blackjackTableRef.current]);
-
   return (
     <>
-      <PerspectiveCamera makeDefault fov={isMobile ? 60 : 90} />
-      <ambientLight intensity={isMobile ? 0.4 : 0.6} />
+      <PerspectiveCamera makeDefault fov={isMobile ? 75 : 90} />
+      <ambientLight intensity={isMobile ? 0.3 : 0.6} />
       <directionalLight
         position={[10, 10, 5]}
-        intensity={isMobile ? 1 : 1.5}
+        intensity={isMobile ? 0.8 : 1.5}
         castShadow={false}
         shadow-mapSize={[isMobile ? 512 : 1024, isMobile ? 512 : 1024]}
       />
       <pointLight
         position={[0, 5, 0]}
         color={winLightColor}
-        intensity={isMobile ? 1 : 2}
-        distance={20}
+        intensity={isMobile ? 0.7 : 2}
+        distance={15}
       />
-      {isMobile ? null : (
+      {!isMobile && (
         <pointLight position={[15, 5, 15]} color="blue" intensity={2} distance={20} />
       )}
 
       <Stars
         radius={100}
-        depth={isMobile ? 30 : 50}
-        count={isMobile ? 300 : 1000}
-        factor={isMobile ? 2 : 4}
+        depth={isMobile ? 20 : 50}
+        count={isMobile ? 100 : 1000}
+        factor={isMobile ? 1 : 4}
         saturation={0}
         fade
       />
@@ -1101,55 +1141,42 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         </mesh>
       )}
 
-      <Croupier position={[-14, -1, 10]} currentAnimation={croupierAnimation} />
+      {!isMobile && <Croupier position={[-14, -1, 10]} currentAnimation={croupierAnimation} />}
       <DonaldTrump position={[10, -1, 16]} currentAnimation={trumpAnimation} />
 
       <PokerCard
         ref={pokerCardRef}
         position={[-17, 2.5, -15]}
         gameName="BlackJack"
-        onClick={() => {
-          console.log('DEBUG - PokerCard clicked (BlackJack)', Date.now());
-          handleSelectGame('Solana Card Duel');
-        }}
+        // Rimossa la proprietà onClick per affidarsi al raycasting
       />
       <SlotMachine
         ref={slotMachineRef}
         position={[18, -1, -15]}
         gameName="Meme Slots"
-        onClick={() => {
-          console.log('DEBUG - SlotMachine clicked (Meme Slots)', Date.now());
-          handleSelectGame('Meme Slots');
-        }}
+        // Rimossa la proprietà onClick
       />
       <CoinFlip
         ref={coinFlipRef}
         position={[-12.5, 2.5, -15]}
         gameName="Coin Flip"
-        onClick={() => {
-          console.log('DEBUG - CoinFlip clicked (Coin Flip)', Date.now());
-          handleSelectGame('Coin Flip');
-        }}
+        // Rimossa la proprietà onClick
       />
       <CrazyTimeWheel
         ref={crazyTimeWheelRef}
         position={[2, -1, -15]}
         gameName="Crazy Wheel"
-        onClick={() => {
-          console.log('DEBUG - CrazyTimeWheel clicked (Crazy Wheel)', Date.now());
-          handleSelectGame('Crazy Wheel');
-        }}
+        // Rimossa la proprietà onClick
       />
-
-      <CasinoTable position={[-15, -1, -15]} />
       <BlackjackTable
         ref={blackjackTableRef}
         position={[0, -1, 3]}
-        onSelectGame={handleSelectGame}
+        // Rimossa la proprietà onSelectGame
       />
+
+      <CasinoTable position={[-15, -1, -15]} />
       <RedCarpetModule position={[0, -1, 10]} />
       <CasinoSignWithBulb position={[0, 19, 24]} />
-      
       <CasinoTwistedColumn position={[-23.5, -1, -23.5]} />
       <CasinoTwistedColumn position={[-23.5, -1, 23.5]} />
       <CasinoTwistedColumn position={[23.5, -1, -23.5]} />
@@ -1162,10 +1189,10 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         enablePan={true}
         enableZoom={true}
         enableRotate={true}
-        minDistance={isMobile ? 20 : 15}
-        maxDistance={isMobile ? 100 : 120}
-        rotateSpeed={isMobile ? 0.8 : 1.3}
-        zoomSpeed={isMobile ? 1.5 : 1.3}
+        minDistance={isMobile ? 25 : 15}
+        maxDistance={isMobile ? 80 : 120}
+        rotateSpeed={isMobile ? 0.6 : 1.3}
+        zoomSpeed={isMobile ? 1 : 1.3}
         enableDamping={true}
         dampingFactor={0.1}
         autoRotate={false}
@@ -1173,9 +1200,9 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         onEnd={() => console.log('DEBUG - OrbitControls interaction ended', Date.now())}
       />
 
-      {isMobile ? null : (
+      {!isMobile && (
         <EffectComposer>
-          <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={isMobile ? 50 : 100} />
+          <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={50} />
         </EffectComposer>
       )}
     </>
@@ -4719,56 +4746,78 @@ const spinWheel = async (event) => {
 ) : null}
              
 
+{/* Footer Section */}
+<div className="footer-section flex justify-center items-center w-full px-5 py-10 mt-16">
+  <div className="footer-box bg-black bg-opacity-70 rounded-2xl p-8 max-w-[600px] w-full shadow-xl flex justify-center items-center text-center border-2 border-[#ffcc00]">
+    <div className="footer-content flex flex-col items-center gap-8">
+      {/* Logo */}
+      <img src="/assets/casino.gif" alt="Casino of Meme" className="footer-logo w-24 mb-6" />
 
-                {/* Aggiungi la GIF sotto i pulsanti e sopra la sezione dei social links */}
-                <div className="flex justify-center mt-4 mb-4">
-                  <img src="/assets/casino.gif" alt="Footer Animated GIF" className="gif-spacer" />
-                </div>
+      {/* Social Links */}
+      <div className="footer-social-links flex gap-6">
+        <a
+          href="https://t.me/casinoofmeme"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="social-icon-wrapper hover:scale-110 transition-transform"
+        >
+          <img src="/assets/social/telegramLogo.png" alt="Telegram" className="social-icon w-12 h-12" />
+        </a>
+        <a
+          href="https://www.dextools.io/app/your-pair"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="social-icon-wrapper hover:scale-110 transition-transform"
+        >
+          <img src="/assets/social/dextoolsLogo.png" alt="Dextools" className="social-icon w-12 h-12" />
+        </a>
+        <a
+          href="https://casinoofmeme.gitbook.io/casino-of-meme-whitepaper/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="social-icon-wrapper hover:scale-110 transition-transform"
+        >
+          <img src="/assets/social/gitbookLogo.png" alt="Gitbook" className="social-icon w-12 h-12" />
+        </a>
+        <a
+          href="https://twitter.com/casinoofmeme" // Sostituisci con l'URL corretto del tuo profilo Twitter
+          target="_blank"
+          rel="noopener noreferrer"
+          className="social-icon-wrapper hover:scale-110 transition-transform"
+        >
+          <img src="/assets/social/twitterLogo.png" alt="Twitter" className="social-icon w-12 h-12" />
+        </a>
+      </div>
 
-                {/* Sezione Social Links */}
-                <div className="mb-12 max-w-lg mx-auto">
-                  <div className="flex justify-center mb-4">
-                    <p className="text-lg text-orange-700">
-                      Contract: <span className="text-cyan-400">TBA (To Be Announced)</span>
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-4 justify-center">
-                    <a
-                      href="https://t.me/Casinofmeme"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="casino-button text-sm py-2 px-4"
-                    >
-                      Telegram
-                    </a>
-                    <a
-                      href="https://x.com/CasinofmemeSOL"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="casino-button text-sm py-2 px-4"
-                    >
-                      Twitter
-                    </a>
-                    <a
-                      href="https://www.dextools.io/app/your-pair"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="casino-button text-sm py-2 px-4"
-                    >
-                      Dextools
-                    </a>
-                    <a
-                      href="https://casinoofmemes-organization.gitbook.io/thesolanacasino"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="casino-button text-sm py-2 px-4"
-                    >
-                      Gitbook
-                    </a>
-                  </div>
-                </div>
-              </div>
+      {/* Contract Info */}
+      <div className="footer-contract text-white text-lg">
+        Contract: <span className="font-mono">TBD</span> {/* Sostituisci TBD con l'indirizzo del contratto o un link */}
+      </div>
 
+      {/* Contact Info */}
+      <div className="footer-info flex flex-col gap-4 text-white text-lg">
+        <div className="footer-info-item flex items-center gap-3">
+          <svg width="16" height="16" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="7" cy="7" r="7" fill="#FF0000" />
+          </svg>
+          hello@casinoofmeme.com
+        </div>
+        <div className="footer-info-item flex items-center gap-3">
+          <svg width="16" height="16" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="7" cy="7" r="7" fill="#FF0000" />
+          </svg>
+          Solana Ecosystem
+        </div>
+      </div>
+
+      {/* Copyright */}
+      <div className="footer-copyright text-gray-400 text-base mt-6">
+        ©COM All Rights Reserved
+      </div>
+    </div>
+  </div>
+</div>
+</div>
              
               
             </>
