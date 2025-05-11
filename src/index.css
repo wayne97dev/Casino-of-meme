@@ -51,37 +51,39 @@
   font-display: swap;
 }
 
-/* Applica Aleo globalmente */
+/* Applica Aleo globalmente, con fallback per evitare conflitti */
 html, body {
-  overscroll-behavior: auto !important; /* Consenti comportamento naturale dello scroll */
+  overscroll-behavior-y: none !important; /* Disabilita pull-to-refresh */
+  font-family: 'Aleo', sans-serif;
 }
 
 body {
-  font-family: 'Aleo', sans-serif;
   margin: 0;
-  padding: 20px; /* Ridotto il padding generale da 40px a 20px */
-  padding-top: 10px; /* Padding superiore ancora più piccolo per portare la barra più in alto */
+  padding: 20px;
+  padding-top: 10px;
   color: #f7f2f2;
   background: url('/my-background.webp') no-repeat center center fixed, linear-gradient(135deg, #1a1a2e, #2a2a4e);
   background-size: cover;
   overflow-x: hidden;
+  overflow-y: auto !important; /* Consenti scroll quando non in fullscreen */
 }
 
 * {
-  font-family: 'Aleo', sans-serif !important;
+  font-family: 'Aleo', sans-serif;
 }
 
 /* Stili per la modalità fullscreen */
 .fullscreen-active {
-  overflow: hidden; /* Blocca lo scroll solo in fullscreen */
+  overflow: hidden !important; /* Blocca lo scroll in fullscreen */
 }
 
 /* Ripristina lo scroll quando non in fullscreen */
 body:not(.fullscreen-active) {
-  overflow-y: auto !important; /* Permette lo scroll */
+  overflow-y: auto !important;
+  overscroll-behavior-y: auto !important; /* Consenti comportamento naturale dello scroll */
 }
 
-/* Header container per allineare Casino Floor e Connect */
+/* Header container */
 .header-container {
   display: flex;
   justify-content: space-between;
@@ -90,71 +92,69 @@ body:not(.fullscreen-active) {
   margin-bottom: 2rem;
 }
 
-/* Centra il favicon e posiziona il pulsante Play Music sotto */
+/* Favicon e pulsante Play Music su mobile */
 .favicon-mobile {
   display: block;
   margin: 0 auto;
 }
 
-/* Stile per il pulsante Play Music su mobile */
 .music-button-mobile {
-  width:  120px; /* Più corto */
+  width: 120px;
   padding: 8px 16px;
   font-size: 0.9rem;
   margin: 0.5rem auto;
   display: block;
 }
 
-/* Stile per il tasto Connect su mobile */
 .connect-button-mobile {
   padding: 8px 16px;
   font-size: 0.9rem;
   min-height: 40px;
 }
 
-
-
-/* Stili per il contenitore della scena del casinò */
+/* Contenitore della scena del casinò */
 .casino-scene-container {
   position: relative;
   width: 100%;
   height: 90vh;
   max-height: 800px;
-  margin: 0 auto; /* Assicura che il contenitore sia centrato */
-  padding: 0; /* Rimuove eventuali padding che potrebbero spostare il contenuto */
+  margin: 0 auto;
+  padding: 0;
 }
 
+/* Canvas */
 .casino-canvas {
   display: block;
   width: 100% !important;
   height: 100% !important;
-  touch-action: auto !important;
+  touch-action: pan-x pan-y !important; /* Consenti solo scroll orizzontale/verticale */
+  overscroll-behavior-y: none !important; /* Disabilita pull-to-refresh */
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
   position: relative;
-  z-index: 1;
+  z-index: 1000; /* Aumentato per garantire visibilità */
 }
 
-
+/* Pulsante Fullscreen */
 .fullscreen-button-container {
-  position: fixed; /* Cambiato da absolute a fixed per riferirsi alla viewport */
-  top: 16px;
-  left: 5%;
-  transform: translateX(-50%);
+  position: fixed;
+  top: 10px;
+  right: 10px; /* Posizione più flessibile */
   display: flex;
   justify-content: center;
   align-items: center;
   width: auto;
+  z-index: 1001;
 }
 
-/* Disattiva eventi touch sul canvas quando non attivo */
+/* Canvas inattivo */
 .canvas-inactive {
   pointer-events: none !important;
-  touch-action: auto !important;
+  touch-action: none !important;
 }
 
-/* Stili per il canvas in modalità fullscreen */
+/* Canvas in fullscreen */
 .fullscreen-active .casino-canvas {
   width: 100vw !important;
   height: 100vh !important;
@@ -164,13 +164,14 @@ body:not(.fullscreen-active) {
   z-index: 9999 !important;
 }
 
-/* Stili per i pulsanti in modalità fullscreen */
+/* Pulsanti in fullscreen */
 .fullscreen-active .casino-button {
   z-index: 10000;
   pointer-events: auto !important;
+  touch-action: manipulation !important; /* Ottimizza per i tap */
 }
 
-/* Animazione di pulsazione lenta per il pulsante */
+/* Animazione di pulsazione lenta */
 .animate-pulse-slow {
   animation: pulseSlow 2s ease-in-out infinite;
 }
@@ -181,16 +182,16 @@ body:not(.fullscreen-active) {
   100% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 204, 0, 0.5); }
 }
 
-/* Stile per le intestazioni */
+/* Intestazioni */
 .header-box {
   background: linear-gradient(135deg, #4d0101, #850000);
   border: 2px solid #ffcc00;
   border-radius: 12px;
   padding: 10px 20px;
-  display: inline-block; /* Ripristinato per adattarsi alla larghezza del testo */
+  display: inline-block;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
   font-weight: 700;
-  text-align: center; /* Centra il testo all'interno */
+  text-align: center;
 }
 
 .title-container {
@@ -201,7 +202,7 @@ body:not(.fullscreen-active) {
   margin: 0 auto;
 }
 
-/* Stile per i pulsanti a tema casinò */
+/* Pulsanti a tema casinò */
 .casino-button {
   background: #ffcf00;
   border: none;
@@ -217,15 +218,15 @@ body:not(.fullscreen-active) {
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
   will-change: transform, box-shadow;
-  z-index: 1; /* z-index basso per i pulsanti */
-  margin: 4px; /* Aggiungi margine per aumentare la distanza */
+  z-index: 1;
+  margin: 4px;
+  touch-action: manipulation !important; /* Ottimizza per i tap */
 }
 
-/* Su mobile, rimuovi touch-action: manipulation per evitare conflitti con lo scroll */
 @media (max-width: 768px) {
   .casino-button {
-    touch-action: auto !important; /* Permette lo scroll normale */
-    overscroll-behavior: auto !important; /* Permette lo scroll normale */
+    touch-action: manipulation !important;
+    overscroll-behavior: auto !important;
   }
 }
 
@@ -262,13 +263,12 @@ body:not(.fullscreen-active) {
   left: 100%;
 }
 
-/* Stile per il pulsante Back to Dashboard più piccolo */
 .casino-button.text-sm {
   font-size: 0.875rem;
   padding: 0.5rem 1rem;
 }
 
-/* Stile per le carte */
+/* Carte */
 .card {
   width: 100px;
   height: 150px;
@@ -299,7 +299,7 @@ body:not(.fullscreen-active) {
   box-shadow: 0 12px 24px rgba(255, 204, 0, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.5);
 }
 
-/* Stile per la slot machine */
+/* Slot Machine */
 .slot-machine {
   background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
   border: 3px solid #ffcc00;
@@ -327,7 +327,7 @@ body:not(.fullscreen-active) {
   z-index: 1;
 }
 
-/* Stile per ogni rullo */
+/* Rulli della Slot */
 .slot-reel {
   width: 90px;
   height: 90px;
@@ -338,13 +338,13 @@ body:not(.fullscreen-active) {
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
   position: relative;
   overflow: hidden;
-  transition: background-image 0.05s ease-out, transform 0.1s ease-out;
+  transition: background-image 0.1s ease-out; /* Ottimizzato per fluidità */
   z-index: 2;
-  will-change: transform, box-shadow;
+  will-change: transform;
 }
 
 .slot-reel.spinning {
-  animation: spinReel 0.08s linear infinite;
+  animation: spinReel 0.1s linear infinite; /* Tempo aumentato per prestazioni */
 }
 
 @keyframes spinReel {
@@ -380,11 +380,11 @@ body:not(.fullscreen-active) {
   100% { transform: scale(1.05); box-shadow: 0 0 20px #ffcc00; }
 }
 
-/* Stile per la tabella dei pagamenti */
+/* Tabella dei Pagamenti */
 .payout-table {
   min-width: 200px;
   max-width: 300px;
-  background: #850000; /* Colore di Casino Floor */
+  background: #850000;
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 15px;
@@ -424,7 +424,7 @@ body:not(.fullscreen-active) {
   width: 100%;
   border-collapse: collapse;
   color: #e0e0e0;
-  background: #410101; /* Colore di Casino Floor */
+  background: #410101;
 }
 
 .payout-table th,
@@ -435,7 +435,7 @@ body:not(.fullscreen-active) {
 }
 
 .payout-table th {
-  background: #850000; /* Colore di Casino Floor */
+  background: #850000;
   color: #00f7ff;
   font-weight: 700;
   text-transform: uppercase;
@@ -455,17 +455,17 @@ body:not(.fullscreen-active) {
   background: rgba(255, 204, 0, 0.2);
 }
 
-/* Stile per la moneta di Coin Flip */
+/* Moneta di Coin Flip */
 .coin {
   width: 120px;
   height: 120px;
   border-radius: 50%;
   transform-style: preserve-3d;
-  transition: transform 0.5s ease, box-shadow 0.3s ease;
+  transition: transform 0.5s ease;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 255, 255, 0.2);
   border: 3px solid #ffcc00;
   position: relative;
-  will-change: transform, box-shadow;
+  will-change: transform;
 }
 
 .coin.blue {
@@ -486,7 +486,7 @@ body:not(.fullscreen-active) {
   100% { transform: rotateY(2160deg) translateZ(0px); }
 }
 
-/* Stile per i box dei giochi */
+/* Box dei Giochi */
 .game-box {
   background: transparent;
   border: 3px solid #ffcc00;
@@ -515,12 +515,12 @@ body:not(.fullscreen-active) {
   box-shadow: 0 15px 30px rgba(255, 204, 0, 0.8);
 }
 
-/* Stile per l'input del bet */
+/* Input del Bet */
 .bet-input {
   background: #ffcf00;
   border: 2px solid #ffcf00;
   border-radius: 10px;
-  padding: 8px 8px;
+  padding: 8px;
   color: #000000;
   font-size: 1rem;
   font-weight: 700;
@@ -528,7 +528,7 @@ body:not(.fullscreen-active) {
   transition: all 0.3s ease;
   width: 100px;
   text-align: center;
-  touch-action: auto !important; /* Permette il tocco senza interferire con lo scroll */
+  touch-action: manipulation !important; /* Ottimizza per i tap */
 }
 
 .bet-input:hover,
@@ -550,13 +550,14 @@ body:not(.fullscreen-active) {
   text-align: center;
 }
 
+/* Ruota di Crazy Time */
 .wheel-container {
   position: relative;
-  display: block; /* Cambiato da inline-block a block per un layout più controllato */
+  display: block;
   width: 100%;
-  max-width: 500px; /* Limita la larghezza massima */
-  height: auto; /* Altezza adattata al contenuto */
-  aspect-ratio: 1 / 1; /* Mantiene proporzioni quadrate */
+  max-width: 500px;
+  height: auto;
+  aspect-ratio: 1 / 1;
   margin: 0 auto;
   z-index: 1;
 }
@@ -568,11 +569,11 @@ body:not(.fullscreen-active) {
 
 .wheel {
   transform-origin: center;
-  transition: transform 5s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition: transform 4s cubic-bezier(0.25, 0.1, 0.25, 1); /* Ridotto a 4s per mobile */
 }
 
 .wheel.spinning {
-  animation: spinWheel 5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  animation: spinWheel 4s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
 @keyframes spinWheel {
@@ -634,7 +635,7 @@ body:not(.fullscreen-active) {
   box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
 }
 
-/* Stile per il round bonus Coin Flip */
+/* Round Bonus Coin Flip */
 .coin-flip {
   display: flex;
   justify-content: center;
@@ -667,9 +668,9 @@ body:not(.fullscreen-active) {
   animation: flipCoin 2s ease-in-out forwards;
 }
 
-/* Stile per il round bonus Pachinko */
+/* Round Bonus Pachinko */
 .pachinko-board {
-  background: #850000; /* Colore di Casino Floor */
+  background: #850000;
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 20px;
@@ -728,9 +729,9 @@ body:not(.fullscreen-active) {
   100% { box-shadow: 0 0 15px #ffcc00; }
 }
 
-/* Stile per il round bonus Cash Hunt */
+/* Round Bonus Cash Hunt */
 .cash-hunt-board {
-  background: #850000; /* Colore di Casino Floor */
+  background: #850000;
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 20px;
@@ -743,9 +744,9 @@ body:not(.fullscreen-active) {
   font-size: 1.1rem;
 }
 
-/* Stile per il round bonus Crazy Time */
+/* Round Bonus Crazy Time */
 .crazy-time-board {
-  background: #850000; /* Colore di Casino Floor */
+  background: #850000;
   border: 3px solid #ffcc00;
   border-radius: 12px;
   padding: 20px;
@@ -758,9 +759,9 @@ body:not(.fullscreen-active) {
   font-size: 1.1rem;
 }
 
-/* Stile per la chat simulata */
+/* Chat Simulata */
 .chat-box {
-  background: #850000; /* Colore di Casino Floor */
+  background: #850000;
   border: 1px solid #ffcc00;
   border-radius: 8px;
   padding: 10px;
@@ -775,7 +776,7 @@ body:not(.fullscreen-active) {
   font-size: 0.9rem;
 }
 
-/* Stile per il presentatore */
+/* Presentatore */
 .presenter {
   position: relative;
   width: 100px;
@@ -796,7 +797,7 @@ body:not(.fullscreen-active) {
   100% { transform: translateY(0); }
 }
 
-/* Stile per il contenitore dell'immagine di vincita */
+/* Immagine di Vincita */
 .win-image-container {
   position: fixed;
   top: 50%;
@@ -806,7 +807,6 @@ body:not(.fullscreen-active) {
   pointer-events: none;
 }
 
-/* Stile per l'immagine di vincita */
 .win-image {
   width: 300px;
   height: auto;
@@ -814,7 +814,6 @@ body:not(.fullscreen-active) {
   animation: winAnimation 3s ease-in-out;
 }
 
-/* Animazione per l'apparizione e scomparsa */
 @keyframes winAnimation {
   0% { opacity: 0; transform: scale(0.5); }
   20% { opacity: 1; transform: scale(1); }
@@ -822,49 +821,49 @@ body:not(.fullscreen-active) {
   100% { opacity: 0; transform: scale(0.5); }
 }
 
-/* Mantieni il colore bianco per i testi dentro le tabelle */
+/* Tabelle */
 table {
   color: #e0e0e0;
-  background: rgba(133, 0, 0, 0.4)
-  
+  background: rgba(133, 0, 0, 0.4);
 }
 
 .leaderboard-box {
-  background: rgba(133, 0, 0, 0.3); /* Rosso trasparente (opacità 0.3) */
-  border: 2px solid #ffcc00; /* Bordo dorato, in linea con il tema del casinò */
-  border-radius: 12px; /* Bordi arrotondati */
-  padding: 10px; /* Padding interno per distanziare la tabella dal bordo */
-  margin: 0 auto; /* Centra il box nella pagina */
-  width: fit-content; /* Adatta la larghezza al contenuto (la tabella) */
+  background: rgba(133, 0, 0, 0.3);
+  border: 2px solid #ffcc00;
+  border-radius: 12px;
+  padding: 10px;
+  margin: 0 auto;
+  width: fit-content;
 }
 
-/* Stile per il modal del WalletMultiButton (per metterlo in primo piano) */
+/* Modal Wallet */
 .ui-wallet-adapter-modal {
-  z-index: 9999 !important; /* Assicura che il modal sia sopra tutti gli altri elementi */
+  z-index: 9999 !important;
 }
 
 .ui-wallet-adapter-modal-wrapper {
-  z-index: 9999 !important; /* Assicura che il wrapper del modal sia sopra tutti gli altri elementi */
+  z-index: 9999 !important;
 }
 
 .ui-wallet-adapter-modal-overlay {
-  z-index: 9998 !important; /* Assicura che il backdrop del modal sia appena sotto il modal ma sopra gli altri elementi */
-}
-.nav-bar {
-  margin-top: 10px; /* Riduce lo spazio sopra la barra, portandola più in alto */
+  z-index: 9998 !important;
 }
 
+/* Barra di Navigazione */
+.nav-bar {
+  margin-top: 10px;
+}
 
 .visitor-count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #ffcf00; /* Gradiente arancione */
+  background: #ffcf00;
   color: #000000;
   font-weight: bold;
-  border: 1px solid #000000; /* Bordo dorato */
+  border: 1px solid #000000;
   border-radius: 15px;
-  padding: 4px 4px;
+  padding: 4px;
   font-size: 12px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -876,128 +875,70 @@ table {
 
 /* Spacer */
 .spacer {
-  height: 1rem; /* 64px su desktop */
+  height: 1rem;
   width: 100%;
-  margin: 1rem 0; /* Margine verticale per sicurezza */
-  clear: both; /* Previene problemi di float */
+  margin: 1rem 0;
+  clear: both;
 }
 
-/* Tabella del wallet */
+/* Wallet Info */
 .wallet-info-box {
   background: transparent;
   border: 2px solid #ffcf00;
   border-radius: 12px;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
-  padding: 8px; /* Padding ridotto per un look più compatto */
-  max-width: 300px; /* Larghezza ancora più piccola */
-  margin: 2rem auto 1.5rem; /* Margine superiore per separazione */
+  padding: 8px;
+  max-width: 300px;
+  margin: 2rem auto 1.5rem;
   z-index: 1;
-  text-align: center; /* Centra il testo */
+  text-align: center;
 }
 
 .wallet-info-box p {
-  font-size: 0.9rem; /* Testo più piccolo */
+  font-size: 0.9rem;
   line-height: 1.4;
   margin: 0;
   color: #ffcf00;
 }
 
-/* Assicura che il contenitore genitore non causi problemi */
-.w-full.bg-gray-900.bg-opacity-80 {
-  display: block; /* Previene conflitti con flex o altri display */
-  overflow: visible; /* Evita clipping dello spacer */
-}
-
-/* Media query per mobile */
-@media (max-width: 768px) {
-  .spacer {
-    height: 2.5rem; /* 40px su mobile */
-    margin: 0.75rem 0;
-  }
-
-  .wallet-info-box {
-    padding: 6px;
-    max-width: 90%;
-    border: 1px solid #ffcc00;
-    border-radius: 10px;
-    margin: 1.5rem auto 1rem;
-  }
-
-  .wallet-info-box p {
-    font-size: 0.8rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .spacer {
-    height: 2rem; /* 32px su schermi piccoli */
-    margin: 0.5rem 0;
-  }
-
-  .wallet-info-box {
-    margin: 1rem auto 0.75rem;
-  }
-}
-
-
-/* Stile per la sezione Show Info */
+/* Show Info Section */
 .show-info-section {
   background: transparent;
   border: 2px solid #ffcc00;
   border-radius: 12px;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
   padding: 1rem;
-  max-width: 600px; /* Limita la larghezza per coerenza */
-  margin: 1rem auto 2rem; /* Margine per separazione */
+  max-width: 1000px;
+  margin: 1rem auto;
   text-align: center;
 }
 
+.show-info-section .info-block {
+  padding: 0.75rem;
+  border-bottom: 1px solid #444;
+  color: #e0e0e0;
+}
+
+.show-info-section .info-block:last-child {
+  border-bottom: none;
+}
+
 .show-info-section p {
-  font-size: 1rem; /* Testo leggermente più piccolo */
+  font-size: 0.9rem;
   line-height: 1.5;
-  margin: 0.5rem 0;
-  color: #ff9500;
+  margin: 0.25rem 0;
+  color: #ffcf00;
 }
 
 .show-info-section .text-2xl {
-  font-size: 1.5rem; /* Ridotto leggermente per compattezza */
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
 }
 
-/* Media query per mobile */
-@media (max-width: 768px) {
-  .show-info-section {
-    padding: 0.75rem;
-    max-width: 90%;
-    margin: 0.75rem auto 1.5rem;
-    border: 1px solid #ffcc00;
-  }
-
-  .show-info-section p {
-    font-size: 0.9rem;
-  }
-
-  .show-info-section .text-2xl {
-    font-size: 1.25rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .show-info-section {
-    padding: 0.5rem;
-    margin: 0.5rem auto 1rem;
-  }
-
-  .show-info-section p {
-    font-size: 0.8rem;
-  }
-
-  .show-info-section .text-2xl {
-    font-size: 1.1rem;
-  }
-}
-
+/* Holders Table */
 .holders-table {
-  background: transparent; /* Già trasparente, confermato */
+  background: transparent;
   border: 2px solid #ffcc00;
   border-radius: 12px;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
@@ -1006,21 +947,13 @@ table {
   margin: 1rem auto;
 }
 
-
 .holders-table table {
   width: 100%;
   border-collapse: collapse;
   color: #e0e0e0;
-  background: transparent; /* Rimosso rgba(133, 0, 0, 0.4) */
+  background: transparent;
 }
 
-/* Assicura che non ci siano override di debug */
-.holders-table table,
-.holders-table {
-  background: transparent !important; /* Forza la rimozione di qualsiasi rosso */
-}
-
-/* Stili per le righe e le celle */
 .holders-table th,
 .holders-table td {
   padding: 0.75rem;
@@ -1029,7 +962,7 @@ table {
 }
 
 .holders-table th {
-  background: #ffcf00; /* Mantiene il rosso scuro solo per l’intestazione */
+  background: #ffcf00;
   color: #000000;
   font-weight: 700;
   text-transform: uppercase;
@@ -1043,119 +976,12 @@ table {
 }
 
 .holders-table tr:hover {
-  background: rgba(255, 204, 0, 0.2); /* Effetto hover dorato */
+  background: rgba(255, 204, 0, 0.2);
 }
 
-/* Media query per mobile */
-@media (max-width: 768px) {
-  .holders-table {
-    padding: 0.5rem;
-    max-width: 90%;
-    margin: 0.75rem auto;
-    border: 1px solid #ffcc00;
-  }
-
-  .holders-table th,
-  .holders-table td {
-    padding: 0.5rem;
-    font-size: 0.8rem;
-  }
-
-  .holders-table th {
-    font-size: 0.9rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .holders-table th,
-  .holders-table td {
-    padding: 0.4rem;
-    font-size: 0.7rem;
-  }
-
-  .holders-table th {
-    font-size: 0.8rem;
-  }
-}
-
-
-.show-info-section {
-  background: transparent;
-  border: 2px solid #ffcc00;
-  border-radius: 12px;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
-  padding: 1rem;
-  max-width: 1000px; /* Allineato a holders-table */
-  margin: 1rem auto;
-  text-align: center;
-}
-
-/* Stile per i blocchi interni (simili alle righe della tabella) */
-.show-info-section .info-block {
-  padding: 0.75rem; /* Allineato a holders-table th, td */
-  border-bottom: 1px solid #444; /* Simula il bordo tra le righe */
-  color: #e0e0e0;
-}
-
-/* Ultimo blocco senza bordo inferiore */
-.show-info-section .info-block:last-child {
-  border-bottom: none;
-}
-
-/* Stile per i paragrafi interni */
-.show-info-section p {
-  font-size: 0.9rem; /* Allineato a holders-table td */
-  line-height: 1.4;
-  margin: 0.25rem 0;
-  color: #ffcf00; /* Mantiene il colore arancione */
-}
-
-/* Testo in grassetto per i valori principali */
-.show-info-section .text-2xl {
-  font-size: 1.25rem; /* Leggermente più piccolo per coerenza */
-  font-weight: 700;
-  color: #ffffff;
-}
-
-/* Media query per mobile */
-@media (max-width: 768px) {
-  .show-info-section {
-    padding: 0.5rem;
-    max-width: 90%;
-    margin: 0.75rem auto;
-    border: 1px solid #ffcc00;
-  }
-
-  .show-info-section .info-block {
-    padding: 0.5rem;
-  }
-
-  .show-info-section p {
-    font-size: 0.8rem;
-  }
-
-  .show-info-section .text-2xl {
-    font-size: 1.1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .show-info-section .info-block {
-    padding: 0.4rem;
-  }
-
-  .show-info-section p {
-    font-size: 0.7rem;
-  }
-
-  .show-info-section .text-2xl {
-    font-size: 1rem;
-  }
-}
-
-/* Stile per il contenitore dei pulsanti dei giochi */
+/* Game Buttons Container */
 .game-buttons-container {
-  background: transparent; /* Colore di Casino Floor */
+  background: transparent;
   border: none;
   border-radius: 16px;
   padding: 20px;
@@ -1165,7 +991,6 @@ table {
   margin: 0 auto;
 }
 
-/* Stile per i pulsanti dei giochi */
 .game-buttons-container .casino-button {
   width: 100%;
   max-width: 150px;
@@ -1173,36 +998,8 @@ table {
   padding: 10px;
 }
 
-/* Assicura che il contenitore genitore non limiti i margini */
-body, html {
-  min-height: 100vh;
-  overflow-y: auto !important; /* Forza lo scorrimento verticale */
-}
-
 /* Media Queries per Mobile */
 @media (max-width: 768px) {
-  .social-links-section {
-    margin-top: 8rem !important; /* Riduci leggermente su mobile */
-  }
-
-  .h-48 {
-    height: 8rem !important; /* Riduci leggermente su mobile */
-  }
-}
-
-@media (max-width: 480px) {
-  .social-links-section {
-    margin-top: 6rem !important; /* Ancora più piccolo su schermi piccoli */
-  }
-
-  .h-48 {
-    height: 6rem !important; /* Ancora più piccolo su schermi piccoli */
-  }
-}
-
-/* Media Queries per Mobile */
-@media (max-width: 768px) {
-  /* Rimuovi il padding del body in modalità fullscreen */
   .fullscreen-active body {
     padding: 0 !important;
   }
@@ -1232,11 +1029,10 @@ body, html {
     z-index: 9999 !important;
   }
 
-  /* Assicura che i pulsanti siano cliccabili */
   .fullscreen-active .casino-button {
     z-index: 10000;
     pointer-events: auto;
-    touch-action: auto !important;
+    touch-action: manipulation !important;
   }
 
   .header-container {
@@ -1260,7 +1056,7 @@ body, html {
   }
 
   .music-button-mobile {
-    width: 100px; /* Più corto */
+    width: 100px;
     padding: 6px 12px;
     font-size: 0.85rem;
     margin: 0.5rem auto;
@@ -1293,11 +1089,11 @@ body, html {
     border-radius: 6px;
     border: 1px solid #ffcc00;
     box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
-    transition: background-image 0.05s ease-out;
+    transition: background-image 0.1s ease-out;
   }
 
   .slot-reel.spinning {
-    animation: spinReelMobile 0.1s linear infinite;
+    animation: spinReelMobile 0.12s linear infinite; /* Tempo aumentato per prestazioni */
   }
 
   @keyframes spinReelMobile {
@@ -1390,7 +1186,7 @@ body, html {
     max-width: 150px;
     margin: 0.5rem auto;
     display: block;
-    touch-action: auto !important;
+    touch-action: manipulation !important;
   }
 
   .bet-input:hover,
@@ -1455,7 +1251,6 @@ body, html {
     height: 80px;
   }
 
-  /* Stile per il contenitore dei pulsanti dei giochi */
   .game-buttons-container {
     padding: 15px;
     max-width: 280px;
@@ -1466,10 +1261,62 @@ body, html {
     font-size: 0.9rem;
     padding: 8px;
   }
+
+  .spacer {
+    height: 2.5rem;
+    margin: 0.75rem 0;
+  }
+
+  .wallet-info-box {
+    padding: 6px;
+    max-width: 90%;
+    border: 1px solid #ffcc00;
+    border-radius: 10px;
+    margin: 1.5rem auto 1rem;
+  }
+
+  .wallet-info-box p {
+    font-size: 0.8rem;
+  }
+
+  .show-info-section {
+    padding: 0.75rem;
+    max-width: 90%;
+    margin: 0.75rem auto 1.5rem;
+    border: 1px solid #ffcc00;
+  }
+
+  .show-info-section .info-block {
+    padding: 0.5rem;
+  }
+
+  .show-info-section p {
+    font-size: 0.9rem;
+  }
+
+  .show-info-section .text-2xl {
+    font-size: 1.25rem;
+  }
+
+  .holders-table {
+    padding: 0.5rem;
+    max-width: 90%;
+    margin: 0.75rem auto;
+    border: 1px solid #ffcc00;
+  }
+
+  .holders-table th,
+  .holders-table td {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .holders-table th {
+    font-size: 0.9rem;
+  }
 }
 
 @media (max-width: 480px) {
-  /* Rimuovi il padding del body in modalità fullscreen */
   .fullscreen-active body {
     padding: 0 !important;
   }
@@ -1589,7 +1436,6 @@ body, html {
     min-height: auto !important;
   }
 
-  /* Stile per il contenitore dei pulsanti dei giochi */
   .game-buttons-container {
     padding: 10px;
     max-width: 260px;
@@ -1600,118 +1446,122 @@ body, html {
     font-size: 0.85rem;
     padding: 6px;
   }
-}
 
-/* Media Queries per Mobile */
-@media (max-width: 768px) {
-  .game-buttons-container {
-    padding: 15px;
-    max-width: 280px;
+  .spacer {
+    height: 2rem;
+    margin: 0.5rem 0;
   }
 
-  .game-buttons-container .casino-button {
-    max-width: 180px;
-    font-size: 0.9rem;
+  .wallet-info-box {
+    margin: 1rem auto 0.75rem;
+  }
+
+  .show-info-section {
+    padding: 0.5rem;
+    margin: 0.5rem auto 1rem;
+  }
+
+  .show-info-section .info-block {
+    padding: 0.4rem;
+  }
+
+  .show-info-section p {
+    font-size: 0.8rem;
+  }
+
+  .show-info-section .text-2xl {
+    font-size: 1.1rem;
+  }
+
+  .holders-table th,
+  .holders-table td {
+    padding: 0.4rem;
+    font-size: 0.7rem;
+  }
+
+  .holders-table th {
+    font-size: 0.8rem;
+  }
+}
+
+/* Leaderboard Table */
+.table-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.leaderboard-section {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.leaderboard-table {
+  border-collapse: collapse;
+  color: #e0e0e0;
+  background: transparent;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+  padding: 10px;
+  text-align: center;
+  border-bottom: 1px solid #444;
+}
+
+.leaderboard-table th {
+  color: #00f7ff;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.leaderboard-table td {
+  color: #e0e0e0;
+  font-weight: 500;
+}
+
+.leaderboard-table tr:last-child th,
+.leaderboard-table tr:last-child td {
+  border-bottom: none;
+}
+
+.leaderboard-table tr:hover {
+  background: rgba(255, 204, 0, 0.1);
+}
+
+/* Media Queries per Leaderboard su Mobile */
+@media (max-width: 768px) {
+  .centered-table {
+    max-width: 90%;
+  }
+
+  .leaderboard-table th,
+  .leaderboard-table td {
     padding: 8px;
+    font-size: 0.9rem;
   }
 }
 
 @media (max-width: 480px) {
-  .game-buttons-container {
-    padding: 10px;
-    max-width: 260px;
+  .centered-table {
+    max-width: 95%;
   }
 
-  .game-buttons-container .casino-button {
-    max-width: 160px;
-    font-size: 0.85rem;
-    padding: 6px;
-  }
-
-
-
-  
-
-  .table-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    max-width: 100%;
-    margin: 0 auto;
-    padding: 0;
-  }
-  
-  .leaderboard-section {
-    width: 100%;
-    max-width: 100%;
-    margin: 0 auto;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .leaderboard-table {
-    border-collapse: collapse;
-    color: #e0e0e0;
-    background: transparent;
-    width: 100%;
-    max-width: 500px; /* Limita la larghezza della tabella */
-    margin: 0 auto; /* Centra la tabella */
-  }
-  
   .leaderboard-table th,
   .leaderboard-table td {
-    padding: 10px;
-    text-align: center;
-    border-bottom: 1px solid #444;
+    padding: 6px;
+    font-size: 0.8rem;
   }
-  
-  .leaderboard-table th {
-    color: #00f7ff;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-  
-  .leaderboard-table td {
-    color: #e0e0e0;
-    font-weight: 500;
-  }
-  
-  .leaderboard-table tr:last-child th,
-  .leaderboard-table tr:last-child td {
-    border-bottom: none;
-  }
-  
-  .leaderboard-table tr:hover {
-    background: rgba(255, 204, 0, 0.1);
-  }
-  
-  /* Media query per dispositivi mobili */
-  @media (max-width: 768px) {
-    .centered-table {
-      max-width: 90%; /* Usa il 90% della larghezza su schermi mobili */
-    }
-  
-    .leaderboard-table th,
-    .leaderboard-table td {
-      padding: 8px;
-      font-size: 0.9rem;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    .centered-table {
-      max-width: 95%; /* Ancora più compatta su schermi molto piccoli */
-    }
-  
-    .leaderboard-table th,
-    .leaderboard-table td {
-      padding: 6px;
-      font-size: 0.8rem;
-    }
-  }
- 
-
 }
