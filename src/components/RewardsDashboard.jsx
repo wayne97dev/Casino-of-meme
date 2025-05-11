@@ -4704,7 +4704,7 @@ const spinWheel = async (event) => {
   {/* Social Links */}
 <div className="footer-social-links flex gap-8">
   <a
-    href="https://t.me/casinoofmeme"
+    href="https://t.me/Casinofmeme"
     target="_blank"
     rel="noopener noreferrer"
     className="social-icon-wrapper hover:scale-110 transition-transform"
@@ -4728,7 +4728,7 @@ const spinWheel = async (event) => {
     />
   </a>
   <a
-    href="https://casinoofmeme.gitbook.io/casino-of-meme-whitepaper/"
+    href="https://casinoofmemes-organization.gitbook.io/thesolanacasino"
     target="_blank"
     rel="noopener noreferrer"
     className="social-icon-wrapper hover:scale-110 transition-transform"
@@ -4740,7 +4740,7 @@ const spinWheel = async (event) => {
     />
   </a>
   <a
-    href="https://twitter.com/casinoofmeme"
+    href="https://x.com/CasinofmemeSOL"
     target="_blank"
     rel="noopener noreferrer"
     className="social-icon-wrapper hover:scale-110 transition-transform"
