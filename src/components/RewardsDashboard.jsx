@@ -1192,7 +1192,8 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
   const [croupierAnimation, setCroupierAnimation] = useState('Idle');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [is3DView, setIs3DView] = useState(true); // Stato per alternare tra 3D e pulsanti
+  // Inizializza is3DView a false su mobile, true su desktop
+  const [is3DView, setIs3DView] = useState(!isMobile);
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -1200,7 +1201,9 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     const handleResize = () => {
       const newIsMobile = window.innerWidth < 768;
       setIsMobile(newIsMobile);
-      console.log('Window resized, isMobile:', newIsMobile);
+      // Aggiorna is3DView in base al dispositivo
+      setIs3DView(!newIsMobile);
+      console.log('Window resized, isMobile:', newIsMobile, 'is3DView:', !newIsMobile);
       if (canvasRef.current && !isFullscreen) {
         canvasRef.current.style.width = '100%';
         canvasRef.current.style.height = newIsMobile ? '50vh' : '70vh';
@@ -1211,13 +1214,11 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [isFullscreen]);
 
-  // Gestione del cambio di stato del fullscreen
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isNowFullscreen = !!document.fullscreenElement;
       setIsFullscreen(isNowFullscreen);
       console.log('Fullscreen changed:', isNowFullscreen, 'Canvas:', canvasRef.current);
-
       if (isNowFullscreen) {
         document.body.classList.add('fullscreen-active');
         if (canvasRef.current) {
@@ -1232,30 +1233,29 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
         }
       }
     };
-
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, [isMobile]);
 
-  // Funzione per entrare in modalità fullscreen
   const enterFullscreen = () => {
     if (!canvasRef.current) {
       console.error('Canvas ref non disponibile');
       return;
     }
-
     console.log('Attempting to enter fullscreen...');
     if (document.fullscreenEnabled) {
-      canvasRef.current.requestFullscreen().then(() => {
-        console.log('Entered fullscreen successfully');
-        setIsFullscreen(true);
-      }).catch((err) => {
-        console.error('Errore durante l\'attivazione del fullscreen:', err);
-        canvasRef.current.style.width = '100vw';
-        canvasRef.current.style.height = '100vh';
-        document.body.classList.add('fullscreen-active');
-        setIsFullscreen(true);
-      });
+      canvasRef.current.requestFullscreen()
+        .then(() => {
+          console.log('Entered fullscreen successfully');
+          setIsFullscreen(true);
+        })
+        .catch((err) => {
+          console.error('Errore durante l\'attivazione del fullscreen:', err);
+          canvasRef.current.style.width = '100vw';
+          canvasRef.current.style.height = '100vh';
+          document.body.classList.add('fullscreen-active');
+          setIsFullscreen(true);
+        });
     } else {
       console.warn('Fullscreen non supportato, applico fallback...');
       canvasRef.current.style.width = '100vw';
@@ -1265,27 +1265,28 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     }
   };
 
-  // Funzione per uscire dal fullscreen
   const exitFullscreen = () => {
     console.log('Attempting to exit fullscreen...');
     if (document.fullscreenElement) {
-      document.exitFullscreen().then(() => {
-        console.log('Exited fullscreen successfully');
-        setIsFullscreen(false);
-        if (canvasRef.current) {
-          canvasRef.current.style.width = '100%';
-          canvasRef.current.style.height = isMobile ? '50vh' : '70vh';
-        }
-        document.body.classList.remove('fullscreen-active');
-      }).catch((err) => {
-        console.error('Errore durante l\'uscita dal fullscreen:', err);
-        if (canvasRef.current) {
-          canvasRef.current.style.width = '100%';
-          canvasRef.current.style.height = isMobile ? '50vh' : '70vh';
-        }
-        document.body.classList.remove('fullscreen-active');
-        setIsFullscreen(false);
-      });
+      document.exitFullscreen()
+        .then(() => {
+          console.log('Exited fullscreen successfully');
+          setIsFullscreen(false);
+          if (canvasRef.current) {
+            canvasRef.current.style.width = '100%';
+            canvasRef.current.style.height = isMobile ? '50vh' : '70vh';
+          }
+          document.body.classList.remove('fullscreen-active');
+        })
+        .catch((err) => {
+          console.error('Errore durante l\'uscita dal fullscreen:', err);
+          if (canvasRef.current) {
+            canvasRef.current.style.width = '100%';
+            canvasRef.current.style.height = isMobile ? '50vh' : '70vh';
+          }
+          document.body.classList.remove('fullscreen-active');
+          setIsFullscreen(false);
+        });
     } else if (isFullscreen) {
       if (canvasRef.current) {
         canvasRef.current.style.width = '100%';
@@ -1297,16 +1298,10 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     }
   };
 
-  // Funzione per alternare tra vista 3D e pulsanti
   const toggleView = () => {
     setIs3DView(!is3DView);
-    console.log('DEBUG - Toggled view:', is3DView ? 'Buttons' : '3D');
+    console.log('DEBUG - Toggled view:', is3DView ? 'Game List' : '3D View');
   };
-
-  // Debug rendering del canvas
-  useEffect(() => {
-    console.log('Canvas rendered:', canvasRef.current);
-  }, []);
 
   return (
     <div ref={containerRef} className="relative w-full casino-scene-container">
@@ -1354,7 +1349,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
                 className="casino-button text-sm py-2 px-4"
                 style={{ pointerEvents: 'auto', zIndex: 1002 }}
               >
-                Change Visual
+                Back to Game List
               </button>
             </div>
           )}
@@ -1392,37 +1387,39 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
             Poker PvP
           </button>
           {isMobile && (
-            <button
-              onClick={toggleView}
-              className="casino-button text-sm py-2 px-4"
-              style={{ pointerEvents: 'auto', zIndex: 1002 }}
-            >
-              Back to 3D View
-            </button>
+            <div className="flex justify-center mt-4">
+              <button
+                onClick={toggleView}
+                className="casino-button text-sm py-2 px-4"
+                style={{ pointerEvents: 'auto', zIndex: 1002 }}
+              >
+                Switch to 3D View
+              </button>
+            </div>
           )}
         </div>
       )}
-<div className="fullscreen-button-container z-[1001]">
-  {isFullscreen ? (
-    <button
-      onClick={exitFullscreen}
-      className="casino-button text-sm py-2 px-4"
-      style={{ pointerEvents: 'auto', zIndex: 1002 }}
-    >
-      Exit Fullscreen
-    </button>
-  ) : (
-    !isMobile && (
-      <button
-        onClick={enterFullscreen}
-        className="casino-button text-sm py-2 px-4 animate-pulse-slow"
-        style={{ pointerEvents: 'auto', zIndex: 1002 }}
-      >
-        Fullscreen
-      </button>
-    )
-  )}
-</div>
+      <div className="fullscreen-button-container z-[1001]">
+        {isFullscreen ? (
+          <button
+            onClick={exitFullscreen}
+            className="casino-button text-sm py-2 px-4"
+            style={{ pointerEvents: 'auto', zIndex: 1002 }}
+          >
+            Exit Fullscreen
+          </button>
+        ) : (
+          !isMobile && (
+            <button
+              onClick={enterFullscreen}
+              className="casino-button text-sm py-2 px-4 animate-pulse-slow"
+              style={{ pointerEvents: 'auto', zIndex: 1002 }}
+            >
+              Fullscreen
+            </button>
+          )
+        )}
+      </div>
     </div>
   );
 };
