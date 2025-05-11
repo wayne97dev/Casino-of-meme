@@ -1312,40 +1312,31 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
   return (
     <div ref={containerRef} className="relative w-full casino-scene-container">
       {isMobile ? (
-        // Mostra solo la lista dei giochi su mobile
-        <div className="game-buttons-container flex flex-col gap-4 items-center justify-center h-full">
-          <button
-            onClick={() => onSelectGame('Solana Card Duel')}
-            className="casino-button w-48"
-          >
-            Blackjack
-          </button>
-          <button
-            onClick={() => onSelectGame('Meme Slots')}
-            className="casino-button w-48"
-          >
-            Meme Slots
-          </button>
-          <button
-            onClick={() => onSelectGame('Coin Flip')}
-            className="casino-button w-48"
-          >
-            Coin Flip
-          </button>
-          <button
-            onClick={() => onSelectGame('Crazy Wheel')}
-            className="casino-button w-48"
-          >
-            Crazy Wheel
-          </button>
-          <button
-            onClick={() => onSelectGame('Poker PvP')}
-            className="casino-button w-48"
-          >
-            Poker PvP
-          </button>
-        </div>
-      ) : (
+         // Mostra solo la lista dei giochi su mobile con immagini
+  <div className="game-buttons-container flex flex-col gap-4 items-center justify-center h-full">
+  {[
+    { name: 'Solana Card Duel', label: 'Blackjack', icon: '/assets/images/BJ.png' },
+    { name: 'Meme Slots', label: 'Meme Slots', icon: '/assets/images/slot.png' },
+    { name: 'Coin Flip', label: 'Coin Flip', icon: '/assets/images/coin.png' },
+    { name: 'Crazy Wheel', label: 'Crazy Wheel', icon: '/assets/images/Wheel.png' },
+    { name: 'Poker PvP', label: 'Poker PvP', icon: '/assets/images/Poker.png' },
+  ].map((game) => (
+    <button
+      key={game.name}
+      onClick={() => onSelectGame(game.name)}
+      className="casino-button w-48 flex items-center justify-start"
+    >
+      <img
+        src={game.icon}
+        alt={`${game.label} Icon`}
+        className="w-8 h-8 mr-3"
+        onError={(e) => console.error(`Failed to load icon for ${game.label}:`, e)}
+      />
+      <span>{game.label}</span>
+    </button>
+  ))}
+</div>
+) : (
         // Mostra la scena 3D su desktop con opzione di fullscreen
         <>
           <Canvas

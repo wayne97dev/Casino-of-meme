@@ -223,6 +223,13 @@ body:not(.fullscreen-active) {
   touch-action: manipulation !important; /* Ottimizza per i tap */
 }
 
+.casino-button img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain; /* Assicura che l'immagine non venga distorta */
+  margin-right: 12px;
+}
+
 @media (max-width: 768px) {
   .casino-button {
     touch-action: manipulation !important;
