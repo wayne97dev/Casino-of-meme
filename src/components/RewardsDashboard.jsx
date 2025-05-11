@@ -1,6 +1,6 @@
 
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Canvas, useThree, useLoader } from '@react-three/fiber';
@@ -18,7 +18,6 @@ import {
   getAccount,
 } from '@solana/spl-token';
 import { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction, SystemProgram } from '@solana/web3.js';
-
 
 
 
@@ -794,9 +793,6 @@ const DonaldTrump = ({ position, currentAnimation = 'Idle' }) => {
 
 
 // Sottocomponente per la logica della scena
-
-
-
 const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, triggerWinEffect, isMobile, isFullscreen }) => {
   const { camera, gl, invalidate, scene, raycaster, mouse } = useThree();
   const [showParticles, setShowParticles] = useState(false);
@@ -806,7 +802,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   const containerRef = useRef(null);
   const orbitControlsRef = useRef(null);
 
-  // Funzione di debouncing
+  // Funzione di debouncing per limitare gli aggiornamenti
   const debounce = (func, wait) => {
     let timeout;
     return (...args) => {
@@ -822,7 +818,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         console.warn('DEBUG - containerRef.current non disponibile per il calcolo delle dimensioni');
         return;
       }
-
+  
       const width = isFullscreen ? window.innerWidth : containerRef.current.clientWidth;
       const height = isFullscreen ? window.innerHeight : containerRef.current.clientHeight;
       console.log('DEBUG - Resizing renderer:', { width, height, isFullscreen });
@@ -831,20 +827,21 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       gl.setSize(width, height);
       invalidate();
     }, 100);
-
+  
+    // Esegui il resize solo dopo che containerRef è pronto
     if (containerRef.current) {
       handleResize();
       window.addEventListener('resize', handleResize);
       document.addEventListener('fullscreenchange', handleResize);
     }
-
+  
     return () => {
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('fullscreenchange', handleResize);
     };
-  }, [isMobile, isFullscreen, camera, gl, invalidate]);
+  }, [isMobile, isFullscreen, camera, gl, invalidate, containerRef.current]);
 
-  // Texture del pavimento
+  // Parte del pavimento invariata
   const brickTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
   const brickNormalTexture = useLoader(THREE.TextureLoader, '/models/textures/red_brick_seamless.jpg');
   const floorMaterialRef = useRef(new THREE.MeshStandardMaterial({
@@ -872,17 +869,15 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
     camera.lookAt(0, 0, 0);
   }, [camera]);
 
-  const handleSelectGame = useCallback((game) => {
+  const handleSelectGame = (game) => {
     console.log('DEBUG - Game selected:', game, 'Timestamp:', Date.now());
     setCroupierAnimation('Wave');
     setTrumpAnimation('Wave');
     onSelectGame(game);
-    // Aggiorna cronologia senza refresh
-    window.history.pushState(null, null, `/${game.toLowerCase().replace(' ', '-')}`);
     setTimeout(() => {
       setTrumpAnimation('Idle');
     }, 2000);
-  }, [onSelectGame, setCroupierAnimation]);
+  };
 
   // Gestione del raycasting per i clic sugli oggetti 3D
   const interactiveObjects = useRef([]);
@@ -907,61 +902,56 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   useEffect(() => {
     let touchStartTime = 0;
     let touchMoved = false;
-
-    const handleClick = (event) => {
-      console.log('DEBUG - Canvas clicked', Date.now(), 'Event type:', event.type, 'Coordinates:', {
-        clientX: event.clientX,
-        clientY: event.clientY,
-      });
-
-      const rect = gl.domElement.getBoundingClientRect();
-      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      console.log('DEBUG - Normalized mouse coordinates:', {
-        x: mouseRef.current.x,
-        y: mouseRef.current.y,
-        rect
-      });
-
-      raycasterRef.current.setFromCamera(mouseRef.current, camera);
-      const intersects = raycasterRef.current.intersectObjects(
-        interactiveObjects.current.flatMap(obj => obj.meshes),
-        true
-      );
-      console.log('DEBUG - Click raycast intersects:', intersects.length, intersects.map(i => i.object.name));
-
-      if (intersects.length > 0) {
-        const intersectedObject = intersects[0].object;
-        const target = interactiveObjects.current.find(obj =>
-          obj.meshes.includes(intersectedObject)
+      const handleClick = (event) => {
+        // Rimuovi event.preventDefault() se non strettamente necessario
+        console.log('DEBUG - Canvas clicked', Date.now(), 'Event type:', event.type, 'Coordinates:', {
+          clientX: event.clientX,
+          clientY: event.clientY,
+        });
+    
+        const rect = gl.domElement.getBoundingClientRect();
+        mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        console.log('DEBUG - Normalized mouse coordinates:', {
+          x: mouseRef.current.x,
+          y: mouseRef.current.y,
+          rect
+        });
+    
+        raycasterRef.current.setFromCamera(mouseRef.current, camera);
+        const intersects = raycasterRef.current.intersectObjects(
+          interactiveObjects.current.flatMap(obj => obj.meshes),
+          true
         );
-        if (target) {
-          console.log('DEBUG - Click intersected object:', target.game, Date.now());
-          handleSelectGame(target.game);
-          if (!isMobile && orbitControlsRef.current) {
-            orbitControlsRef.current.enabled = false;
-            setTimeout(() => {
-              orbitControlsRef.current.enabled = true;
-            }, 100);
+        console.log('DEBUG - Click raycast intersects:', intersects.length, intersects.map(i => i.object.name));
+    
+        if (intersects.length > 0) {
+          const intersectedObject = intersects[0].object;
+          const target = interactiveObjects.current.find(obj =>
+            obj.meshes.includes(intersectedObject)
+          );
+          if (target) {
+            console.log('DEBUG - Click intersected object:', target.game, Date.now());
+            handleSelectGame(target.game);
+            if (!isMobile && orbitControlsRef.current) {
+              orbitControlsRef.current.enabled = false;
+              setTimeout(() => {
+                orbitControlsRef.current.enabled = true;
+              }, 100);
+            }
           }
         }
-      }
-    };
+      };
+    
+      // Configura come non passivo se preventDefault è necessario
+      gl.domElement.addEventListener('click', handleClick, { passive: false });
 
+  
     const handleTouchStart = (event) => {
       console.log('DEBUG - Canvas touch started', Date.now(), 'Touches:', event.touches.length, 'Target:', event.target.tagName);
       touchStartTime = Date.now();
       touchMoved = false;
-
-      // Previeni pull-to-refresh per canvas e pulsanti
-      if (
-        event.target.closest('.casino-canvas') ||
-        event.target.closest('.casino-button') ||
-        event.target.closest('.bet-input')
-      ) {
-        event.preventDefault();
-      }
-
+  
       if (event.touches.length === 1) {
         const touch = event.touches[0];
         const rect = gl.domElement.getBoundingClientRect();
@@ -981,27 +971,26 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         }
       }
     };
-
+  
     const handleTouchMove = (event) => {
       touchMoved = true;
-      console.log('DEBUG - Touch move detected, allowing scroll', Date.now());
       // Non chiamare preventDefault per consentire lo scroll
+      console.log('DEBUG - Touch move detected, allowing scroll', Date.now());
     };
-
+  
     const handleTouchEnd = (event) => {
       console.log('DEBUG - Canvas touch ended', Date.now());
       const touchDuration = Date.now() - touchStartTime;
-
+  
       if (event.changedTouches.length === 1 && !touchMoved && touchDuration < 300) {
         console.log('DEBUG - Short single touch, performing raycast', Date.now());
-        event.preventDefault(); // Previeni comportamento predefinito per tap
         raycasterRef.current.setFromCamera(mouseRef.current, camera);
         const intersects = raycasterRef.current.intersectObjects(
           interactiveObjects.current.flatMap(obj => obj.meshes),
           true
         );
         console.log('DEBUG - Touch raycast intersects:', intersects.length, intersects.map(i => i.object.name));
-
+  
         if (intersects.length > 0) {
           const intersectedObject = intersects[0].object;
           const target = interactiveObjects.current.find(obj =>
@@ -1013,17 +1002,17 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
           }
         }
       }
-
+  
       if (orbitControlsRef.current) {
         orbitControlsRef.current.enabled = true;
       }
     };
-
+  
     gl.domElement.addEventListener('click', handleClick, { passive: true });
-    gl.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+    gl.domElement.addEventListener('touchstart', handleTouchStart, { passive: true });
     gl.domElement.addEventListener('touchmove', handleTouchMove, { passive: true });
-    gl.domElement.addEventListener('touchend', handleTouchEnd, { passive: false });
-
+    gl.domElement.addEventListener('touchend', handleTouchEnd, { passive: true });
+  
     return () => {
       gl.domElement.removeEventListener('click', handleClick);
       gl.domElement.removeEventListener('touchstart', handleTouchStart);
@@ -1031,6 +1020,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       gl.domElement.removeEventListener('touchend', handleTouchEnd);
     };
   }, [gl, camera, handleSelectGame, isMobile]);
+
 
   useEffect(() => {
     if (triggerWinEffect) {
@@ -1061,13 +1051,13 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
         console.warn(`DEBUG - Ref for ${game} not ready yet`);
       }
     };
-
+  
     registerIfReady(pokerCardRef, 'Solana Card Duel');
     registerIfReady(slotMachineRef, 'Meme Slots');
     registerIfReady(coinFlipRef, 'Coin Flip');
     registerIfReady(crazyTimeWheelRef, 'Crazy Wheel');
     registerIfReady(blackjackTableRef, 'Poker PvP');
-
+  
     console.log('DEBUG - Interactive objects registered:', interactiveObjects.current.map(obj => ({
       game: obj.game,
       meshCount: obj.meshes.length,
@@ -1098,7 +1088,7 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
       <Stars
         radius={100}
         depth={isMobile ? 30 : 50}
-        count={isMobile ? 100 : 300}
+        count={isMobile ? 300 : 1000}
         factor={isMobile ? 2 : 4}
         saturation={0}
         fade
@@ -1192,15 +1182,20 @@ const SceneContent = ({ onSelectGame, croupierAnimation, setCroupierAnimation, t
   );
 };
 
+
+
+
+
+
+
 const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
   const [croupierAnimation, setCroupierAnimation] = useState('Idle');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [is3DView, setIs3DView] = useState(true);
+  const [is3DView, setIs3DView] = useState(true); // Stato per alternare tra 3D e pulsanti
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
-  // Gestione del resize
   useEffect(() => {
     const handleResize = () => {
       const newIsMobile = window.innerWidth < 768;
@@ -1216,7 +1211,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [isFullscreen]);
 
-  // Gestione del fullscreen
+  // Gestione del cambio di stato del fullscreen
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isNowFullscreen = !!document.fullscreenElement;
@@ -1242,58 +1237,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, [isMobile]);
 
-  // Previeni pull-to-refresh globale
-  useEffect(() => {
-    const preventPullToRefresh = (event) => {
-      if (
-        event.target.closest('.casino-canvas') ||
-        event.target.closest('.casino-button') ||
-        event.target.closest('.bet-input')
-      ) {
-        event.preventDefault();
-      }
-    };
-
-    window.addEventListener('touchstart', preventPullToRefresh, { passive: false });
-    window.addEventListener('touchmove', preventPullToRefresh, { passive: false });
-
-    return () => {
-      window.removeEventListener('touchstart', preventPullToRefresh);
-      window.removeEventListener('touchmove', preventPullToRefresh);
-    };
-  }, []);
-
-  // Gestione della navigazione all'indietro
-  useEffect(() => {
-    const handlePopstate = (event) => {
-      event.preventDefault();
-      console.log('DEBUG - Popstate detected, preventing refresh', Date.now());
-      setIs3DView(true); // Torna alla vista 3D
-      onSelectGame(null); // Resetta il gioco selezionato
-      window.history.pushState(null, null, '/'); // Aggiorna cronologia senza refresh
-    };
-
-    window.addEventListener('popstate', handlePopstate);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopstate);
-    };
-  }, [onSelectGame]);
-
-  // Debug per refresh della pagina
-  useEffect(() => {
-    const handleBeforeUnload = (event) => {
-      console.log('DEBUG - Page is about to refresh', Date.now());
-      // event.preventDefault(); // Commentato per debug
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
-
+  // Funzione per entrare in modalità fullscreen
   const enterFullscreen = () => {
     if (!canvasRef.current) {
       console.error('Canvas ref non disponibile');
@@ -1321,6 +1265,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     }
   };
 
+  // Funzione per uscire dal fullscreen
   const exitFullscreen = () => {
     console.log('Attempting to exit fullscreen...');
     if (document.fullscreenElement) {
@@ -1352,11 +1297,13 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
     }
   };
 
+  // Funzione per alternare tra vista 3D e pulsanti
   const toggleView = () => {
     setIs3DView(!is3DView);
     console.log('DEBUG - Toggled view:', is3DView ? 'Buttons' : '3D');
   };
 
+  // Debug rendering del canvas
   useEffect(() => {
     console.log('Canvas rendered:', canvasRef.current);
   }, []);
@@ -1391,7 +1338,6 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
                   exitFullscreen();
                 }
                 onSelectGame(game);
-                window.history.pushState(null, null, `/${game.toLowerCase().replace(' ', '-')}`);
                 console.log('DEBUG - Selected game set in CasinoScene:', game);
               }}
               croupierAnimation={croupierAnimation}
@@ -1416,46 +1362,31 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
       ) : (
         <div className="game-buttons-container flex flex-col gap-4 items-center justify-center h-full">
           <button
-            onClick={() => {
-              onSelectGame('Solana Card Duel');
-              window.history.pushState(null, null, '/solana-card-duel');
-            }}
+            onClick={() => onSelectGame('Solana Card Duel')}
             className="casino-button w-48"
           >
             Blackjack
           </button>
           <button
-            onClick={() => {
-              onSelectGame('Meme Slots');
-              window.history.pushState(null, null, '/meme-slots');
-            }}
+            onClick={() => onSelectGame('Meme Slots')}
             className="casino-button w-48"
           >
             Meme Slots
           </button>
           <button
-            onClick={() => {
-              onSelectGame('Coin Flip');
-              window.history.pushState(null, null, '/coin-flip');
-            }}
+            onClick={() => onSelectGame('Coin Flip')}
             className="casino-button w-48"
           >
             Coin Flip
           </button>
           <button
-            onClick={() => {
-              onSelectGame('Crazy Wheel');
-              window.history.pushState(null, null, '/crazy-wheel');
-            }}
+            onClick={() => onSelectGame('Crazy Wheel')}
             className="casino-button w-48"
           >
             Crazy Wheel
           </button>
           <button
-            onClick={() => {
-              onSelectGame('Poker PvP');
-              window.history.pushState(null, null, '/poker-pvp');
-            }}
+            onClick={() => onSelectGame('Poker PvP')}
             className="casino-button w-48"
           >
             Poker PvP
@@ -1471,42 +1402,30 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
           )}
         </div>
       )}
-      <div className="fullscreen-button-container z-[1001]">
-        {isFullscreen ? (
-          <button
-            onClick={exitFullscreen}
-            className="casino-button text-sm py-2 px-4"
-            style={{ pointerEvents: 'auto', zIndex: 1002 }}
-          >
-            Exit Fullscreen
-          </button>
-        ) : (
-          !isMobile && (
-            <button
-              onClick={enterFullscreen}
-              className="casino-button text-sm py-2 px-4 animate-pulse-slow"
-              style={{ pointerEvents: 'auto', zIndex: 1002 }}
-            >
-              Fullscreen
-            </button>
-          )
-        )}
-      </div>
+<div className="fullscreen-button-container z-[1001]">
+  {isFullscreen ? (
+    <button
+      onClick={exitFullscreen}
+      className="casino-button text-sm py-2 px-4"
+      style={{ pointerEvents: 'auto', zIndex: 1002 }}
+    >
+      Exit Fullscreen
+    </button>
+  ) : (
+    !isMobile && (
+      <button
+        onClick={enterFullscreen}
+        className="casino-button text-sm py-2 px-4 animate-pulse-slow"
+        style={{ pointerEvents: 'auto', zIndex: 1002 }}
+      >
+        Fullscreen
+      </button>
+    )
+  )}
+</div>
     </div>
   );
 };
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
