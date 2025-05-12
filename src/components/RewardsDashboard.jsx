@@ -1575,7 +1575,6 @@ useEffect(() => {
         console.log('DEBUG - No wallet connected, setting COM balance to 0');
         return;
       }
-    
       try {
         console.log('DEBUG - Fetching COM balance for:', publicKey.toString());
         const response = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
@@ -1593,10 +1592,12 @@ useEffect(() => {
         } else {
           console.warn('DEBUG - Backend failed to fetch COM balance:', result.error);
           setComBalance(0);
+          setError(`Failed to fetch COM balance: ${result.error}`); // Mostra l'errore all'utente
         }
       } catch (err) {
         console.error('DEBUG - Error fetching COM balance:', err.message, err.stack);
         setComBalance(0);
+        setError('Network error while fetching COM balance. Please try again.');
       }
     };
 
@@ -2539,7 +2540,6 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
         }
       }
       const sortedHolders = holders.sort((a, b) => b.amount - a.amount);
-      // Non escludiamo la pool per ora, per vedere tutti gli holder
       const filteredHolders = sortedHolders; // Rimuovi .slice(1)
       console.log('DEBUG - All holders (including pool):', sortedHolders);
       console.log('DEBUG - Filtered holders:', filteredHolders);
