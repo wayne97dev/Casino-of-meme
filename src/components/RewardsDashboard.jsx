@@ -2292,131 +2292,184 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
 
 
   const makePokerMove = async (move, amount = 0) => {
-    console.log('DEBUG - Attempting poker move:', { move, amount, gameId: gameStatus.gameId });
-  
-    // Log dettagliato delle condizioni di validazione
-    const validationErrors = [];
-    if (!connected) validationErrors.push('Wallet not connected');
-    if (!publicKey) validationErrors.push('Public key not available');
-    if (!socket) validationErrors.push('WebSocket connection not initialized');
-    if (!gameStatus.gameId) validationErrors.push('Game ID not set (game not started)');
-  
-    if (validationErrors.length > 0) {
-      console.error('DEBUG - Cannot make poker move: Invalid state:', {
-        connected,
-        publicKey: publicKey?.toString(),
-        socket: !!socket,
-        gameId: gameStatus.gameId,
-        errors: validationErrors,
-      });
-      setPokerMessage(`Cannot make move: ${validationErrors.join(', ')}. Please ensure wallet is connected and game is started.`);
+    if (!connected || !publicKey || pokerStatus !== 'playing' || !signTransaction) {
+      setPokerMessage('Game not active or wallet not connected!');
+      console.log('DEBUG - makePokerMove failed: Game not active or wallet not connected', { connected, publicKey, pokerStatus });
       return;
     }
   
-    try {
-      let signedTransaction = null;
-      if (amount > 0) {
-        console.log('DEBUG - Creating transaction for poker move:', { move, amount });
-        const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+    const gameId = localStorage.getItem('currentGameId');
+    if (!gameId) {
+      setPokerMessage('No active game found!');
+      console.log('DEBUG - makePokerMove failed: No active game found');
+      return;
+    }
   
+    if (currentTurn !== socket.id) {
+      setPokerMessage("Not your turn!");
+      console.log('DEBUG - makePokerMove failed: Not your turn', { currentTurn, socketId: socket.id });
+      return;
+    }
+  
+    if (move === 'raise' && validateBet(amount, 'Poker PvP')) {
+      setPokerMessage(validateBet(amount, 'Poker PvP'));
+      console.log('DEBUG - makePokerMove failed: Invalid raise amount', { amount });
+      return;
+    }
+  
+    let additionalBet = 0;
+    if (move === 'call') {
+      additionalBet = currentBet - (playerBets[publicKey.toString()] || 0);
+    } else if (move === 'bet' || move === 'raise') {
+      additionalBet = amount - (playerBets[publicKey.toString()] || 0);
+    }
+  
+    console.log('DEBUG - Calculated additionalBet:', { move, additionalBet, currentBet, playerBet: playerBets[publicKey.toString()] });
+  
+    if (additionalBet > 0) {
+      if (comBalance < additionalBet) {
+        setPokerMessage('Insufficient COM balance. Add funds and try again.');
+        console.log('DEBUG - makePokerMove failed: Insufficient COM balance', { comBalance, additionalBet });
+        return;
+      }
+  
+      try {
+        console.log('DEBUG - Creating transaction for move:', move);
+        const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+        console.log('DEBUG - Getting user ATA...');
         const userATA = await getAssociatedTokenAddress(
           new PublicKey(MINT_ADDRESS),
           publicKey,
           false,
           TOKEN_2022_PROGRAM_ID
         );
+        console.log('DEBUG - Getting casino ATA...');
+        const casinoPublicKey = new PublicKey('2E1LhcV3pze6Q6P7MEsxUoNYK3KECm2rTS2D18eSRTn9');
         const casinoATA = await getAssociatedTokenAddress(
           new PublicKey(MINT_ADDRESS),
-          new PublicKey(CASINO_WALLET_ADDRESS),
+          casinoPublicKey,
           false,
           TOKEN_2022_PROGRAM_ID
         );
   
+        const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS), 'confirmed', TOKEN_2022_PROGRAM_ID);
+        const decimals = mintInfo.decimals;
+  
+        const accountInfo = await connection.getParsedAccountInfo(new PublicKey(MINT_ADDRESS));
+        if (!accountInfo.value) {
+          throw new Error('Failed to fetch mint account info');
+        }
+        const extensions = accountInfo.value.data.parsed.info.extensions;
+        const transferFeeConfig = extensions?.find(ext => ext.extension === 'transferFeeConfig');
+  
+        let feeAmount = BigInt(0);
+        if (transferFeeConfig && transferFeeConfig.state &&
+            typeof transferFeeConfig.state.transferFeeBasisPoints === 'number' &&
+            typeof transferFeeConfig.state.maximumFee === 'string') {
+          const feeBasisPoints = BigInt(transferFeeConfig.state.transferFeeBasisPoints);
+          const maxFee = BigInt(transferFeeConfig.state.maximumFee);
+          const amountInBaseUnits = BigInt(Math.round(additionalBet * Math.pow(10, decimals)));
+          const calculatedFee = (amountInBaseUnits * feeBasisPoints) / BigInt(10000);
+          feeAmount = calculatedFee < maxFee ? calculatedFee : maxFee;
+          console.log('DEBUG - Transfer fee for move:', { feeAmount: feeAmount.toString() });
+        } else {
+          console.log('DEBUG - No valid TransferFee extension found, proceeding without fee');
+        }
+  
         const transaction = new Transaction();
+  
+        console.log('DEBUG - Checking user ATA existence...');
         let userAccountExists = false;
         try {
           await getAccount(connection, userATA, 'confirmed', TOKEN_2022_PROGRAM_ID);
           userAccountExists = true;
           console.log('DEBUG - User ATA exists:', userATA.toBase58());
         } catch (err) {
-          console.log('DEBUG - User ATA does not exist, will be created by backend');
+          console.log('DEBUG - Creating user ATA...');
+          transaction.add(
+            createAssociatedTokenAccountInstruction(
+              publicKey,
+              userATA,
+              publicKey,
+              new PublicKey(MINT_ADDRESS),
+              TOKEN_2022_PROGRAM_ID
+            )
+          );
         }
   
-        const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS), 'confirmed', TOKEN_2022_PROGRAM_ID);
-        const decimals = mintInfo.decimals;
-        console.log('DEBUG - Mint decimals:', decimals);
+        console.log('DEBUG - Adding transfer instruction...');
+        if (transferFeeConfig && feeAmount > 0) {
+          transaction.add(
+            createTransferCheckedWithFeeInstruction(
+              userATA,
+              new PublicKey(MINT_ADDRESS),
+              casinoATA,
+              publicKey,
+              BigInt(Math.round(additionalBet * Math.pow(10, decimals))),
+              decimals,
+              feeAmount,
+              [],
+              TOKEN_2022_PROGRAM_ID
+            )
+          );
+        } else {
+          transaction.add(
+            createTransferCheckedInstruction(
+              userATA,
+              new PublicKey(MINT_ADDRESS),
+              casinoATA,
+              publicKey,
+              BigInt(Math.round(additionalBet * Math.pow(10, decimals))),
+              decimals,
+              [],
+              TOKEN_2022_PROGRAM_ID
+            )
+          );
+        }
   
-        transaction.add(
-          createTransferCheckedInstruction(
-            userATA,
-            new PublicKey(MINT_ADDRESS),
-            casinoATA,
-            publicKey,
-            BigInt(Math.round(amount * Math.pow(10, decimals))),
-            decimals,
-            [],
-            TOKEN_2022_PROGRAM_ID
-          )
-        );
-  
+        console.log('DEBUG - Getting latest blockhash...');
         const { blockhash } = await connection.getLatestBlockhash();
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = publicKey;
   
-        signedTransaction = await signTransaction(transaction);
-        console.log('DEBUG - Transaction signed successfully');
+        console.log('DEBUG - Signing transaction for move:', move);
+        const signedTransaction = await signTransaction(transaction);
+  
+        console.log('DEBUG - Sending make-poker-move request:', { playerAddress: publicKey.toString(), gameId, move, amount: additionalBet });
+        const response = await fetch(`${BACKEND_URL}/make-poker-move`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            playerAddress: publicKey.toString(),
+            gameId,
+            move,
+            amount: additionalBet,
+            signedTransaction: signedTransaction.serialize().toString('base64'),
+          }),
+          credentials: 'include',
+        });
+  
+        const result = await response.json();
+        if (!result.success) {
+          console.error('DEBUG - make-poker-move failed:', result.error);
+          setPokerMessage(`Bet failed: ${result.error}`);
+          return;
+        }
+        console.log('DEBUG - make-poker-move successful, updating balance...');
+        fetchComBalance();
+      } catch (err) {
+        console.error('DEBUG - Error in makePokerMove:', err.message, err.stack);
+        setPokerMessage(`Bet failed: ${err.message}`);
+        return;
       }
-  
-      console.log('DEBUG - Sending make-poker-move request:', {
-        playerAddress: publicKey.toString(),
-        gameId: gameStatus.gameId,
-        move,
-        amount,
-        hasSignedTransaction: !!signedTransaction,
-      });
-  
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-  
-      const response = await fetch(`${BACKEND_URL}/make-poker-move`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          playerAddress: publicKey.toString(),
-          gameId: gameStatus.gameId,
-          move,
-          amount,
-          signedTransaction: signedTransaction ? signedTransaction.serialize().toString('base64') : null,
-        }),
-        credentials: 'include',
-        signal: controller.signal,
-      });
-  
-      clearTimeout(timeoutId);
-  
-      const result = await response.json();
-      console.log('DEBUG - Response from /make-poker-move:', result);
-  
-      if (response.ok && result.success) {
-        console.log('DEBUG - Poker move successful:', { move, amount });
-        setPokerMessage(`Move ${move} executed successfully${amount > 0 ? ` for ${amount} COM` : ''}.`);
-      } else {
-        console.error('DEBUG - make-poker-move failed:', result.error || 'Unknown error');
-        setPokerMessage(`Failed to make move: ${result.error || 'Unknown error'}. Please try again or contact support.`);
-      }
-    } catch (err) {
-      console.error('DEBUG - Error in make-poker-move:', err.message, err.stack);
-      let errorMessage = `Failed to make move: ${err.message}. Please try again or contact support.`;
-      if (err.message.includes('Transaction simulation failed')) {
-        errorMessage = `Failed to make move: Transaction failed due to incorrect configuration. Please contact support.`;
-      } else if (err.name === 'AbortError') {
-        errorMessage = `Failed to make move: Request timed out. Please try again.`;
-      }
-      setPokerMessage(errorMessage);
     }
+  
+    console.log(`DEBUG - Emitting makeMove event: gameId=${gameId}, move=${move}, amount=${amount}`);
+    socket.emit('makeMove', { gameId, move, amount });
   };
+
 
 
 
