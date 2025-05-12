@@ -2465,7 +2465,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
               console.warn('DEBUG - Invalid mint or token account, skipping holders:', err.message);
               holderList = [];
               supply = 0;
-              setError('Impossibile recuperare i dati del mint o gli holder. Il mint potrebbe non essere valido o non ci sono account di token associati.');
+              setError('Impossibile recuperare i dati del mint o gli holder. Potrebbe essere un problema con l\'RPC o il mint non è sincronizzato.');
             } else {
               console.error('DEBUG - Unexpected error fetching mint or holders:', err.message, err.stack);
               throw err;
