@@ -68,7 +68,7 @@ const COMPUTER_WIN_CHANCE = {
   cardDuel: 0.97,
   memeSlots: 0.90,
   coinFlip: 0.6,
-  crazyTime: 0.95,
+  crazyTime: 0.94,
 };
 
 // Mazzo per Solana Card Duel
