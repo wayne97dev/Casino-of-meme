@@ -9,11 +9,13 @@ import io from 'socket.io-client';
 import {
   getMint,
   TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID, // Aggiungi questa riga
   AccountLayout,
   getAssociatedTokenAddress,
   createTransferInstruction,
   createAssociatedTokenAccountInstruction,
   getAccount,
+  createTransferCheckedInstruction, // Aggiungi questa importazione
 } from '@solana/spl-token';
 import { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction, SystemProgram } from '@solana/web3.js';
 
@@ -1512,7 +1514,10 @@ useEffect(() => {
   };
 }, []);
 
-
+const toggleHolders = () => {
+  setShowHolders(!showHolders);
+  setCurrentPage(1);
+};
 
 
   // Avvia la musica automaticamente al caricamento della dApp
@@ -1565,29 +1570,39 @@ useEffect(() => {
 
     const fetchComBalance = async () => {
       if (!connected || !publicKey) {
+        console.log('DEBUG - Wallet not connected or publicKey missing:', { connected, publicKey });
         setComBalance(0);
         return;
       }
     
       try {
+        console.log('DEBUG - Fetching COM balance for:', publicKey.toString());
         const response = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include', // Includi i cookie per problemi di CORS
         });
+    
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+    
         const result = await response.json();
         if (result.success) {
           setComBalance(result.balance);
-          console.log(`Fetched COM balance: ${result.balance} COM`);
+          console.log(`DEBUG - Fetched COM balance: ${result.balance} COM`);
         } else {
-          throw new Error(result.error);
+          throw new Error(result.error || 'Failed to fetch COM balance');
         }
       } catch (err) {
-        console.error('Error fetching COM balance:', err);
+        console.error('DEBUG - Error fetching COM balance:', err.message, err.stack);
         setComBalance(0);
       }
     };
+
+    useEffect(() => {
+      fetchComBalance();
+    }, [connected, publicKey]);
 
 
 // Aggiorna betAmount al minBet iniziale
@@ -2055,77 +2070,76 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
   const joinPokerGame = async () => {
     if (!connected || !publicKey || !signTransaction) {
       setPokerMessage('Connetti il tuo portafoglio per giocare!');
-      console.log('DEBUG - Join failed: Wallet not connected', { connected, publicKey });
       return;
     }
-    
+  
     const betError = validateBet(betAmount, 'Poker PvP');
     if (betError) {
       setPokerMessage(betError);
-      console.log('DEBUG - Join failed: Bet validation error', { betAmount, betError });
       return;
     }
-    
+  
     if (comBalance < betAmount) {
       setPokerMessage('Saldo COM insufficiente.');
-      console.log('DEBUG - Join failed: Insufficient COM balance', { comBalance, betAmount });
       return;
     }
-    
+  
     try {
-      console.log('DEBUG - Creating transaction for joining poker game...');
       const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-      console.log('DEBUG - Getting user ATA...');
       const userATA = await getAssociatedTokenAddress(
         new PublicKey(MINT_ADDRESS),
-        publicKey
+        publicKey,
+        false,
+        TOKEN_2022_PROGRAM_ID
       );
-      console.log('DEBUG - Getting casino ATA...');
       const casinoPublicKey = new PublicKey('2E1LhcV3pze6Q6P7MEsxUoNYK3KECm2rTS2D18eSRTn9');
       const casinoATA = await getAssociatedTokenAddress(
         new PublicKey(MINT_ADDRESS),
-        casinoPublicKey
+        casinoPublicKey,
+        false,
+        TOKEN_2022_PROGRAM_ID
       );
-    
+  
+      // Recupera le informazioni del mint per ottenere i decimali
+      const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS), 'confirmed', TOKEN_2022_PROGRAM_ID);
+      const decimals = mintInfo.decimals; // Dovrebbe essere 6
+  
       const transaction = new Transaction();
-      
-      console.log('DEBUG - Checking user ATA existence...');
       let userAccountExists = false;
       try {
-        await getAccount(connection, userATA);
+        await getAccount(connection, userATA, 'confirmed', TOKEN_2022_PROGRAM_ID);
         userAccountExists = true;
-        console.log('DEBUG - User ATA exists:', userATA.toBase58());
       } catch (err) {
-        console.log('DEBUG - Creating user ATA:', err.message);
         transaction.add(
           createAssociatedTokenAccountInstruction(
             publicKey,
             userATA,
             publicKey,
-            new PublicKey(MINT_ADDRESS)
+            new PublicKey(MINT_ADDRESS),
+            TOKEN_2022_PROGRAM_ID
           )
         );
       }
-    
-      console.log('DEBUG - Adding transfer instruction...');
+  
+      // Usa createTransferCheckedInstruction invece di createTransferInstruction
       transaction.add(
-        createTransferInstruction(
-          userATA,
-          casinoATA,
-          publicKey,
-          betAmount * 1e6
+        createTransferCheckedInstruction(
+          userATA, // Source ATA
+          new PublicKey(MINT_ADDRESS), // Mint
+          casinoATA, // Destination ATA
+          publicKey, // Owner
+          Math.round(betAmount * Math.pow(10, decimals)), // Importo in unità base (con decimali)
+          decimals, // Decimali del token
+          [], // Memo (opzionale)
+          TOKEN_2022_PROGRAM_ID // Programma
         )
       );
-    
-      console.log('DEBUG - Getting latest blockhash...');
+  
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
-    
-      console.log('DEBUG - Signing transaction...');
+  
       const signedTransaction = await signTransaction(transaction);
-    
-      console.log('DEBUG - Sending joinGame request:', { playerAddress: publicKey.toString(), betAmount });
       const response = await fetch(`${BACKEND_URL}/join-poker-game`, {
         method: 'POST',
         headers: {
@@ -2136,30 +2150,32 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           betAmount,
           signedTransaction: signedTransaction.serialize().toString('base64'),
         }),
-        credentials: 'include', // Aggiunto per CORS
+        credentials: 'include',
       });
+  
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to join game: HTTP ${response.status} - ${errorText}`);
+      }
+  
       const result = await response.json();
       if (result.success) {
-        console.log('DEBUG - Transaction successful, emitting joinGame event...');
         socket.emit('joinGame', {
           playerAddress: publicKey.toString(),
           betAmount,
         }, (ack) => {
           if (ack) {
-            console.log('DEBUG - joinGame event acknowledged by server:', ack);
-            setPokerMessage('Ti sei unito al gioco! In attesa di un altro giocatore...');
+            setPokerMessage('Ti sei unito al gioco!');
             fetchComBalance();
           } else {
-            console.error('DEBUG - No acknowledgment received for joinGame event');
             setPokerMessage('Errore: evento joinGame non confermato dal server.');
           }
         });
       } else {
-        console.error('DEBUG - Join failed:', result.error);
-        setPokerMessage(`Impossibile unirsi al gioco: ${result.error}`);
+        setPokerMessage(`Impossibile unirsi al gioco: ${result.error || 'Errore sconosciuto'}`);
       }
     } catch (err) {
-      console.error('DEBUG - Error in joinPokerGame:', err.message, err.stack);
+      console.error('DEBUG - Error joining poker game:', err.message, err.stack);
       setPokerMessage('Impossibile unirsi al gioco: ' + err.message);
     }
   };
@@ -2355,41 +2371,82 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
 
   const [lastBalance, setLastBalance] = useState(null);
 
+
+  const getHolders = async (mintAddress, connection) => {
+    const holders = [];
+    const filters = [
+      { dataSize: 165 },
+      { memcmp: { offset: 0, bytes: mintAddress } },
+    ];
+  
+    try {
+      console.log('DEBUG - Fetching token accounts for mint:', mintAddress);
+      const accounts = await connection.getProgramAccounts(TOKEN_2022_PROGRAM_ID, { filters });
+      console.log('DEBUG - Retrieved accounts:', accounts.length);
+  
+      for (const account of accounts) {
+        try {
+          if (account.account.owner.toBase58() !== TOKEN_2022_PROGRAM_ID.toBase58()) {
+            console.warn('DEBUG - Skipping account with invalid owner:', account.pubkey.toBase58());
+            continue;
+          }
+  
+          const accountData = AccountLayout.decode(account.account.data);
+          const amount = Number(accountData.amount) / 1e6;
+  
+          if (amount > 0 && accountData.owner) {
+            holders.push({
+              address: accountData.owner.toString(),
+              amount,
+            });
+          }
+        } catch (err) {
+          console.warn('DEBUG - Error decoding account:', account.pubkey.toBase58(), err.message);
+        }
+      }
+  
+      const sortedHolders = holders.sort((a, b) => b.amount - a.amount);
+      const filteredHolders = sortedHolders.slice(1); // Esclude il primo holder (es. pool)
+      console.log('DEBUG - Filtered holders:', filteredHolders);
+  
+      return filteredHolders;
+    } catch (err) {
+      console.error('DEBUG - Error fetching token accounts:', err.message, err.stack);
+      return [];
+    }
+  };
+  
   const fetchRewardsData = async (retries = 3, delay = 1000) => {
     setLoading(true);
     setError(null);
   
-    let newAccumulated = { sol: 0, wbtc: 0, weth: 0 }; // Valore predefinito
+    let newAccumulated = { sol: 0, wbtc: 0, weth: 0 };
   
     for (let i = 0; i < retries; i++) {
       try {
-        // Recupera il saldo del tax wallet dal backend
+        console.log(`DEBUG - Attempt ${i + 1}/${retries} to fetch rewards data`);
+  
         const balanceResponse = await fetch(`${BACKEND_URL}/tax-wallet-balance`, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
         });
         if (!balanceResponse.ok) {
-          throw new Error(`HTTP error! status: ${balanceResponse.status}`);
+          throw new Error(`HTTP error fetching tax wallet balance: ${balanceResponse.status}`);
         }
         const balanceResult = await balanceResponse.json();
         if (balanceResult.success) {
           setTaxWalletBalance(balanceResult.balance);
-          console.log('DEBUG - Tax wallet balance fetched:', balanceResult.balance);
+          console.log('DEBUG - Tax wallet balance:', balanceResult.balance);
         } else {
-          throw new Error(balanceResult.error);
+          throw new Error(balanceResult.error || 'Failed to fetch tax wallet balance');
         }
   
-        // Recupera le ricompense dal backend
         const rewardsResponse = await fetch(`${BACKEND_URL}/rewards`, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
         });
         if (!rewardsResponse.ok) {
-          throw new Error(`HTTP error! status: ${rewardsResponse.status}`);
+          throw new Error(`HTTP error fetching rewards: ${rewardsResponse.status}`);
         }
         const rewardsResult = await rewardsResponse.json();
         if (rewardsResult.success) {
@@ -2405,50 +2462,61 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           };
           setAccumulatedRewards(newAccumulated);
           localStorage.setItem('accumulatedRewards', JSON.stringify(newAccumulated));
+          console.log('DEBUG - Accumulated rewards:', newAccumulated);
         } else {
-          throw new Error(rewardsResult.error);
+          throw new Error(rewardsResult.error || 'Failed to fetch rewards');
         }
   
-        // Ricerca degli holders nel frontend
         if (connected && publicKey && MINT_ADDRESS && RPC_ENDPOINT) {
           const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+          console.log('DEBUG - Fetching holders for mint:', MINT_ADDRESS);
           const holderList = await getHolders(MINT_ADDRESS, connection);
-          const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS));
+          const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS), 'confirmed', TOKEN_2022_PROGRAM_ID);
           const supply = Number(mintInfo.supply) / 1e6;
           setTotalSupply(supply);
+          console.log('DEBUG - Mint supply:', supply);
   
-          const updatedHolders = holderList.map(holder => ({
-            ...holder,
-            solReward: (holder.amount / supply) * rewardsResult.rewards.sol,
-            wbtcReward: (holder.amount / supply) * rewardsResult.rewards.wbtc,
-            wethReward: (holder.amount / supply) * rewardsResult.rewards.weth,
-          }));
-          setHolders(updatedHolders);
-          setHolderCount(updatedHolders.length);
+          if (holderList.length === 0) {
+            console.log('DEBUG - No holders found for mint:', MINT_ADDRESS);
+            setHolders([]);
+            setHolderCount(0);
+            setUserTokens(0);
+            setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
+          } else {
+            const updatedHolders = holderList.map(holder => ({
+              ...holder,
+              solReward: supply > 0 ? (holder.amount / supply) * rewardsResult.rewards.sol : 0,
+              wbtcReward: supply > 0 ? (holder.amount / supply) * rewardsResult.rewards.wbtc : 0,
+              wethReward: supply > 0 ? (holder.amount / supply) * rewardsResult.rewards.weth : 0,
+            }));
+            setHolders(updatedHolders);
+            setHolderCount(updatedHolders.length);
+            console.log('DEBUG - Holders updated:', updatedHolders.length);
   
-          const userBalance = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          }).then(res => res.json());
-          const userAmount = userBalance.success ? userBalance.balance : 0;
-          setUserTokens(userAmount);
-          setUserRewards({
-            sol: (userAmount / supply) * newAccumulated.sol,
-            wbtc: (userAmount / supply) * newAccumulated.wbtc,
-            weth: (userAmount / supply) * newAccumulated.weth,
-          });
+            const userBalance = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+            }).then(res => res.json());
+            const userAmount = userBalance.success ? userBalance.balance : 0;
+            setUserTokens(userAmount);
+            setUserRewards({
+              sol: supply > 0 ? (userAmount / supply) * newAccumulated.sol : 0,
+              wbtc: supply > 0 ? (userAmount / supply) * newAccumulated.wbtc : 0,
+              weth: supply > 0 ? (userAmount / supply) * newAccumulated.weth : 0,
+            });
+            console.log('DEBUG - User tokens and rewards:', { userAmount });
+          }
         } else {
           setHolders([]);
           setHolderCount(0);
           setTotalSupply(0);
           setUserTokens(0);
           setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
+          console.log('DEBUG - No wallet connected, resetting holders and rewards');
         }
         return;
       } catch (error) {
-        console.error(`Error in fetchRewardsData (attempt ${i + 1}/${retries}):`, error);
+        console.error(`Error in fetchRewardsData (attempt ${i + 1}/${retries}):`, error.message, error.stack);
         if (i < retries - 1) {
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
@@ -2463,36 +2531,6 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
         setLoading(false);
       }
     }
-  };
-
-  const getHolders = async (mintAddress, connection) => {
-    const holders = [];
-    const filters = [
-      { dataSize: 165 },
-      { memcmp: { offset: 0, bytes: mintAddress } },
-    ];
-    const accounts = await connection.getProgramAccounts(TOKEN_PROGRAM_ID, { filters });
-  
-    const sortedAccounts = accounts
-      .map(account => {
-        const accountData = AccountLayout.decode(account.account.data);
-        const amount = Number(accountData.amount) / 1e6;
-        if (amount > 0) {
-          return { address: accountData.owner.toString(), amount };
-        }
-        return null;
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.amount - a.amount);
-  
-    const filteredHolders = sortedAccounts.slice(1);
-    console.log('DEBUG - Tutti gli holders filtrati (esclusa pool):', filteredHolders);
-    return filteredHolders;
-  };
-
-  const toggleHolders = () => {
-    setShowHolders(!showHolders);
-    setCurrentPage(1);
   };
 
   const drawCard = (isComputer = false) => {
@@ -4562,15 +4600,17 @@ const spinWheel = async (event) => {
             </>
           ) : (
             <>
-              {/* Pagina principale (mostrata solo se nessun gioco è selezionato) */}
-              {connected && publicKey && (
-        <div className="wallet-info-box">
-          <p className="text-orange-700">
-            Your COM Balance: {TOKEN_SYMBOL} {userTokens.toFixed(6)}
-          </p>
-        </div>
-      )}
-
+        {/* Pagina principale (mostrata solo se nessun gioco è selezionato) */}
+{connected && publicKey && (
+  <div className="wallet-info-box">
+    <p className="text-orange-700">
+      Your COM Balance: {TOKEN_SYMBOL} {comBalance.toFixed(6)}
+      <button onClick={fetchComBalance} className="casino-button ml-2">
+        Refresh
+      </button>
+    </p>
+  </div>
+)}
 
 
               <CasinoScene
