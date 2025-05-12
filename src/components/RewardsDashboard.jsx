@@ -19,7 +19,7 @@ import {
 import { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction, SystemProgram } from '@solana/web3.js';
 
 
-const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
 
 
 
@@ -1575,6 +1575,7 @@ useEffect(() => {
 
 
     
+    
 
     async function fetchComBalance(retries = 3, delay = 1000) {
       if (!connected || !publicKey || !signTransaction) {
@@ -1588,6 +1589,20 @@ useEffect(() => {
           console.log(`DEBUG - Attempt ${i + 1}/${retries} to fetch COM balance for:`, publicKey.toString());
           const connection = new Connection(RPC_ENDPOINT, 'confirmed');
           const mint = new PublicKey(MINT_ADDRESS);
+    
+          // Verifica il mint
+          try {
+            const mintInfo = await getMint(connection, mint, TOKEN_2022_PROGRAM_ID);
+            console.log('DEBUG - Mint verified:', {
+              address: mint.toBase58(),
+              decimals: mintInfo.decimals,
+              supply: mintInfo.supply.toString(),
+            });
+          } catch (err) {
+            console.error('DEBUG - Failed to verify mint:', err.message);
+            throw new Error(`Invalid mint address: ${err.message}`);
+          }
+    
           const userATA = await getAssociatedTokenAddress(
             mint,
             publicKey,
@@ -1609,6 +1624,12 @@ useEffect(() => {
           let account;
           try {
             account = await getAccount(connection, userATA, TOKEN_2022_PROGRAM_ID);
+            const balanceInfo = await connection.getTokenAccountBalance(userATA);
+            const balance = balanceInfo.value.uiAmount || 0;
+            setComBalance(balance);
+            console.log(`DEBUG - Fetched COM balance: ${balance} COM`);
+            setError(null);
+            return;
           } catch (err) {
             if (err.name === 'TokenAccountNotFoundError' || err.name === 'TokenInvalidAccountOwnerError') {
               console.log('DEBUG - ATA not found, creating ATA...');
@@ -1632,16 +1653,10 @@ useEffect(() => {
               setError('No COM tokens found for this address. ATA created; acquire some COM tokens to play.');
               return;
             } else {
+              console.error('DEBUG - Error fetching ATA:', err.message);
               throw err;
             }
           }
-    
-          const balanceInfo = await connection.getTokenAccountBalance(userATA);
-          const balance = balanceInfo.value.uiAmount || 0;
-          setComBalance(balance);
-          console.log(`DEBUG - Fetched COM balance: ${balance} COM`);
-          setError(null);
-          return;
         } catch (err) {
           console.warn('DEBUG - Error fetching COM balance:', {
             attempt: i + 1,
@@ -1652,7 +1667,7 @@ useEffect(() => {
             await new Promise(resolve => setTimeout(resolve, delay));
           } else {
             setComBalance(0);
-            setError(`Failed to fetch COM balance: ${err.message}. Please try again or contact support.`);
+            setError(`Failed to fetch COM balance: ${err.message}. Please verify the mint address or try again later.`);
           }
         }
       }
