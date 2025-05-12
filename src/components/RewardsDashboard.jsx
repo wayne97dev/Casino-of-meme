@@ -1574,7 +1574,7 @@ useEffect(() => {
 
 
     async function fetchComBalance(retries = 3, delay = 1000) {
-      if (!connected || !publicKey) {
+      if (!connected || !publicKey || !signTransaction) {
         setComBalance(0);
         console.log('DEBUG - No wallet connected, setting COM balance to 0');
         return;
@@ -1591,24 +1591,51 @@ useEffect(() => {
             TOKEN_2022_PROGRAM_ID
           );
           console.log('DEBUG - User ATA:', userATA.toBase58());
+    
+          let account;
           try {
-            const account = await getAccount(connection, userATA, TOKEN_2022_PROGRAM_ID);
-            const balanceInfo = await connection.getTokenAccountBalance(userATA);
-            const balance = balanceInfo.value.uiAmount || 0;
-            setComBalance(balance);
-            console.log(`DEBUG - Fetched COM balance: ${balance} COM`);
-            setError(null);
-            return;
+            account = await getAccount(connection, userATA, TOKEN_2022_PROGRAM_ID);
           } catch (err) {
             if (err.name === 'TokenAccountNotFoundError' || err.name === 'TokenInvalidAccountOwnerError') {
-              console.log('DEBUG - ATA not found, setting balance to 0');
+              console.log('DEBUG - ATA not found, creating ATA...');
+              const transaction = new Transaction().add(
+                createAssociatedTokenAccountInstruction(
+                  publicKey,
+                  userATA,
+                  publicKey,
+                  new PublicKey(MINT_ADDRESS),
+                  TOKEN_2022_PROGRAM_ID
+                )
+              );
+              const { blockhash } = await connection.getLatestBlockhash();
+              transaction.recentBlockhash = blockhash;
+              transaction.feePayer = publicKey;
+              const signedTransaction = await signTransaction(transaction);
+              const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+              await connection.confirmTransaction(signature, 'confirmed');
+              console.log('DEBUG - ATA created:', userATA.toBase58());
               setComBalance(0);
-              setError('No COM tokens found for this address. An ATA has been created; acquire some COM tokens to play.');
+              setError('No COM tokens found for this address. ATA created; acquire some COM tokens to play.');
               return;
             } else {
               throw err;
             }
           }
+    
+          const balanceInfo = await connection.getTokenAccountBalance(userATA);
+          const balance = balanceInfo.value.uiAmount || 0;
+          setComBalance(balance);
+          console.log(`DEBUG - Fetched COM balance: ${balance} COM`);
+    
+          // Verifica estensioni Token-2022
+          const mint = new PublicKey(MINT_ADDRESS);
+          const transferFeeConfig = await getTransferFeeConfig(connection, mint);
+          if (transferFeeConfig) {
+            console.log('DEBUG - Transfer Fee:', transferFeeConfig.newerTransferFee.transferFeeBasisPoints / 100, '%');
+          }
+    
+          setError(null);
+          return;
         } catch (err) {
           console.warn('DEBUG - Error fetching COM balance:', {
             attempt: i + 1,
