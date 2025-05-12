@@ -2484,30 +2484,32 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
   
           let userAmount = 0;
           try {
-            console.log('DEBUG - Fetching user balance for:', publicKey.toString());
-            const userBalance = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
-            const result = await userBalance.json();
-            if (result.success) {
-              userAmount = result.balance || 0;
-              console.log('DEBUG - User balance:', userAmount);
-            } else {
-              console.warn('DEBUG - Failed to fetch user balance:', result.error);
-              userAmount = 0;
-              setError('Impossibile recuperare il saldo COM: ' + (result.error || 'Errore sconosciuto'));
-            }
+            console.log('DEBUG - Fetching mint info for:', MINT_ADDRESS);
+            const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS), TOKEN_2022_PROGRAM_ID);
+            supply = Number(mintInfo.supply) / 1e6;
+            setTotalSupply(supply);
+            console.log('DEBUG - Mint supply:', supply);
+            holderList = await getHolders(MINT_ADDRESS, connection);
           } catch (err) {
-            console.warn('DEBUG - Error fetching user balance:', {
-              error: err.message,
+            console.error('DEBUG - Error fetching mint:', {
+              message: err.message,
+              name: err.name,
               stack: err.stack,
+              mintAddress: MINT_ADDRESS,
+              tokenProgram: TOKEN_2022_PROGRAM_ID.toBase58(),
             });
-            userAmount = 0;
-            setError('Impossibile recuperare il saldo COM. Il server potrebbe avere problemi.');
+            if (err.name === 'TokenInvalidAccountOwnerError' || err.name === 'TokenAccountNotFoundError') {
+              console.warn('DEBUG - Invalid mint or token account, skipping holders:', err.message);
+              holderList = [];
+              supply = 0;
+              setError(`Impossibile recuperare i dati del mint (${MINT_ADDRESS}). Errore: ${err.message}. Verifica il mint address e l'RPC.`);
+            } else {
+              console.error('DEBUG - Unexpected error fetching mint or holders:', err.message, err.stack);
+              setError(`Errore imprevisto durante il recupero dei dati del mint: ${err.message}`);
+              throw err;
+            }
           }
+          
           setUserTokens(userAmount);
           setComBalance(userAmount);
           setUserRewards({
