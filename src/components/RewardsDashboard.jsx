@@ -12,6 +12,7 @@ import {
   AccountLayout,
   getAssociatedTokenAddress,
   createTransferInstruction,
+  getTransferFeeConfig,
   createAssociatedTokenAccountInstruction,
   getAccount,
 } from '@solana/spl-token';
@@ -1573,6 +1574,8 @@ useEffect(() => {
 
 
 
+    
+
     async function fetchComBalance(retries = 3, delay = 1000) {
       if (!connected || !publicKey || !signTransaction) {
         setComBalance(0);
@@ -1584,13 +1587,24 @@ useEffect(() => {
         try {
           console.log(`DEBUG - Attempt ${i + 1}/${retries} to fetch COM balance for:`, publicKey.toString());
           const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+          const mint = new PublicKey(MINT_ADDRESS);
           const userATA = await getAssociatedTokenAddress(
-            new PublicKey(MINT_ADDRESS),
+            mint,
             publicKey,
             false,
             TOKEN_2022_PROGRAM_ID
           );
           console.log('DEBUG - User ATA:', userATA.toBase58());
+    
+          // Verifica la configurazione delle commissioni
+          const transferFeeConfig = await getTransferFeeConfig(connection, mint);
+          if (transferFeeConfig) {
+            console.log('DEBUG - Transfer Fee Config:');
+            console.log('  Fee Basis Points:', transferFeeConfig.newerTransferFee.transferFeeBasisPoints / 100, '%');
+            console.log('  Maximum Fee:', transferFeeConfig.newerTransferFee.maximumFee.toNumber() / 1e6, 'COM');
+          } else {
+            console.log('DEBUG - No Transfer Fee configured for this mint');
+          }
     
           let account;
           try {
@@ -1603,7 +1617,7 @@ useEffect(() => {
                   publicKey,
                   userATA,
                   publicKey,
-                  new PublicKey(MINT_ADDRESS),
+                  mint,
                   TOKEN_2022_PROGRAM_ID
                 )
               );
@@ -1626,14 +1640,6 @@ useEffect(() => {
           const balance = balanceInfo.value.uiAmount || 0;
           setComBalance(balance);
           console.log(`DEBUG - Fetched COM balance: ${balance} COM`);
-    
-          // Verifica estensioni Token-2022
-          const mint = new PublicKey(MINT_ADDRESS);
-          const transferFeeConfig = await getTransferFeeConfig(connection, mint);
-          if (transferFeeConfig) {
-            console.log('DEBUG - Transfer Fee:', transferFeeConfig.newerTransferFee.transferFeeBasisPoints / 100, '%');
-          }
-    
           setError(null);
           return;
         } catch (err) {
