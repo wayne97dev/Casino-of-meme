@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
@@ -1572,22 +1570,18 @@ useEffect(() => {
       }
     
       try {
-        console.log('DEBUG - Fetching COM balance for:', publicKey.toString());
         const response = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
         });
-        console.log('DEBUG - /com-balance response status:', response.status);
         const result = await response.json();
-        console.log('DEBUG - /com-balance response:', result);
         if (result.success) {
           setComBalance(result.balance);
           console.log(`Fetched COM balance: ${result.balance} COM`);
         } else {
-          console.warn('DEBUG - Backend failed to fetch COM balance:', result.error);
-          setComBalance(0);
+          throw new Error(result.error);
         }
       } catch (err) {
         console.error('Error fetching COM balance:', err);
@@ -2365,11 +2359,11 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
     setLoading(true);
     setError(null);
   
-    let newAccumulated = { sol: 0, wbtc: 0, weth: 0 }; // Valore predefinito
+    let newAccumulated = { sol: 0, wbtc: 0, weth: 0 };
   
     for (let i = 0; i < retries; i++) {
       try {
-        // Recupera il saldo del tax wallet dal backend
+        console.log('DEBUG - Fetching tax wallet balance...');
         const balanceResponse = await fetch(`${BACKEND_URL}/tax-wallet-balance`, {
           method: 'GET',
           headers: {
@@ -2387,7 +2381,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           throw new Error(balanceResult.error);
         }
   
-        // Recupera le ricompense dal backend
+        console.log('DEBUG - Fetching rewards...');
         const rewardsResponse = await fetch(`${BACKEND_URL}/rewards`, {
           method: 'GET',
           headers: {
@@ -2402,7 +2396,6 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           setRewardSol(rewardsResult.rewards.sol);
           setRewardWbtc(rewardsResult.rewards.wbtc);
           setRewardWeth(rewardsResult.rewards.weth);
-  
           const prevAccumulated = loadAccumulatedRewards();
           newAccumulated = {
             sol: prevAccumulated.sol + rewardsResult.rewards.sol,
@@ -2411,39 +2404,64 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           };
           setAccumulatedRewards(newAccumulated);
           localStorage.setItem('accumulatedRewards', JSON.stringify(newAccumulated));
+          console.log('DEBUG - Rewards fetched:', rewardsResult.rewards);
         } else {
           throw new Error(rewardsResult.error);
         }
   
-        // Ricerca degli holders nel frontend
         if (connected && publicKey && MINT_ADDRESS && RPC_ENDPOINT) {
           const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-          const holderList = await getHolders(MINT_ADDRESS, connection);
-          const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS));
-          const supply = Number(mintInfo.supply) / 1e6;
-          setTotalSupply(supply);
+          let holderList = [];
+          let supply = 0;
+          try {
+            console.log('DEBUG - Fetching holders for MINT_ADDRESS:', MINT_ADDRESS);
+            holderList = await getHolders(MINT_ADDRESS, connection);
+            console.log('DEBUG - Holders fetched:', holderList.length);
+            console.log('DEBUG - Fetching mint info for:', MINT_ADDRESS);
+            const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS));
+            supply = Number(mintInfo.supply) / 1e6;
+            setTotalSupply(supply);
+            console.log('DEBUG - Mint supply:', supply);
+          } catch (err) {
+            if (err.name === 'TokenInvalidAccountOwnerError' || err.name === 'TokenAccountNotFoundError') {
+              console.warn('DEBUG - Invalid mint or token account, skipping holders:', err.message);
+              holderList = [];
+              supply = 0;
+            } else {
+              throw err;
+            }
+          }
   
           const updatedHolders = holderList.map(holder => ({
             ...holder,
-            solReward: (holder.amount / supply) * rewardsResult.rewards.sol,
-            wbtcReward: (holder.amount / supply) * rewardsResult.rewards.wbtc,
-            wethReward: (holder.amount / supply) * rewardsResult.rewards.weth,
+            solReward: supply > 0 ? (holder.amount / supply) * rewardsResult.rewards.sol : 0,
+            wbtcReward: supply > 0 ? (holder.amount / supply) * rewardsResult.rewards.wbtc : 0,
+            wethReward: supply > 0 ? (holder.amount / supply) * rewardsResult.rewards.weth : 0,
           }));
           setHolders(updatedHolders);
           setHolderCount(updatedHolders.length);
+          console.log('DEBUG - Updated holders:', updatedHolders.length);
   
-          const userBalance = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          }).then(res => res.json());
-          const userAmount = userBalance.success ? userBalance.balance : 0;
+          let userAmount = 0;
+          try {
+            console.log('DEBUG - Fetching user balance for:', publicKey.toString());
+            const userBalance = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            }).then(res => res.json());
+            userAmount = userBalance.success ? userBalance.balance : 0;
+            console.log('DEBUG - User balance:', userAmount);
+          } catch (err) {
+            console.warn('DEBUG - Failed to fetch user balance:', err.message);
+            userAmount = 0;
+          }
           setUserTokens(userAmount);
           setUserRewards({
-            sol: (userAmount / supply) * newAccumulated.sol,
-            wbtc: (userAmount / supply) * newAccumulated.wbtc,
-            weth: (userAmount / supply) * newAccumulated.weth,
+            sol: supply > 0 ? (userAmount / supply) * newAccumulated.sol : 0,
+            wbtc: supply > 0 ? (userAmount / supply) * newAccumulated.wbtc : 0,
+            weth: supply > 0 ? (userAmount / supply) * newAccumulated.weth : 0,
           });
         } else {
           setHolders([]);
@@ -2451,10 +2469,17 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           setTotalSupply(0);
           setUserTokens(0);
           setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
+          console.log('DEBUG - No wallet connected, resetting holders and rewards');
         }
         return;
       } catch (error) {
-        console.error(`Error in fetchRewardsData (attempt ${i + 1}/${retries}):`, error);
+        console.error(`Error in fetchRewardsData (attempt ${i + 1}/${retries}):`, {
+          message: error.message,
+          name: error.name,
+          stack: error.stack,
+          MINT_ADDRESS,
+          RPC_ENDPOINT,
+        });
         if (i < retries - 1) {
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
@@ -4834,60 +4859,3 @@ const spinWheel = async (event) => {
 };
 
 export default RewardsDashboard;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
