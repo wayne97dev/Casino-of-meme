@@ -18,6 +18,7 @@ import {
 import { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction, SystemProgram } from '@solana/web3.js';
 
 
+const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
 
 // File audio
 const backgroundMusic = '/audio.mp3';
@@ -1575,29 +1576,35 @@ useEffect(() => {
         console.log('DEBUG - No wallet connected, setting COM balance to 0');
         return;
       }
+    
       try {
         console.log('DEBUG - Fetching COM balance for:', publicKey.toString());
-        const response = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        console.log('DEBUG - /com-balance response status:', response.status);
-        const result = await response.json();
-        console.log('DEBUG - /com-balance response:', result);
-        if (result.success) {
-          setComBalance(result.balance);
-          console.log(`DEBUG - Fetched COM balance: ${result.balance} COM`);
-        } else {
-          console.warn('DEBUG - Backend failed to fetch COM balance:', result.error);
-          setComBalance(0);
-          setError(`Failed to fetch COM balance: ${result.error}`); // Mostra l'errore all'utente
+        const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+        const userATA = await getAssociatedTokenAddress(
+          new PublicKey(MINT_ADDRESS),
+          publicKey,
+          false,
+          TOKEN_2022_PROGRAM_ID
+        );
+        console.log('DEBUG - User ATA:', userATA.toBase58());
+        try {
+          const account = await getAccount(connection, userATA, TOKEN_2022_PROGRAM_ID);
+          const balanceInfo = await connection.getTokenAccountBalance(userATA);
+          const balance = balanceInfo.value.uiAmount || 0;
+          setComBalance(balance);
+          console.log(`DEBUG - Fetched COM balance: ${balance} COM`);
+        } catch (err) {
+          if (err.name === 'TokenAccountNotFoundError' || err.name === 'TokenInvalidAccountOwnerError') {
+            console.log('DEBUG - ATA not found, setting balance to 0');
+            setComBalance(0);
+          } else {
+            throw err;
+          }
         }
       } catch (err) {
         console.error('DEBUG - Error fetching COM balance:', err.message, err.stack);
         setComBalance(0);
-        setError('Network error while fetching COM balance. Please try again.');
+        setError('Failed to fetch COM balance. Please try again.');
       }
     };
 
@@ -2508,7 +2515,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
     }
   };
 
-  const getHolders = async (mintAddress, connection) => {
+  async function getHolders(mintAddress, connection) {
     const holders = [];
     const filters = [
       { dataSize: 165 }, // Dimensione di un account di token
@@ -2516,14 +2523,14 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
     ];
     try {
       console.log('DEBUG - Fetching token accounts for mint:', mintAddress);
-      const accounts = await connection.getProgramAccounts(TOKEN_PROGRAM_ID, { filters });
+      const accounts = await connection.getProgramAccounts(TOKEN_2022_PROGRAM_ID, { filters });
       console.log('DEBUG - Total accounts found:', accounts.length);
       if (accounts.length === 0) {
         console.log('DEBUG - No token accounts found for this mint. Possible reasons: token not distributed or mint address incorrect.');
       }
       for (const account of accounts) {
         try {
-          if (account.account.owner.toString() !== TOKEN_PROGRAM_ID.toString()) {
+          if (account.account.owner.toString() !== TOKEN_2022_PROGRAM_ID.toString()) {
             console.warn('DEBUG - Skipping invalid token account:', account.pubkey.toString(), 'Owner:', account.account.owner.toString());
             continue;
           }
@@ -2540,15 +2547,15 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
         }
       }
       const sortedHolders = holders.sort((a, b) => b.amount - a.amount);
-      const filteredHolders = sortedHolders; // Rimuovi .slice(1)
+      const filteredHolders = sortedHolders;
       console.log('DEBUG - All holders (including pool):', sortedHolders);
       console.log('DEBUG - Filtered holders:', filteredHolders);
       return filteredHolders;
     } catch (err) {
       console.error('DEBUG - Error in getHolders:', err.message, err.stack);
-      return []; // Fallback a lista vuota
+      return [];
     }
-  };
+  }
 
   const drawCard = (isComputer = false) => {
     if (isComputer && Math.random() < COMPUTER_WIN_CHANCE.cardDuel) {
