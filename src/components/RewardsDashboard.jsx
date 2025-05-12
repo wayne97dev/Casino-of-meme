@@ -1486,7 +1486,13 @@ const [slotReelsDisplay, setSlotReelsDisplay] = useState(Array(25).fill(null));
   const winAudioRef = useRef(null);  // Aggiunto
   const wheelRef = useRef(null);
 
+ 
 
+  // Definisci toggleHolders
+  const toggleHolders = () => {
+    setShowHolders((prev) => !prev);
+    console.log('DEBUG - Toggled holders visibility:', !showHolders);
+  };
 
   // Aggiungi il messaggio di avviso per Phantom
   useEffect(() => {
@@ -1566,25 +1572,30 @@ useEffect(() => {
     const fetchComBalance = async () => {
       if (!connected || !publicKey) {
         setComBalance(0);
+        console.log('DEBUG - No wallet connected, setting COM balance to 0');
         return;
       }
     
       try {
+        console.log('DEBUG - Fetching COM balance for:', publicKey.toString());
         const response = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
         });
+        console.log('DEBUG - /com-balance response status:', response.status);
         const result = await response.json();
+        console.log('DEBUG - /com-balance response:', result);
         if (result.success) {
           setComBalance(result.balance);
-          console.log(`Fetched COM balance: ${result.balance} COM`);
+          console.log(`DEBUG - Fetched COM balance: ${result.balance} COM`);
         } else {
-          throw new Error(result.error);
+          console.warn('DEBUG - Backend failed to fetch COM balance:', result.error);
+          setComBalance(0);
         }
       } catch (err) {
-        console.error('Error fetching COM balance:', err);
+        console.error('DEBUG - Error fetching COM balance:', err.message, err.stack);
         setComBalance(0);
       }
     };
@@ -2499,31 +2510,44 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
   const getHolders = async (mintAddress, connection) => {
     const holders = [];
     const filters = [
-      { dataSize: 165 },
-      { memcmp: { offset: 0, bytes: mintAddress } },
+      { dataSize: 165 }, // Dimensione di un account di token
+      { memcmp: { offset: 0, bytes: mintAddress } }, // Filtra per mint
     ];
-    const accounts = await connection.getProgramAccounts(TOKEN_PROGRAM_ID, { filters });
-  
-    const sortedAccounts = accounts
-      .map(account => {
-        const accountData = AccountLayout.decode(account.account.data);
-        const amount = Number(accountData.amount) / 1e6;
-        if (amount > 0) {
-          return { address: accountData.owner.toString(), amount };
+    try {
+      console.log('DEBUG - Fetching token accounts for mint:', mintAddress);
+      const accounts = await connection.getProgramAccounts(TOKEN_PROGRAM_ID, { filters });
+      console.log('DEBUG - Total accounts found:', accounts.length);
+      if (accounts.length === 0) {
+        console.log('DEBUG - No token accounts found for this mint. Possible reasons: token not distributed or mint address incorrect.');
+      }
+      for (const account of accounts) {
+        try {
+          if (account.account.owner.toString() !== TOKEN_PROGRAM_ID.toString()) {
+            console.warn('DEBUG - Skipping invalid token account:', account.pubkey.toString(), 'Owner:', account.account.owner.toString());
+            continue;
+          }
+          const accountData = AccountLayout.decode(account.account.data);
+          const amount = Number(accountData.amount) / 1e6;
+          if (amount > 0) {
+            console.log('DEBUG - Found holder:', { address: accountData.owner.toString(), amount });
+            holders.push({ address: accountData.owner.toString(), amount });
+          } else {
+            console.log('DEBUG - Skipping account with zero balance:', account.pubkey.toString());
+          }
+        } catch (err) {
+          console.warn('DEBUG - Failed to decode account:', account.pubkey.toString(), err.message);
         }
-        return null;
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.amount - a.amount);
-  
-    const filteredHolders = sortedAccounts.slice(1);
-    console.log('DEBUG - Tutti gli holders filtrati (esclusa pool):', filteredHolders);
-    return filteredHolders;
-  };
-
-  const toggleHolders = () => {
-    setShowHolders(!showHolders);
-    setCurrentPage(1);
+      }
+      const sortedHolders = holders.sort((a, b) => b.amount - a.amount);
+      // Non escludiamo la pool per ora, per vedere tutti gli holder
+      const filteredHolders = sortedHolders; // Rimuovi .slice(1)
+      console.log('DEBUG - All holders (including pool):', sortedHolders);
+      console.log('DEBUG - Filtered holders:', filteredHolders);
+      return filteredHolders;
+    } catch (err) {
+      console.error('DEBUG - Error in getHolders:', err.message, err.stack);
+      return []; // Fallback a lista vuota
+    }
   };
 
   const drawCard = (isComputer = false) => {
