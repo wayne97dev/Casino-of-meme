@@ -2451,22 +2451,25 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           let holderList = [];
           let supply = 0;
           try {
-            console.log('DEBUG - Fetching holders for MINT_ADDRESS:', MINT_ADDRESS);
-            holderList = await getHolders(MINT_ADDRESS, connection);
-            console.log('DEBUG - Holders fetched:', holderList.length);
             console.log('DEBUG - Fetching mint info for:', MINT_ADDRESS);
             const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS), TOKEN_2022_PROGRAM_ID);
             supply = Number(mintInfo.supply) / 1e6;
             setTotalSupply(supply);
             console.log('DEBUG - Mint supply:', supply);
+  
+            console.log('DEBUG - Fetching holders for MINT_ADDRESS:', MINT_ADDRESS);
+            holderList = await getHolders(MINT_ADDRESS, connection);
+            console.log('DEBUG - Holders fetched:', holderList.length);
           } catch (err) {
-            console.warn('DEBUG - Failed to fetch mint or holders:', {
-              error: err.message,
-              stack: err.stack,
-            });
-            holderList = [];
-            supply = 0;
-            setError('Failed to fetch token holders or mint info. The mint address may be invalid or the token may not be initialized.');
+            if (err.name === 'TokenInvalidAccountOwnerError' || err.name === 'TokenAccountNotFoundError') {
+              console.warn('DEBUG - Invalid mint or token account, skipping holders:', err.message);
+              holderList = [];
+              supply = 0;
+              setError('Impossibile recuperare i dati del mint o gli holder. Il mint potrebbe non essere valido o non ci sono account di token associati.');
+            } else {
+              console.error('DEBUG - Unexpected error fetching mint or holders:', err.message, err.stack);
+              throw err;
+            }
           }
   
           const updatedHolders = holderList.map(holder => ({
@@ -2495,7 +2498,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
             } else {
               console.warn('DEBUG - Failed to fetch user balance:', result.error);
               userAmount = 0;
-              setError('Failed to fetch COM balance: ' + (result.error || 'Unknown error'));
+              setError('Impossibile recuperare il saldo COM: ' + (result.error || 'Errore sconosciuto'));
             }
           } catch (err) {
             console.warn('DEBUG - Error fetching user balance:', {
@@ -2503,7 +2506,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
               stack: err.stack,
             });
             userAmount = 0;
-            setError('Failed to fetch COM balance. The server may be experiencing issues.');
+            setError('Impossibile recuperare il saldo COM. Il server potrebbe avere problemi.');
           }
           setUserTokens(userAmount);
           setComBalance(userAmount);
@@ -2533,7 +2536,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
         if (i < retries - 1) {
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
-          setError('Error fetching data: ' + error.message);
+          setError('Errore nel recupero dei dati: ' + error.message);
           setHolders([]);
           setHolderCount(0);
           setTotalSupply(0);
