@@ -2530,48 +2530,106 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
 
 
   const getHolders = async (mintAddress, connection) => {
+    console.log('DEBUG - Starting getHolders for mint:', mintAddress);
     const holders = [];
     const filters = [
-      { dataSize: 165 },
-      { memcmp: { offset: 0, bytes: mintAddress } },
+      { memcmp: { offset: 0, bytes: mintAddress } }, // Filtra per mint address
     ];
   
     try {
-      console.log('DEBUG - Fetching token accounts for mint:', mintAddress);
-      const accounts = await connection.getProgramAccounts(TOKEN_2022_PROGRAM_ID, { filters });
+      console.log('DEBUG - Fetching token accounts with filters:', JSON.stringify(filters));
+      const accounts = await connection.getProgramAccounts(TOKEN_2022_PROGRAM_ID, {
+        filters,
+        commitment: 'confirmed',
+        encoding: 'base64',
+      });
       console.log('DEBUG - Retrieved accounts:', accounts.length);
+      console.log('DEBUG - Sample accounts:', accounts.slice(0, 3).map(acc => ({
+        pubkey: acc.pubkey.toBase58(),
+        owner: acc.account.owner.toBase58(),
+        dataLength: acc.account.data.length,
+      })));
   
       for (const account of accounts) {
         try {
+          // Verifica che l'account appartenga al programma corretto
           if (account.account.owner.toBase58() !== TOKEN_2022_PROGRAM_ID.toBase58()) {
-            console.warn('DEBUG - Skipping account with invalid owner:', account.pubkey.toBase58());
+            console.warn('DEBUG - Skipping account with invalid owner:', {
+              pubkey: account.pubkey.toBase58(),
+              owner: account.account.owner.toBase58(),
+            });
             continue;
           }
   
+          // Decodifica l'account token
           const accountData = AccountLayout.decode(account.account.data);
-          const amount = Number(accountData.amount) / 1e6;
+          const amount = Number(accountData.amount) / 1e6; // Converti in unità leggibili (decimals = 6 per COM)
   
-          if (amount > 0 && accountData.owner) {
+          console.log('DEBUG - Processing account:', {
+            pubkey: account.pubkey.toBase58(),
+            owner: accountData.owner.toBase58(),
+            amount,
+            mint: accountData.mint.toBase58(),
+          });
+  
+          // Verifica che l'account abbia un saldo positivo e un owner valido
+          if (amount > 0 && accountData.owner && accountData.mint.toBase58() === mintAddress) {
             holders.push({
-              address: accountData.owner.toString(),
+              address: accountData.owner.toBase58(),
               amount,
+            });
+          } else {
+            console.log('DEBUG - Skipping account:', {
+              pubkey: account.pubkey.toBase58(),
+              amount,
+              owner: accountData.owner ? accountData.owner.toBase58() : 'null',
+              mint: accountData.mint ? accountData.mint.toBase58() : 'null',
+              reason: amount <= 0 ? 'Zero balance' : 'Invalid owner or mint',
             });
           }
         } catch (err) {
-          console.warn('DEBUG - Error decoding account:', account.pubkey.toBase58(), err.message);
+          console.warn('DEBUG - Error decoding account:', {
+            pubkey: account.pubkey.toBase58(),
+            error: err.message,
+          });
         }
       }
   
+      // Ordina gli holders per quantità decrescente
       const sortedHolders = holders.sort((a, b) => b.amount - a.amount);
-      const filteredHolders = sortedHolders.slice(1); // Esclude il primo holder (es. pool)
-      console.log('DEBUG - Filtered holders:', filteredHolders);
+      console.log('DEBUG - Holders fetched:', sortedHolders.length);
+      console.log('DEBUG - Top 5 holders:', sortedHolders.slice(0, 5).map(h => ({
+        address: h.address,
+        amount: h.amount,
+      })));
   
-      return filteredHolders;
+      if (sortedHolders.length === 0) {
+        console.log('DEBUG - No valid holders found. Possible reasons:');
+        console.log('  - No accounts hold this token.');
+        console.log('  - RPC node issues or incorrect mint address:', mintAddress);
+        console.log('  - Filters or program mismatch (expected TOKEN_2022_PROGRAM_ID):', TOKEN_2022_PROGRAM_ID.toBase58());
+        console.log('  - Check Solscan for holders: https://solscan.io/token/', mintAddress);
+      } else {
+        console.log('DEBUG - Successfully fetched holders:', sortedHolders.map(h => ({
+          address: h.address,
+          amount: h.amount,
+        })));
+      }
+  
+      return sortedHolders;
     } catch (err) {
       console.error('DEBUG - Error fetching token accounts:', err.message, err.stack);
+      console.log('DEBUG - Possible causes:');
+      console.log('  - RPC connection failure:', RPC_ENDPOINT);
+      console.log('  - Invalid mint address:', mintAddress);
+      console.log('  - Program mismatch (expected TOKEN_2022_PROGRAM_ID):', TOKEN_2022_PROGRAM_ID.toBase58());
       return [];
     }
   };
+
+
+
+
   
   const fetchRewardsData = async (retries = 3, delay = 1000) => {
     setLoading(true);
@@ -2626,6 +2684,19 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
   
         if (connected && publicKey && MINT_ADDRESS && RPC_ENDPOINT) {
           const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+          
+          // Verifica il programma del mint
+          console.log('DEBUG - Verifying mint program for:', MINT_ADDRESS);
+          const mintAccountInfo = await connection.getParsedAccountInfo(new PublicKey(MINT_ADDRESS));
+          if (!mintAccountInfo.value) {
+            throw new Error('Failed to fetch mint account info');
+          }
+          const mintProgram = mintAccountInfo.value.owner.toBase58();
+          console.log('DEBUG - Mint program:', mintProgram);
+          if (mintProgram !== TOKEN_2022_PROGRAM_ID.toBase58()) {
+            console.warn('DEBUG - Mint does not use TOKEN_2022_PROGRAM_ID. Expected:', TOKEN_2022_PROGRAM_ID.toBase58());
+          }
+  
           console.log('DEBUG - Fetching holders for mint:', MINT_ADDRESS);
           const holderList = await getHolders(MINT_ADDRESS, connection);
           const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS), 'confirmed', TOKEN_2022_PROGRAM_ID);
@@ -2633,11 +2704,36 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           setTotalSupply(supply);
           console.log('DEBUG - Mint supply:', supply);
   
+          // Verifica specifica del saldo utente
+          console.log('DEBUG - Checking user balance directly for:', publicKey.toString());
+          const userATA = await getAssociatedTokenAddress(
+            new PublicKey(MINT_ADDRESS),
+            publicKey,
+            false,
+            TOKEN_2022_PROGRAM_ID
+          );
+          let userAmount = 0;
+          try {
+            const account = await getAccount(connection, userATA, 'confirmed', TOKEN_2022_PROGRAM_ID);
+            userAmount = Number(account.amount) / 1e6;
+            console.log('DEBUG - User balance (direct check):', userAmount);
+          } catch (err) {
+            console.warn('DEBUG - User ATA not found or invalid:', err.message);
+          }
+  
           if (holderList.length === 0) {
             console.log('DEBUG - No holders found for mint:', MINT_ADDRESS);
-            setHolders([]);
-            setHolderCount(0);
-            setUserTokens(0);
+            // Aggiungi manualmente l'utente se ha un saldo
+            if (userAmount > 0) {
+              holderList.push({
+                address: publicKey.toString(),
+                amount: userAmount,
+              });
+              console.log('DEBUG - Manually added user to holders:', { address: publicKey.toString(), amount: userAmount });
+            }
+            setHolders(holderList);
+            setHolderCount(holderList.length);
+            setUserTokens(userAmount);
             setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
           } else {
             const updatedHolders = holderList.map(holder => ({
@@ -2649,12 +2745,6 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
             setHolders(updatedHolders);
             setHolderCount(updatedHolders.length);
             console.log('DEBUG - Holders updated:', updatedHolders.length);
-  
-            const userBalance = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-            }).then(res => res.json());
-            const userAmount = userBalance.success ? userBalance.balance : 0;
             setUserTokens(userAmount);
             setUserRewards({
               sol: supply > 0 ? (userAmount / supply) * newAccumulated.sol : 0,
@@ -2671,9 +2761,11 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
           console.log('DEBUG - No wallet connected, resetting holders and rewards');
         }
+        setLoading(false);
         return;
       } catch (error) {
-        console.error(`Error in fetchRewardsData (attempt ${i + 1}/${retries}):`, error.message, error.stack);
+        console.error(`Error in fetchRewardsData (attempt ${i + 1}/${retries}):#pragma warning disable IDE0059
+  `, error.message, error.stack);
         if (i < retries - 1) {
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
@@ -2683,12 +2775,12 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           setTotalSupply(0);
           setUserTokens(0);
           setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
+          setLoading(false);
         }
-      } finally {
-        setLoading(false);
       }
     }
   };
+
 
   const drawCard = (isComputer = false) => {
     if (isComputer && Math.random() < COMPUTER_WIN_CHANCE.cardDuel) {
