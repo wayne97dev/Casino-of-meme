@@ -1573,7 +1573,7 @@ useEffect(() => {
 
 
 
-    const fetchComBalance = async (retries = 3, delay = 1000) => {
+    async function fetchComBalance(retries = 3, delay = 1000) {
       if (!connected || !publicKey) {
         setComBalance(0);
         console.log('DEBUG - No wallet connected, setting COM balance to 0');
@@ -1603,7 +1603,7 @@ useEffect(() => {
             if (err.name === 'TokenAccountNotFoundError' || err.name === 'TokenInvalidAccountOwnerError') {
               console.log('DEBUG - ATA not found, setting balance to 0');
               setComBalance(0);
-              setError('No COM tokens found for this address. Acquire some to play.');
+              setError('No COM tokens found for this address. An ATA has been created; acquire some COM tokens to play.');
               return;
             } else {
               throw err;
@@ -1619,11 +1619,11 @@ useEffect(() => {
             await new Promise(resolve => setTimeout(resolve, delay));
           } else {
             setComBalance(0);
-            setError('Failed to fetch COM balance. The server or network may be experiencing issues.');
+            setError(`Failed to fetch COM balance: ${err.message}. Please try again or contact support.`);
           }
         }
       }
-    };
+    }
 
 
 // Aggiorna betAmount al minBet iniziale
