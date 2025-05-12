@@ -2439,7 +2439,61 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
 
   const [lastBalance, setLastBalance] = useState(null);
 
-  const fetchRewardsData = async (retries = 3, delay = 1000) => {
+  async function getHolders(mintAddress, connection) {
+    const holders = [];
+    const filters = [
+      { dataSize: 165 }, // Dimensione di un account di token
+      { memcmp: { offset: 0, bytes: mintAddress } }, // Filtra per mint
+    ];
+    try {
+      console.log('DEBUG - Fetching token accounts for mint:', mintAddress);
+      const accounts = await connection.getProgramAccounts(TOKEN_2022_PROGRAM_ID, { filters });
+      console.log('DEBUG - Total accounts found:', accounts.length);
+      if (accounts.length === 0) {
+        console.log('DEBUG - No token accounts found for mint:', mintAddress);
+      }
+      for (const account of accounts) {
+        try {
+          if (account.account.owner.toString() !== TOKEN_2022_PROGRAM_ID.toString()) {
+            console.warn('DEBUG - Skipping invalid token account:', {
+              account: account.pubkey.toString(),
+              owner: account.account.owner.toString(),
+              expectedOwner: TOKEN_2022_PROGRAM_ID.toString(),
+            });
+            continue;
+          }
+          const accountData = AccountLayout.decode(account.account.data);
+          const amount = Number(accountData.amount) / 1e6;
+          console.log('DEBUG - Found account:', {
+            address: accountData.owner.toString(),
+            amount,
+            accountPubkey: account.pubkey.toString(),
+          });
+          holders.push({ address: accountData.owner.toString(), amount });
+        } catch (err) {
+          console.warn('DEBUG - Failed to decode account:', {
+            accountPubkey: account.pubkey.toString(),
+            error: err.message,
+          });
+        }
+      }
+      const sortedHolders = holders.sort((a, b) => b.amount - a.amount);
+      console.log('DEBUG - Sorted holders:', sortedHolders.map(h => ({
+        address: h.address,
+        amount: h.amount,
+      })));
+      return sortedHolders;
+    } catch (err) {
+      console.error('DEBUG - Error in getHolders:', {
+        mintAddress,
+        error: err.message,
+        stack: err.stack,
+      });
+      return [];
+    }
+  }
+  
+  async function fetchRewardsData(retries = 3, delay = 1000) {
     setLoading(true);
     setError(null);
   
@@ -2512,15 +2566,15 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
             holderList = await getHolders(MINT_ADDRESS, connection);
             console.log('DEBUG - Holders fetched:', holderList.length);
           } catch (err) {
-            if (err.name === 'TokenInvalidAccountOwnerError' || err.name === 'TokenAccountNotFoundError') {
-              console.warn('DEBUG - Invalid mint or token account, skipping holders:', err.message);
-              holderList = [];
-              supply = 0;
-              setError('Impossibile recuperare i dati del mint o gli holder. Potrebbe essere un problema con l\'RPC o il mint non è sincronizzato.');
-            } else {
-              console.error('DEBUG - Unexpected error fetching mint or holders:', err.message, err.stack);
-              throw err;
-            }
+            console.error('DEBUG - Error fetching mint or holders:', err.message, err.stack);
+            setError(`Impossibile recuperare i dati del mint o gli holder: ${err.message}. Verifica il mint address e l'RPC.`);
+            setHolders([]);
+            setHolderCount(0);
+            setTotalSupply(0);
+            setUserTokens(0);
+            setComBalance(0);
+            setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
+            return;
           }
   
           const updatedHolders = holderList.map(holder => ({
@@ -2534,33 +2588,10 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           console.log('DEBUG - Updated holders:', updatedHolders.length);
   
           let userAmount = 0;
-          try {
-            console.log('DEBUG - Fetching mint info for:', MINT_ADDRESS);
-            const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS), TOKEN_2022_PROGRAM_ID);
-            supply = Number(mintInfo.supply) / 1e6;
-            setTotalSupply(supply);
-            console.log('DEBUG - Mint supply:', supply);
-            holderList = await getHolders(MINT_ADDRESS, connection);
-          } catch (err) {
-            console.error('DEBUG - Error fetching mint:', {
-              message: err.message,
-              name: err.name,
-              stack: err.stack,
-              mintAddress: MINT_ADDRESS,
-              tokenProgram: TOKEN_2022_PROGRAM_ID.toBase58(),
-            });
-            if (err.name === 'TokenInvalidAccountOwnerError' || err.name === 'TokenAccountNotFoundError') {
-              console.warn('DEBUG - Invalid mint or token account, skipping holders:', err.message);
-              holderList = [];
-              supply = 0;
-              setError(`Impossibile recuperare i dati del mint (${MINT_ADDRESS}). Errore: ${err.message}. Verifica il mint address e l'RPC.`);
-            } else {
-              console.error('DEBUG - Unexpected error fetching mint or holders:', err.message, err.stack);
-              setError(`Errore imprevisto durante il recupero dei dati del mint: ${err.message}`);
-              throw err;
-            }
+          const userHolder = holderList.find(h => h.address === publicKey.toString());
+          if (userHolder) {
+            userAmount = userHolder.amount;
           }
-          
           setUserTokens(userAmount);
           setComBalance(userAmount);
           setUserRewards({
@@ -2600,60 +2631,6 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
       } finally {
         setLoading(false);
       }
-    }
-  };
-
-  async function getHolders(mintAddress, connection) {
-    const holders = [];
-    const filters = [
-      { dataSize: 165 }, // Dimensione di un account di token
-      { memcmp: { offset: 0, bytes: mintAddress } }, // Filtra per mint
-    ];
-    try {
-      console.log('DEBUG - Fetching token accounts for mint:', mintAddress);
-      const accounts = await connection.getProgramAccounts(TOKEN_2022_PROGRAM_ID, { filters });
-      console.log('DEBUG - Total accounts found:', accounts.length);
-      if (accounts.length === 0) {
-        console.log('DEBUG - No token accounts found for mint:', mintAddress, 'Possible reasons: token not distributed, mint not initialized, or RPC issue.');
-      }
-      for (const account of accounts) {
-        try {
-          if (account.account.owner.toString() !== TOKEN_2022_PROGRAM_ID.toString()) {
-            console.warn('DEBUG - Skipping invalid token account:', {
-              account: account.pubkey.toString(),
-              owner: account.account.owner.toString(),
-              expectedOwner: TOKEN_2022_PROGRAM_ID.toString(),
-            });
-            continue;
-          }
-          const accountData = AccountLayout.decode(account.account.data);
-          const amount = Number(accountData.amount) / 1e6;
-          console.log('DEBUG - Found account:', {
-            address: accountData.owner.toString(),
-            amount,
-            accountPubkey: account.pubkey.toString(),
-          });
-          holders.push({ address: accountData.owner.toString(), amount });
-        } catch (err) {
-          console.warn('DEBUG - Failed to decode account:', {
-            accountPubkey: account.pubkey.toString(),
-            error: err.message,
-          });
-        }
-      }
-      const sortedHolders = holders.sort((a, b) => b.amount - a.amount);
-      console.log('DEBUG - Sorted holders:', sortedHolders.map(h => ({
-        address: h.address,
-        amount: h.amount,
-      })));
-      return sortedHolders;
-    } catch (err) {
-      console.error('DEBUG - Error in getHolders:', {
-        mintAddress,
-        error: err.message,
-        stack: err.stack,
-      });
-      return [];
     }
   }
 
