@@ -2466,7 +2466,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
             });
             holderList = [];
             supply = 0;
-            setError('Failed to fetch token holders or mint info. The token may not be initialized or distributed.');
+            setError('Failed to fetch token holders or mint info. The mint address may be invalid or the token may not be initialized.');
           }
   
           const updatedHolders = holderList.map(holder => ({
@@ -2495,6 +2495,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
             } else {
               console.warn('DEBUG - Failed to fetch user balance:', result.error);
               userAmount = 0;
+              setError('Failed to fetch COM balance: ' + (result.error || 'Unknown error'));
             }
           } catch (err) {
             console.warn('DEBUG - Error fetching user balance:', {
@@ -2505,7 +2506,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
             setError('Failed to fetch COM balance. The server may be experiencing issues.');
           }
           setUserTokens(userAmount);
-          setComBalance(userAmount); // Sincronizza comBalance
+          setComBalance(userAmount);
           setUserRewards({
             sol: supply > 0 ? (userAmount / supply) * newAccumulated.sol : 0,
             wbtc: supply > 0 ? (userAmount / supply) * newAccumulated.wbtc : 0,
