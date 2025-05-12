@@ -1570,41 +1570,55 @@ useEffect(() => {
 
 
 
-    const fetchComBalance = async () => {
+    const fetchComBalance = async (retries = 3, delay = 1000) => {
       if (!connected || !publicKey) {
         setComBalance(0);
         console.log('DEBUG - No wallet connected, setting COM balance to 0');
         return;
       }
     
-      try {
-        console.log('DEBUG - Fetching COM balance for:', publicKey.toString());
-        const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-        const userATA = await getAssociatedTokenAddress(
-          new PublicKey(MINT_ADDRESS),
-          publicKey,
-          false,
-          TOKEN_2022_PROGRAM_ID
-        );
-        console.log('DEBUG - User ATA:', userATA.toBase58());
+      for (let i = 0; i < retries; i++) {
         try {
-          const account = await getAccount(connection, userATA, TOKEN_2022_PROGRAM_ID);
-          const balanceInfo = await connection.getTokenAccountBalance(userATA);
-          const balance = balanceInfo.value.uiAmount || 0;
-          setComBalance(balance);
-          console.log(`DEBUG - Fetched COM balance: ${balance} COM`);
+          console.log(`DEBUG - Attempt ${i + 1}/${retries} to fetch COM balance for:`, publicKey.toString());
+          const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+          const userATA = await getAssociatedTokenAddress(
+            new PublicKey(MINT_ADDRESS),
+            publicKey,
+            false,
+            TOKEN_2022_PROGRAM_ID
+          );
+          console.log('DEBUG - User ATA:', userATA.toBase58());
+          try {
+            const account = await getAccount(connection, userATA, TOKEN_2022_PROGRAM_ID);
+            const balanceInfo = await connection.getTokenAccountBalance(userATA);
+            const balance = balanceInfo.value.uiAmount || 0;
+            setComBalance(balance);
+            console.log(`DEBUG - Fetched COM balance: ${balance} COM`);
+            setError(null);
+            return;
+          } catch (err) {
+            if (err.name === 'TokenAccountNotFoundError' || err.name === 'TokenInvalidAccountOwnerError') {
+              console.log('DEBUG - ATA not found, setting balance to 0');
+              setComBalance(0);
+              setError('No COM tokens found for this address. Acquire some to play.');
+              return;
+            } else {
+              throw err;
+            }
+          }
         } catch (err) {
-          if (err.name === 'TokenAccountNotFoundError' || err.name === 'TokenInvalidAccountOwnerError') {
-            console.log('DEBUG - ATA not found, setting balance to 0');
-            setComBalance(0);
+          console.warn('DEBUG - Error fetching COM balance:', {
+            attempt: i + 1,
+            error: err.message,
+            stack: err.stack,
+          });
+          if (i < retries - 1) {
+            await new Promise(resolve => setTimeout(resolve, delay));
           } else {
-            throw err;
+            setComBalance(0);
+            setError('Failed to fetch COM balance. The server or network may be experiencing issues.');
           }
         }
-      } catch (err) {
-        console.error('DEBUG - Error fetching COM balance:', err.message, err.stack);
-        setComBalance(0);
-        setError('Failed to fetch COM balance. Please try again.');
       }
     };
 
@@ -2382,6 +2396,8 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
   
     for (let i = 0; i < retries; i++) {
       try {
+        console.log(`DEBUG - Attempt ${i + 1}/${retries} to fetch rewards data`);
+        // Fetch tax wallet balance
         console.log('DEBUG - Fetching tax wallet balance...');
         const balanceResponse = await fetch(`${BACKEND_URL}/tax-wallet-balance`, {
           method: 'GET',
@@ -2397,9 +2413,10 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           setTaxWalletBalance(balanceResult.balance);
           console.log('DEBUG - Tax wallet balance fetched:', balanceResult.balance);
         } else {
-          throw new Error(balanceResult.error);
+          throw new Error(balanceResult.error || 'Failed to fetch tax wallet balance');
         }
   
+        // Fetch rewards
         console.log('DEBUG - Fetching rewards...');
         const rewardsResponse = await fetch(`${BACKEND_URL}/rewards`, {
           method: 'GET',
@@ -2425,9 +2442,10 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           localStorage.setItem('accumulatedRewards', JSON.stringify(newAccumulated));
           console.log('DEBUG - Rewards fetched:', rewardsResult.rewards);
         } else {
-          throw new Error(rewardsResult.error);
+          throw new Error(rewardsResult.error || 'Failed to fetch rewards');
         }
   
+        // Fetch holders and user balance
         if (connected && publicKey && MINT_ADDRESS && RPC_ENDPOINT) {
           const connection = new Connection(RPC_ENDPOINT, 'confirmed');
           let holderList = [];
@@ -2437,18 +2455,18 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
             holderList = await getHolders(MINT_ADDRESS, connection);
             console.log('DEBUG - Holders fetched:', holderList.length);
             console.log('DEBUG - Fetching mint info for:', MINT_ADDRESS);
-            const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS));
+            const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS), TOKEN_2022_PROGRAM_ID);
             supply = Number(mintInfo.supply) / 1e6;
             setTotalSupply(supply);
             console.log('DEBUG - Mint supply:', supply);
           } catch (err) {
-            if (err.name === 'TokenInvalidAccountOwnerError' || err.name === 'TokenAccountNotFoundError') {
-              console.warn('DEBUG - Invalid mint or token account, skipping holders:', err.message);
-              holderList = [];
-              supply = 0;
-            } else {
-              throw err;
-            }
+            console.warn('DEBUG - Failed to fetch mint or holders:', {
+              error: err.message,
+              stack: err.stack,
+            });
+            holderList = [];
+            supply = 0;
+            setError('Failed to fetch token holders or mint info. The token may not be initialized or distributed.');
           }
   
           const updatedHolders = holderList.map(holder => ({
@@ -2469,14 +2487,25 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
               headers: {
                 'Content-Type': 'application/json',
               },
-            }).then(res => res.json());
-            userAmount = userBalance.success ? userBalance.balance : 0;
-            console.log('DEBUG - User balance:', userAmount);
+            });
+            const result = await userBalance.json();
+            if (result.success) {
+              userAmount = result.balance || 0;
+              console.log('DEBUG - User balance:', userAmount);
+            } else {
+              console.warn('DEBUG - Failed to fetch user balance:', result.error);
+              userAmount = 0;
+            }
           } catch (err) {
-            console.warn('DEBUG - Failed to fetch user balance:', err.message);
+            console.warn('DEBUG - Error fetching user balance:', {
+              error: err.message,
+              stack: err.stack,
+            });
             userAmount = 0;
+            setError('Failed to fetch COM balance. The server may be experiencing issues.');
           }
           setUserTokens(userAmount);
+          setComBalance(userAmount); // Sincronizza comBalance
           setUserRewards({
             sol: supply > 0 ? (userAmount / supply) * newAccumulated.sol : 0,
             wbtc: supply > 0 ? (userAmount / supply) * newAccumulated.wbtc : 0,
@@ -2487,6 +2516,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           setHolderCount(0);
           setTotalSupply(0);
           setUserTokens(0);
+          setComBalance(0);
           setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
           console.log('DEBUG - No wallet connected, resetting holders and rewards');
         }
@@ -2507,6 +2537,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           setHolderCount(0);
           setTotalSupply(0);
           setUserTokens(0);
+          setComBalance(0);
           setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
         }
       } finally {
@@ -2526,33 +2557,45 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
       const accounts = await connection.getProgramAccounts(TOKEN_2022_PROGRAM_ID, { filters });
       console.log('DEBUG - Total accounts found:', accounts.length);
       if (accounts.length === 0) {
-        console.log('DEBUG - No token accounts found for this mint. Possible reasons: token not distributed or mint address incorrect.');
+        console.log('DEBUG - No token accounts found for mint:', mintAddress, 'Possible reasons: token not distributed, mint not initialized, or RPC issue.');
       }
       for (const account of accounts) {
         try {
           if (account.account.owner.toString() !== TOKEN_2022_PROGRAM_ID.toString()) {
-            console.warn('DEBUG - Skipping invalid token account:', account.pubkey.toString(), 'Owner:', account.account.owner.toString());
+            console.warn('DEBUG - Skipping invalid token account:', {
+              account: account.pubkey.toString(),
+              owner: account.account.owner.toString(),
+              expectedOwner: TOKEN_2022_PROGRAM_ID.toString(),
+            });
             continue;
           }
           const accountData = AccountLayout.decode(account.account.data);
           const amount = Number(accountData.amount) / 1e6;
-          if (amount > 0) {
-            console.log('DEBUG - Found holder:', { address: accountData.owner.toString(), amount });
-            holders.push({ address: accountData.owner.toString(), amount });
-          } else {
-            console.log('DEBUG - Skipping account with zero balance:', account.pubkey.toString());
-          }
+          console.log('DEBUG - Found account:', {
+            address: accountData.owner.toString(),
+            amount,
+            accountPubkey: account.pubkey.toString(),
+          });
+          holders.push({ address: accountData.owner.toString(), amount });
         } catch (err) {
-          console.warn('DEBUG - Failed to decode account:', account.pubkey.toString(), err.message);
+          console.warn('DEBUG - Failed to decode account:', {
+            accountPubkey: account.pubkey.toString(),
+            error: err.message,
+          });
         }
       }
       const sortedHolders = holders.sort((a, b) => b.amount - a.amount);
-      const filteredHolders = sortedHolders;
-      console.log('DEBUG - All holders (including pool):', sortedHolders);
-      console.log('DEBUG - Filtered holders:', filteredHolders);
-      return filteredHolders;
+      console.log('DEBUG - Sorted holders:', sortedHolders.map(h => ({
+        address: h.address,
+        amount: h.amount,
+      })));
+      return sortedHolders;
     } catch (err) {
-      console.error('DEBUG - Error in getHolders:', err.message, err.stack);
+      console.error('DEBUG - Error in getHolders:', {
+        mintAddress,
+        error: err.message,
+        stack: err.stack,
+      });
       return [];
     }
   }
