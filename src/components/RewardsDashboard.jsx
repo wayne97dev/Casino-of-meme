@@ -20,7 +20,9 @@ import { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction, SystemProgram } f
 
 
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-const mintInfo = await getMint(connection, mintAddress, undefined, TOKEN_PROGRAM_ID);
+
+
+
 // File audio
 const backgroundMusic = '/audio.mp3';
 const spinSound = '/spin-sound.mp3';
