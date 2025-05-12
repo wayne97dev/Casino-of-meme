@@ -1572,18 +1572,22 @@ useEffect(() => {
       }
     
       try {
+        console.log('DEBUG - Fetching COM balance for:', publicKey.toString());
         const response = await fetch(`${BACKEND_URL}/com-balance/${publicKey.toString()}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
         });
+        console.log('DEBUG - /com-balance response status:', response.status);
         const result = await response.json();
+        console.log('DEBUG - /com-balance response:', result);
         if (result.success) {
           setComBalance(result.balance);
           console.log(`Fetched COM balance: ${result.balance} COM`);
         } else {
-          throw new Error(result.error);
+          console.warn('DEBUG - Backend failed to fetch COM balance:', result.error);
+          setComBalance(0);
         }
       } catch (err) {
         console.error('Error fetching COM balance:', err);
