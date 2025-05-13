@@ -5079,7 +5079,7 @@ const spinWheel = async (event) => {
 
       {/* Contract Info */}
       <div className="footer-contract text-white text-lg">
-        Contract:8RJjAj2nQt1qZC7ixHDm4UjFVAvKTBYXBM4XdKtPReBy <span className="font-mono">TBD</span> {/* Sostituisci TBD con l'indirizzo del contratto o un link */}
+        Contract: <span className="font-mono">8RJjAj2nQt1qZC7ixHDm4UjFVAvKTBYXBM4XdKtPReBy</span> {/* Sostituisci TBD con l'indirizzo del contratto o un link */}
       </div>
 
       {/* Contact Info */}
