@@ -5039,7 +5039,7 @@ const spinWheel = async (event) => {
     />
   </a>
   <a
-    href="https://www.dextools.io/app/your-pair"
+    href="https://www.dextools.io/app/en/solana/pair-explorer/9jb3tT7mPBMYrqwBZzXvE5KUDqAVuNvH4AWDQpefiLEa?t=1747159780712"
     target="_blank"
     rel="noopener noreferrer"
     className="social-icon-wrapper hover:scale-110 transition-transform"
