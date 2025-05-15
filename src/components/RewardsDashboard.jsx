@@ -1412,7 +1412,7 @@ const CasinoScene = ({ onSelectGame, triggerWinEffect }) => {
 const RewardsDashboard = () => {
   const { publicKey, connected, signTransaction } = useWallet();
   const TAX_WALLET_ADDRESS = '2E1LhcV3pze6Q6P7MEsxUoNYK3KECm2rTS2D18eSRTn9';
-  const [taxWalletBalance, setTaxWalletBalance] = useState(0);
+  const [holdWalletBalance, setHoldWalletBalance] = useState(0); // Rinominato da taxWalletBalance
   const [rewardSol, setRewardSol] = useState(0);
   const [rewardWbtc, setRewardWbtc] = useState(0);
   const [rewardWeth, setRewardWeth] = useState(0);
@@ -2485,20 +2485,7 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
     weth: 0,
   });
   
-  // Funzione per caricare le ricompense accumulate da localStorage
-  const loadAccumulatedRewards = () => {
-    const saved = localStorage.getItem('accumulatedRewards');
-    if (saved) {
-      return JSON.parse(saved);
-    }
-    return { sol: 0, wbtc: 0, weth: 0 }; // Valori iniziali se non ci sono dati salvati
-  };
-  
-  // Carica i dati salvati all'avvio
-  useEffect(() => {
-    const saved = loadAccumulatedRewards();
-    setAccumulatedRewards(saved);
-  }, []);
+
 
 
    
@@ -2635,77 +2622,48 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
     setLoading(true);
     setError(null);
   
-    let newAccumulated = { sol: 0, wbtc: 0, weth: 0 };
-  
     for (let i = 0; i < retries; i++) {
       try {
-        console.log(`DEBUG - Attempt ${i + 1}/${retries} to fetch rewards data`);
+        console.log(`DEBUG - Tentativo ${i + 1}/${retries} per recuperare i dati`);
   
+        // Recupera solo il saldo del hold wallet
         const balanceResponse = await fetch(`${BACKEND_URL}/tax-wallet-balance`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
         if (!balanceResponse.ok) {
-          throw new Error(`HTTP error fetching tax wallet balance: ${balanceResponse.status}`);
+          throw new Error(`Errore HTTP nel recupero del saldo del hold wallet: ${balanceResponse.status}`);
         }
         const balanceResult = await balanceResponse.json();
         if (balanceResult.success) {
-          setTaxWalletBalance(balanceResult.balance);
-          console.log('DEBUG - Tax wallet balance:', balanceResult.balance);
+          setHoldWalletBalance(balanceResult.balance);
+          console.log('DEBUG - Saldo hold wallet:', balanceResult.balance);
         } else {
-          throw new Error(balanceResult.error || 'Failed to fetch tax wallet balance');
+          throw new Error(balanceResult.error || 'Impossibile recuperare il saldo del hold wallet');
         }
   
-        const rewardsResponse = await fetch(`${BACKEND_URL}/rewards`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (!rewardsResponse.ok) {
-          throw new Error(`HTTP error fetching rewards: ${rewardsResponse.status}`);
-        }
-        const rewardsResult = await rewardsResponse.json();
-        if (rewardsResult.success) {
-          setRewardSol(rewardsResult.rewards.sol);
-          setRewardWbtc(rewardsResult.rewards.wbtc);
-          setRewardWeth(rewardsResult.rewards.weth);
-  
-          const prevAccumulated = loadAccumulatedRewards();
-          newAccumulated = {
-            sol: prevAccumulated.sol + rewardsResult.rewards.sol,
-            wbtc: prevAccumulated.wbtc + rewardsResult.rewards.wbtc,
-            weth: prevAccumulated.weth + rewardsResult.rewards.weth,
-          };
-          setAccumulatedRewards(newAccumulated);
-          localStorage.setItem('accumulatedRewards', JSON.stringify(newAccumulated));
-          console.log('DEBUG - Accumulated rewards:', newAccumulated);
-        } else {
-          throw new Error(rewardsResult.error || 'Failed to fetch rewards');
-        }
-  
+        // Logica per gli holders (invariata)
         if (connected && publicKey && MINT_ADDRESS && RPC_ENDPOINT) {
           const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-          
-          // Verifica il programma del mint
-          console.log('DEBUG - Verifying mint program for:', MINT_ADDRESS);
+          console.log('DEBUG - Verifica del programma del mint:', MINT_ADDRESS);
           const mintAccountInfo = await connection.getParsedAccountInfo(new PublicKey(MINT_ADDRESS));
           if (!mintAccountInfo.value) {
-            throw new Error('Failed to fetch mint account info');
+            throw new Error('Impossibile recuperare le informazioni del mint');
           }
           const mintProgram = mintAccountInfo.value.owner.toBase58();
-          console.log('DEBUG - Mint program:', mintProgram);
+          console.log('DEBUG - Programma del mint:', mintProgram);
           if (mintProgram !== TOKEN_2022_PROGRAM_ID.toBase58()) {
-            console.warn('DEBUG - Mint does not use TOKEN_2022_PROGRAM_ID. Expected:', TOKEN_2022_PROGRAM_ID.toBase58());
+            console.warn('DEBUG - Il mint non usa TOKEN_2022_PROGRAM_ID. Atteso:', TOKEN_2022_PROGRAM_ID.toBase58());
           }
   
-          console.log('DEBUG - Fetching holders for mint:', MINT_ADDRESS);
+          console.log('DEBUG - Recupero degli holders per il mint:', MINT_ADDRESS);
           const holderList = await getHolders(MINT_ADDRESS, connection);
           const mintInfo = await getMint(connection, new PublicKey(MINT_ADDRESS), 'confirmed', TOKEN_2022_PROGRAM_ID);
           const supply = Number(mintInfo.supply) / 1e6;
           setTotalSupply(supply);
-          console.log('DEBUG - Mint supply:', supply);
+          console.log('DEBUG - Fornitura del mint:', supply);
   
-          // Verifica specifica del saldo utente
-          console.log('DEBUG - Checking user balance directly for:', publicKey.toString());
+          console.log('DEBUG - Controllo diretto del saldo utente per:', publicKey.toString());
           const userATA = await getAssociatedTokenAddress(
             new PublicKey(MINT_ADDRESS),
             publicKey,
@@ -2716,65 +2674,48 @@ const createAndSignTransaction = async (betAmount, gameType, additionalData = {}
           try {
             const account = await getAccount(connection, userATA, 'confirmed', TOKEN_2022_PROGRAM_ID);
             userAmount = Number(account.amount) / 1e6;
-            console.log('DEBUG - User balance (direct check):', userAmount);
+            console.log('DEBUG - Saldo utente (controllo diretto):', userAmount);
           } catch (err) {
-            console.warn('DEBUG - User ATA not found or invalid:', err.message);
+            console.warn('DEBUG - ATA utente non trovato o non valido:', err.message);
           }
   
           if (holderList.length === 0) {
-            console.log('DEBUG - No holders found for mint:', MINT_ADDRESS);
-            // Aggiungi manualmente l'utente se ha un saldo
+            console.log('DEBUG - Nessun holder trovato per il mint:', MINT_ADDRESS);
             if (userAmount > 0) {
               holderList.push({
                 address: publicKey.toString(),
                 amount: userAmount,
               });
-              console.log('DEBUG - Manually added user to holders:', { address: publicKey.toString(), amount: userAmount });
+              console.log('DEBUG - Aggiunto manualmente utente agli holders:', { address: publicKey.toString(), amount: userAmount });
             }
             setHolders(holderList);
             setHolderCount(holderList.length);
             setUserTokens(userAmount);
-            setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
           } else {
-            const updatedHolders = holderList.map(holder => ({
-              ...holder,
-              solReward: supply > 0 ? (holder.amount / supply) * rewardsResult.rewards.sol : 0,
-              wbtcReward: supply > 0 ? (holder.amount / supply) * rewardsResult.rewards.wbtc : 0,
-              wethReward: supply > 0 ? (holder.amount / supply) * rewardsResult.rewards.weth : 0,
-            }));
-            setHolders(updatedHolders);
-            setHolderCount(updatedHolders.length);
-            console.log('DEBUG - Holders updated:', updatedHolders.length);
+            setHolders(holderList);
+            setHolderCount(holderList.length);
+            console.log('DEBUG - Holders aggiornati:', holderList.length);
             setUserTokens(userAmount);
-            setUserRewards({
-              sol: supply > 0 ? (userAmount / supply) * newAccumulated.sol : 0,
-              wbtc: supply > 0 ? (userAmount / supply) * newAccumulated.wbtc : 0,
-              weth: supply > 0 ? (userAmount / supply) * newAccumulated.weth : 0,
-            });
-            console.log('DEBUG - User tokens and rewards:', { userAmount });
           }
         } else {
           setHolders([]);
           setHolderCount(0);
           setTotalSupply(0);
           setUserTokens(0);
-          setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
-          console.log('DEBUG - No wallet connected, resetting holders and rewards');
+          console.log('DEBUG - Nessun wallet connesso, reset degli holders');
         }
         setLoading(false);
         return;
       } catch (error) {
-        console.error(`Error in fetchRewardsData (attempt ${i + 1}/${retries}):#pragma warning disable IDE0059
-  `, error.message, error.stack);
+        console.error(`Errore in fetchRewardsData (tentativo ${i + 1}/${retries}):`, error.message, error.stack);
         if (i < retries - 1) {
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
-          setError('Error fetching data: ' + error.message);
+          setError('Errore nel recupero dei dati: ' + error.message);
           setHolders([]);
           setHolderCount(0);
           setTotalSupply(0);
           setUserTokens(0);
-          setUserRewards({ sol: 0, wbtc: 0, weth: 0 });
           setLoading(false);
         }
       }
@@ -4952,23 +4893,8 @@ const spinWheel = async (event) => {
   {showInfo && (
   <div className="show-info-section">
     <div className="info-block">
-      <p className="text-lg text-orange-700">Tax Wallet Balance</p>
-      <p className="text-2xl font-bold text-orange-700">{taxWalletBalance.toFixed(4)} SOL</p>
-    </div>
-    <div className="info-block">
-      <p className="text-lg text-orange-700">SOL Rewards (Latest)</p>
-      <p className="text-2xl font-bold text-orange-700">{rewardSol.toFixed(4)} SOL</p>
-      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.sol.toFixed(4)} SOL</p>
-    </div>
-    <div className="info-block">
-      <p className="text-lg text-orange-700">WBTC Rewards (Latest)</p>
-      <p className="text-2xl font-bold text-orange-700">{rewardWbtc.toFixed(8)} WBTC</p>
-      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.wbtc.toFixed(8)} WBTC</p>
-    </div>
-    <div className="info-block">
-      <p className="text-lg text-orange-700">WETH Rewards (Latest)</p>
-      <p className="text-2xl font-bold text-orange-700">{rewardWeth.toFixed(8)} WETH</p>
-      <p className="text-lg text-orange-700">Total Accumulated: {accumulatedRewards.weth.toFixed(8)} WETH</p>
+      <p className="text-lg text-orange-700">Hold Wallet Balance</p>
+      <p className="text-2xl font-bold text-orange-700">{holdWalletBalance.toFixed(4)} SOL</p>
     </div>
   </div>
 )}
@@ -4982,9 +4908,6 @@ const spinWheel = async (event) => {
           <tr className="text-cyan-400">
             <th className="p-4 text-lg">Holder Address</th>
             <th className="p-4 text-lg">Amount ({TOKEN_SYMBOL})</th>
-            <th className="p-4 text-lg">SOL Reward</th>
-            <th className="p-4 text-lg">WBTC Reward</th>
-            <th className="p-4 text-lg">WETH Reward</th>
           </tr>
         </thead>
         <tbody>
@@ -4992,9 +4915,6 @@ const spinWheel = async (event) => {
             <tr key={index} className="border-t border-gray-600 hover:bg-opacity-10 transition-all">
               <td className="p-4 text-gray-200 font-mono">{holder.address}</td>
               <td className="p-4 text-gray-200">{holder.amount.toFixed(6)}</td>
-              <td className="p-4 text-green-400">{holder.solReward.toFixed(6)}</td>
-              <td className="p-4 text-yellow-400">{holder.wbtcReward.toFixed(8)}</td>
-              <td className="p-4 text-purple-400">{holder.wethReward.toFixed(8)}</td>
             </tr>
           ))}
         </tbody>
@@ -5002,17 +4922,17 @@ const spinWheel = async (event) => {
     </div>
     <div className="flex justify-between items-center mt-4">
       <button onClick={prevPage} disabled={currentPage === 1} className="casino-button">
-        Previous
+        Precedente
       </button>
-      <p className="text-orange-700">Page {currentPage} of {totalPages}</p>
+      <p className="text-orange-700">Pagina {currentPage} di {totalPages}</p>
       <button onClick={nextPage} disabled={currentPage === totalPages} className="casino-button">
-        Next
+        Successivo
       </button>
     </div>
   </div>
 ) : showHolders ? (
   <p className="text-center text-orange-700 mb-12 text-lg">
-    No holders detected in the network (excluding pool).
+    Nessun holder rilevato nella rete (esclusi i pool).
   </p>
 ) : null}
              
